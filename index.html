@@ -2,111 +2,158 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MMS Experience — Site Layout Viewer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Convention Navigator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
   <link rel="stylesheet" href="./css/style.css" />
 </head>
 <body>
 
-  <!-- ── Three.js Canvas ── -->
   <canvas id="canvas"></canvas>
 
-  <!-- ── Loading Overlay ── -->
+  <!-- Loading -->
   <div id="loading-overlay">
-    <div class="loading-logo">MMS<span>.</span>Experience</div>
-    <div class="progress-track">
-      <div id="progress-bar"></div>
-    </div>
-    <div id="loading-text">Loading 3D Model…</div>
+    <div class="loading-brand">Convention<span>Navigator</span></div>
+    <div class="loading-sub" id="loading-text">Initialising…</div>
+    <div class="progress-track"><div id="progress-bar"></div></div>
   </div>
 
-  <!-- ── Header ── -->
+  <!-- Header bar (desktop only, hidden on mobile) -->
   <header id="header">
-    <div>
-      <div class="brand">MMS<span>.</span>Experience</div>
-      <div class="project-name">Site Layout — Interactive Viewer</div>
+    <div class="brand">Convention<span>Navigator</span></div>
+    <div class="header-right">
+      <div id="stat-total"  class="header-pill">— stalls</div>
+      <div id="stat-mapped" class="header-pill mapped">— mapped</div>
     </div>
   </header>
 
-  <!-- ── Stats Bar ── -->
-  <div id="stats-bar">
-    <div class="stat-pill available">
-      <div class="stat-dot"></div>
-      <span>Available</span>
-      <span class="count" id="stat-available">—</span>
+  <!-- ── DESKTOP side panel ─────────────────────────────────── -->
+  <div id="side-panel">
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="browse-pane" id="browse-tab">🗺 Browse</button>
+      <button class="tab-btn"        data-tab="route-pane"  id="route-tab">🧭 Navigate</button>
     </div>
-    <div class="stat-pill reserved">
-      <div class="stat-dot"></div>
-      <span>Reserved</span>
-      <span class="count" id="stat-reserved">—</span>
+
+    <!-- Browse -->
+    <div id="browse-pane" class="tab-pane active">
+      <div class="search-wrap">
+        <input id="search-input" type="text" placeholder="Search stall or company…" autocomplete="off" />
+      </div>
+      <div id="stall-list"></div>
     </div>
-    <div class="stat-pill sold">
-      <div class="stat-dot"></div>
-      <span>Sold</span>
-      <span class="count" id="stat-sold">—</span>
-    </div>
-    <div class="stat-pill total">
-      <div class="stat-dot"></div>
-      <span>Total</span>
-      <span class="count" id="stat-total">—</span>
+
+    <!-- Navigate (desktop) -->
+    <div id="route-pane" class="tab-pane">
+      <div class="route-search-card">
+        <!-- From -->
+        <div class="rs-row">
+          <div class="rs-dot rs-dot-start"></div>
+          <div class="rs-field-wrap">
+            <input id="ds-from-input" class="rs-input" type="text"
+                   placeholder="From — stall or company" autocomplete="off" />
+            <div id="ds-from-dropdown" class="rs-dropdown"></div>
+          </div>
+          <button class="rs-clear-btn" id="ds-from-clear" title="Clear">✕</button>
+        </div>
+        <div class="rs-divider"></div>
+        <!-- To -->
+        <div class="rs-row">
+          <div class="rs-dot rs-dot-end"></div>
+          <div class="rs-field-wrap">
+            <input id="ds-to-input" class="rs-input" type="text"
+                   placeholder="To — stall or company" autocomplete="off" />
+            <div id="ds-to-dropdown" class="rs-dropdown"></div>
+          </div>
+          <button class="rs-clear-btn" id="ds-to-clear" title="Clear">✕</button>
+        </div>
+      </div>
+
+      <div id="route-hint" class="route-hint">Search or tap a stall to begin</div>
+
+      <div id="route-steps-wrap">
+        <div class="route-steps-label">Route</div>
+        <div id="route-steps"></div>
+      </div>
+
+      <button id="btn-clear-route">✕ Clear route</button>
     </div>
   </div>
 
-  <!-- ── Legend ── -->
-  <div id="legend">
-    <div class="legend-title">Legend</div>
-    <div class="legend-item">
-      <div class="legend-swatch available"></div>
-      <span>Available</span>
+  <!-- ── MOBILE bottom sheet ────────────────────────────────── -->
+  <div id="mobile-sheet">
+    <!-- Drag handle -->
+    <div id="sheet-handle-bar" class="sheet-handle-bar">
+      <div class="handle-pill"></div>
     </div>
-    <div class="legend-item">
-      <div class="legend-swatch reserved"></div>
-      <span>Reserved</span>
+
+    <!-- Collapsed state — just the two search inputs visible -->
+    <div id="sheet-search">
+      <!-- From row -->
+      <div class="ms-row">
+        <div class="ms-dot ms-dot-start"></div>
+        <div class="ms-field-wrap">
+          <input id="ms-from-input" class="ms-input" type="text"
+                 placeholder="From — stall or company" autocomplete="off" />
+          <div id="ms-from-dropdown" class="ms-dropdown"></div>
+        </div>
+        <button class="ms-clear-btn" id="ms-from-clear">✕</button>
+      </div>
+      <div class="ms-divider"></div>
+      <!-- To row -->
+      <div class="ms-row">
+        <div class="ms-dot ms-dot-end"></div>
+        <div class="ms-field-wrap">
+          <input id="ms-to-input" class="ms-input" type="text"
+                 placeholder="To — stall or company" autocomplete="off" />
+          <div id="ms-to-dropdown" class="ms-dropdown"></div>
+        </div>
+        <button class="ms-clear-btn" id="ms-to-clear">✕</button>
+      </div>
     </div>
-    <div class="legend-item">
-      <div class="legend-swatch sold"></div>
-      <span>Sold / Booked</span>
+
+    <!-- Expandable content -->
+    <div id="sheet-body">
+      <div id="ms-route-hint" class="ms-hint">Search or tap a stall on the map</div>
+      <div id="ms-route-steps"></div>
+    </div>
+
+    <!-- Browse list (when no route active) -->
+    <div id="ms-browse">
+      <input id="ms-browse-input" class="ms-input" type="text"
+             placeholder="🔍 Search all stalls…" autocomplete="off" />
+      <div id="ms-stall-list"></div>
     </div>
   </div>
 
-  <!-- ── Compass ── -->
-  <div id="compass">
-    <div class="compass-needle">
-      <span class="n">N</span>
-      <span>✦</span>
-      <span class="s">S</span>
-    </div>
-  </div>
-
-  <!-- ── Filter Panel ── -->
-  <div id="filter-panel">
-    <button class="filter-btn f-all active" onclick="filterStatus('all')">All Plots</button>
-    <button class="filter-btn f-avail" onclick="filterStatus('available')">Available</button>
-    <button class="filter-btn f-res"   onclick="filterStatus('reserved')">Reserved</button>
-    <button class="filter-btn f-sold"  onclick="filterStatus('sold')">Sold</button>
-  </div>
-
-  <!-- ── Camera Reset ── -->
+  <!-- Camera controls (always floating) -->
   <div id="controls-panel">
-    <button class="ctrl-btn" onclick="resetCamera()" title="Reset Camera">⌂</button>
+    <button class="ctrl-btn" id="btn-reset-cam" title="Reset camera">⌂</button>
+    <button class="ctrl-btn" onclick="window._topView && window._topView()" title="Top view">⊙</button>
   </div>
 
-  <!-- ── Tooltip ── -->
+  <!-- Tooltip (desktop hover) -->
   <div id="tooltip"></div>
 
-  <!-- ── Plot Popup ── -->
-  <div id="plot-popup"></div>
+  <!-- Stall popup -->
+  <div id="stall-popup"></div>
 
-  <!-- ── Three.js (ES module import map) ── -->
   <script type="importmap">
   {
     "imports": {
-      "three":                      "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
-      "three/addons/":              "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/"
+      "three":         "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/"
     }
   }
   </script>
-
   <script type="module" src="./js/viewer.js"></script>
+
+  <script>
+    window.onSceneReady = function () {
+      const ov = document.getElementById('loading-overlay');
+      ov.style.opacity = '0';
+      setTimeout(() => ov.style.display = 'none', 600);
+    };
+  </script>
 </body>
 </html>
