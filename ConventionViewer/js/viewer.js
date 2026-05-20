@@ -1170,203 +1170,122 @@ function animate() {
 
   controls.update();
   updateLabelVisibility();
-  pdrTick();
+  pdrTick(t);
   renderer.render(scene, camera);
 }
 
 // ─── PDR Navigation System ────────────────────────────────────────────────────
-//
-// Pedestrian Dead Reckoning:
-//   accelerometer → step detection → step_length × heading = position delta
-//   magnetometer/gyro → heading
-//   position snapped to navmesh each step
-//   manual correction available any time via "Where am I?" button
-//
-// Accuracy: ~1–2 stall widths for first 15 steps from a known point.
-// Drift correction: user taps current stall when they feel off.
-
 const PDR = {
-  active:       false,
-  pos:          null,       // THREE.Vector3 — current estimated world position
-  heading:      0,          // radians, clockwise from North (+Z axis)
-  stepLength:   0.65,       // metres per step — average adult stride ~0.65m
-  worldScale:   null,       // metres per world unit (set from GLB analysis)
-  destination:  null,       // stallName
-  remainPath:   null,       // remaining waypoints as Vector3[]
-  stepCount:    0,
-  lastAccel:    0,
-  stepThresh:   1.2,        // g-force peak to count as a step
-  stepCooldown: 0,          // frames since last step (debounce)
-  compassOffset:0,          // calibration offset for magnetometer
-  playerMesh:   null,       // the "you are here" sphere
-  playerRing:   null,       // accuracy ring around player
-  trackCamera:  false,      // whether camera follows player
+  active:false, pos:null, heading:0, stepLength:0, worldScale:0,
+  destination:null, fullPath:null, remainPath:null,
+  stepCount:0, lastAccelMag:0, stepCooldown:0, stepThresh:1.18,
+  playerMesh:null,
 };
+const savedCam = { pos:null, target:null };
+const NAV_CAM_HEIGHT = 0.35, NAV_CAM_BEHIND = 0.20;
+let driftWarningShown = false;
 
-// World scale: from our GLB analysis the floor is ~4.25 real-world units
-// spanning roughly 170m (YashoBhoomi hall ~170m wide).
-// So 1 world unit ≈ 40 metres. Step length 0.65m ≈ 0.016 world units.
 function initPDRScale() {
   const box = new THREE.Box3();
   Object.values(stallBoxes).forEach(b => box.union(b));
-  const worldWidth = box.max.x - box.min.x;
-  // Assume real-world hall width ~170m
-  PDR.worldScale = worldWidth / 170;   // world units per metre
-  PDR.stepLength = 0.65 * PDR.worldScale;
-  console.info(`[PDR] worldScale=${PDR.worldScale.toFixed(5)} wu/m, stepLength=${PDR.stepLength.toFixed(5)} wu`);
+  PDR.worldScale = (box.max.x - box.min.x) / 170;
+  PDR.stepLength = 0.72 * PDR.worldScale;
+  console.info(`[PDR] scale=${PDR.worldScale.toFixed(5)} wu/m  step=${PDR.stepLength.toFixed(5)} wu`);
 }
 
-// ── Player mesh ──────────────────────────────────────────────────────────────
 function buildPlayerMesh() {
-  const r = 0.025;
-  PDR.playerMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(r, 16, 16),
-    new THREE.MeshBasicMaterial({ color: 0x3b82f6 }),
-  );
-  PDR.playerMesh.visible = false;
-
-  // Accuracy ring
-  const ring = new THREE.Mesh(
-    new THREE.RingGeometry(r * 2, r * 2.4, 32),
-    new THREE.MeshBasicMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.3, side: THREE.DoubleSide }),
-  );
-  ring.rotation.x = -Math.PI / 2;
-  PDR.playerMesh.add(ring);
-  PDR.playerRing = ring;
-  scene.add(PDR.playerMesh);
+  if (PDR.playerMesh) { scene.remove(PDR.playerMesh); PDR.playerMesh = null; }
+  const r = 0.022, g = new THREE.Group();
+  const disc = new THREE.Mesh(new THREE.CircleGeometry(r*2.5,32),
+    new THREE.MeshBasicMaterial({color:0x3b82f6,transparent:true,opacity:0.25,side:THREE.DoubleSide,depthWrite:false}));
+  disc.rotation.x = -Math.PI/2; g.add(disc);
+  g.add(new THREE.Mesh(new THREE.SphereGeometry(r,16,16), new THREE.MeshBasicMaterial({color:0x3b82f6})));
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(r*.9,r*2.5,8), new THREE.MeshBasicMaterial({color:0xffffff}));
+  cone.position.set(0,0,-r*2.2); cone.rotation.x = Math.PI/2; g.add(cone);
+  g.visible = false; scene.add(g); PDR.playerMesh = g;
 }
 
-// ── Snap position to navmesh surface ─────────────────────────────────────────
-function snapToNavmesh(x, z) {
-  if (!navMeshMesh) return new THREE.Vector3(x, pathY, z);
-  const ray = new THREE.Raycaster(
-    new THREE.Vector3(x, pathY + 0.5, z),
-    new THREE.Vector3(0, -1, 0),
-  );
-  ray.far = 2;
-  const hits = ray.intersectObject(navMeshMesh, false);
-  if (hits.length) return new THREE.Vector3(x, hits[0].point.y + 0.015, z);
-  // Off navmesh — clamp to nearest walkable point
-  return new THREE.Vector3(x, pathY, z);
-}
-
-// ── Step detection from accelerometer ────────────────────────────────────────
 function onDeviceMotion(e) {
   if (!PDR.active) return;
   if (PDR.stepCooldown > 0) { PDR.stepCooldown--; return; }
-
-  const ag = e.accelerationIncludingGravity;
-  if (!ag) return;
-  const mag = Math.sqrt((ag.x||0)**2 + (ag.y||0)**2 + (ag.z||0)**2) / 9.81;
-
-  // Simple peak detector: step when acceleration crosses threshold
-  if (PDR.lastAccel < PDR.stepThresh && mag >= PDR.stepThresh) {
-    registerStep();
-    PDR.stepCooldown = 12; // ~200ms debounce at 60fps
+  const ag = e.accelerationIncludingGravity; if (!ag) return;
+  const mag = Math.sqrt((ag.x||0)**2+(ag.y||0)**2+(ag.z||0)**2)/9.81;
+  if (PDR.lastAccelMag < PDR.stepThresh && mag >= PDR.stepThresh) {
+    registerStep(); PDR.stepCooldown = 15;
   }
-  PDR.lastAccel = mag;
+  PDR.lastAccelMag = mag;
 }
 
 function registerStep() {
   if (!PDR.active || !PDR.pos) return;
   PDR.stepCount++;
+  advanceAlongPath(PDR.stepLength);
+  updateNavPanel();
+  updateFollowCamera();
+}
 
-  // Move in current heading direction
-  const dx = Math.sin(PDR.heading) * PDR.stepLength;
-  const dz = Math.cos(PDR.heading) * PDR.stepLength;   // +Z = forward (convention)
-  const nx  = PDR.pos.x + dx;
-  const nz  = PDR.pos.z + dz;
-
-  PDR.pos = snapToNavmesh(nx, nz);
-  PDR.playerMesh.position.copy(PDR.pos);
-
-  // Update remaining path — drop waypoints we've passed
-  if (PDR.remainPath?.length > 1) {
-    while (PDR.remainPath.length > 1) {
-      const next = PDR.remainPath[1];
-      const distToNext = Math.sqrt((PDR.pos.x-next.x)**2 + (PDR.pos.z-next.z)**2);
-      if (distToNext < PDR.stepLength * 2) PDR.remainPath.shift();
-      else break;
+function advanceAlongPath(dist) {
+  if (!PDR.remainPath || PDR.remainPath.length < 2) return;
+  let rem = dist;
+  while (rem > 0 && PDR.remainPath.length > 1) {
+    const a = PDR.remainPath[0], b = PDR.remainPath[1];
+    const seg = Math.sqrt((b.x-a.x)**2+(b.z-a.z)**2);
+    if (rem >= seg) { rem -= seg; PDR.remainPath.shift(); PDR.pos = PDR.remainPath[0].clone(); }
+    else {
+      const t = rem/seg;
+      PDR.pos.x = a.x+(b.x-a.x)*t; PDR.pos.z = a.z+(b.z-a.z)*t; PDR.pos.y = pathY; rem = 0;
     }
-    updateNavPanel();
   }
-
-  // Drift warning: if we're far from any navmesh face, suggest correction
-  checkDriftWarning();
-
-  // Camera follow
-  if (PDR.trackCamera) {
-    controls.target.set(PDR.pos.x, 0, PDR.pos.z);
+  PDR.playerMesh.position.set(PDR.pos.x, pathY+0.015, PDR.pos.z);
+  if (PDR.remainPath.length > 1) {
+    const n = PDR.remainPath[1];
+    PDR.playerMesh.rotation.y = -Math.atan2(n.x-PDR.pos.x, n.z-PDR.pos.z);
   }
 }
 
-// ── Heading from compass ─────────────────────────────────────────────────────
 function onDeviceOrientation(e) {
   if (!PDR.active) return;
-  // alpha = compass bearing (0=North, clockwise)
-  const alpha = e.webkitCompassHeading ?? e.alpha ?? 0;
-  PDR.heading = ((alpha + PDR.compassOffset) * Math.PI / 180);
-  // Rotate map to face direction of travel (compass mode)
-  if (PDR.trackCamera) {
-    // Rotate the whole scene isn't practical — instead tilt camera azimuth
-    // We update a compass indicator in the UI instead
+  const alpha = e.webkitCompassHeading ?? (360-(e.alpha??0));
+  PDR.heading = alpha*Math.PI/180;
+  updateCompassUI(alpha);
+  updateFollowCamera();
+}
+
+function updateFollowCamera() {
+  if (!PDR.active || !PDR.pos) return;
+  let travelAngle = PDR.heading;
+  if (PDR.remainPath?.length > 1) {
+    const n = PDR.remainPath[1];
+    travelAngle = Math.atan2(n.x-PDR.pos.x, n.z-PDR.pos.z);
   }
-  updateCompassUI(alpha + PDR.compassOffset);
+  const camX = PDR.pos.x - Math.sin(travelAngle)*NAV_CAM_BEHIND;
+  const camZ = PDR.pos.z - Math.cos(travelAngle)*NAV_CAM_BEHIND;
+  camera.position.set(camX, pathY+NAV_CAM_HEIGHT, camZ);
+  camera.lookAt(PDR.pos.x, pathY, PDR.pos.z);
 }
 
-// ── Drift check ──────────────────────────────────────────────────────────────
-function checkDriftWarning() {
-  if (!PDR.pos || !navMeshMesh) return;
-  const ray = new THREE.Raycaster(
-    new THREE.Vector3(PDR.pos.x, pathY + 0.5, PDR.pos.z),
-    new THREE.Vector3(0, -1, 0),
-  );
-  ray.far = 2;
-  const hits = ray.intersectObject(navMeshMesh, false);
-  if (!hits.length) {
-    // Off navmesh — show correction prompt
-    showDriftWarning();
-  }
-}
-
-let driftWarningShown = false;
-function showDriftWarning() {
-  if (driftWarningShown) return;
-  driftWarningShown = true;
-  const el = document.getElementById('pdr-drift-warning');
-  if (el) { el.style.display = 'flex'; setTimeout(() => { el.style.display = 'none'; driftWarningShown = false; }, 5000); }
-}
-
-// ── Nav panel (turn-by-turn) ──────────────────────────────────────────────────
 function updateNavPanel() {
+  const inst = document.getElementById('pdr-instruction');
+  const distEl = document.getElementById('pdr-distance');
+  if (!inst||!distEl) return;
   if (!PDR.remainPath || PDR.remainPath.length < 2) {
-    // Arrived
-    document.getElementById('pdr-instruction').textContent = '🎯 You have arrived!';
-    document.getElementById('pdr-distance').textContent = '';
-    return;
+    inst.textContent = '🎯 You have arrived!'; distEl.textContent = ''; return;
   }
-
-  const next   = PDR.remainPath[1];
-  const curr   = PDR.remainPath[0];
-  const dx     = next.x - curr.x;
-  const dz     = next.z - curr.z;
-  const distWU = Math.sqrt(dx*dx + dz*dz);
-  const distM  = Math.round(distWU / PDR.worldScale);
-
-  // Direction relative to current heading
-  const angleToNext = Math.atan2(dx, dz);
-  const rel         = ((angleToNext - PDR.heading) * 180 / Math.PI + 360) % 360;
-
-  let dir;
-  if      (rel < 30 || rel > 330) dir = '↑ Straight';
-  else if (rel < 100)             dir = '↱ Turn right';
-  else if (rel < 170)             dir = '↩ Sharp right';
-  else if (rel < 190)             dir = '↓ Turn around';
-  else if (rel < 260)             dir = '↰ Sharp left';
-  else                            dir = '↲ Turn left';
-
-  document.getElementById('pdr-instruction').textContent = dir;
-  document.getElementById('pdr-distance').textContent    = `${distM}m`;
+  let total = 0;
+  for (let i=0;i<PDR.remainPath.length-1;i++) {
+    const a=PDR.remainPath[i],b=PDR.remainPath[i+1];
+    total+=Math.sqrt((b.x-a.x)**2+(b.z-a.z)**2);
+  }
+  distEl.textContent = `${Math.round(total/PDR.worldScale)}m`;
+  const a=PDR.remainPath[0],b=PDR.remainPath[1],c=PDR.remainPath[2];
+  let dir = '↑ Walk straight';
+  if (c) {
+    const s1=Math.atan2(b.x-a.x,b.z-a.z), s2=Math.atan2(c.x-b.x,c.z-b.z);
+    const turn = ((s2-s1)*180/Math.PI+540)%360-180;
+    if      (turn>25)  dir='↱ Turn right';
+    else if (turn<-25) dir='↲ Turn left';
+  }
+  inst.textContent = dir;
 }
 
 function updateCompassUI(deg) {
@@ -1374,119 +1293,85 @@ function updateCompassUI(deg) {
   if (el) el.style.transform = `rotate(${-deg}deg)`;
 }
 
-// ── Start / Stop PDR ─────────────────────────────────────────────────────────
 function startPDR(fromStallName, toStallName) {
-  if (!pathfinder) { alert('Navigation not ready yet'); return; }
-
-  initPDRScale();
-  buildPlayerMesh();
-
-  // Compute full route
+  if (!pathfinder) { alert('Navigation not ready'); return; }
+  if (!fromStallName||!toStallName) { alert('Set start and destination first'); return; }
+  initPDRScale(); buildPlayerMesh();
   const result = aStar(fromStallName, toStallName);
-  if (!result) { alert('No route found between those stalls'); return; }
-
-  PDR.active      = true;
-  PDR.destination = toStallName;
-  PDR.remainPath  = result.path.map(p => p.clone());
-  PDR.stepCount   = 0;
-  PDR.pos         = PDR.remainPath[0].clone();
-
-  PDR.playerMesh.position.copy(PDR.pos);
-  PDR.playerMesh.visible = true;
-
-  // Request sensor permissions (iOS 13+ requires explicit request)
-  requestSensorPermissions();
-
-  // Show nav HUD
-  document.getElementById('pdr-hud').style.display = 'flex';
-  document.getElementById('pdr-to').textContent = stallInfo[toStallName]?.company ?? toStallName;
-  PDR.trackCamera = true;
-  controls.target.set(PDR.pos.x, 0, PDR.pos.z);
-
+  if (!result) { alert('No route found'); return; }
+  PDR.active=true; PDR.destination=toStallName;
+  PDR.fullPath   = result.path.map(p=>p.clone());
+  PDR.remainPath = result.path.map(p=>p.clone());
+  PDR.stepCount=0; PDR.lastAccelMag=0;
+  PDR.pos = PDR.remainPath[0].clone();
+  PDR.playerMesh.position.set(PDR.pos.x,pathY+0.015,PDR.pos.z);
+  PDR.playerMesh.visible=true;
+  savedCam.pos    = camera.position.clone();
+  savedCam.target = controls.target.clone();
+  controls.enabled=false;
+  updateFollowCamera();
+  document.getElementById('pdr-hud').style.display='flex';
+  document.getElementById('pdr-to').textContent = stallInfo[toStallName]?.company??toStallName;
+  const mt=document.getElementById('mobile-top'); if(mt) mt.style.display='none';
   updateNavPanel();
+  requestSensorPermissions();
 }
 
 function stopPDR() {
-  PDR.active = false;
-  if (PDR.playerMesh) PDR.playerMesh.visible = false;
-  document.getElementById('pdr-hud').style.display = 'none';
-  window.removeEventListener('devicemotion',      onDeviceMotion);
-  window.removeEventListener('deviceorientation', onDeviceOrientation);
+  PDR.active=false;
+  if (PDR.playerMesh) PDR.playerMesh.visible=false;
+  controls.enabled=true;
+  if (savedCam.pos) { camera.position.copy(savedCam.pos); controls.target.copy(savedCam.target); controls.update(); }
+  document.getElementById('pdr-hud').style.display='none';
+  if (window.innerWidth<=768) { const mt=document.getElementById('mobile-top'); if(mt) mt.style.display='flex'; }
+  window.removeEventListener('devicemotion',onDeviceMotion);
+  window.removeEventListener('deviceorientation',onDeviceOrientation);
 }
 
 function requestSensorPermissions() {
-  // iOS 13+ needs explicit permission for motion sensors
-  if (typeof DeviceMotionEvent?.requestPermission === 'function') {
-    DeviceMotionEvent.requestPermission()
-      .then(state => { if (state === 'granted') window.addEventListener('devicemotion', onDeviceMotion); })
-      .catch(console.warn);
-    DeviceOrientationEvent.requestPermission()
-      .then(state => { if (state === 'granted') window.addEventListener('deviceorientation', onDeviceOrientation); })
-      .catch(console.warn);
+  if (typeof DeviceMotionEvent?.requestPermission==='function') {
+    DeviceMotionEvent.requestPermission().then(s=>{if(s==='granted') window.addEventListener('devicemotion',onDeviceMotion,{passive:true});}).catch(console.warn);
+    DeviceOrientationEvent.requestPermission().then(s=>{if(s==='granted') window.addEventListener('deviceorientation',onDeviceOrientation,{passive:true});}).catch(console.warn);
   } else {
-    // Android / desktop — no permission needed
-    window.addEventListener('devicemotion',      onDeviceMotion,      { passive: true });
-    window.addEventListener('deviceorientation', onDeviceOrientation, { passive: true });
+    window.addEventListener('devicemotion',onDeviceMotion,{passive:true});
+    window.addEventListener('deviceorientation',onDeviceOrientation,{passive:true});
   }
 }
 
-// ── Manual correction ─────────────────────────────────────────────────────────
 window._pdrCorrect = function(stallName) {
-  if (!stallName || !PDR.active) return;
-  const c = centroids[stallName];
-  if (!c) return;
-  PDR.pos = snapToNavmesh(c.x, c.z);
-  PDR.playerMesh.position.copy(PDR.pos);
-
-  // Recompute remaining path from new position
-  if (PDR.destination) {
-    // Find closest waypoint in remainPath to new position, or rerun A*
-    const result = aStar(stallName, PDR.destination);
-    if (result) PDR.remainPath = result.path.map(p => p.clone());
+  if (!stallName||!PDR.active) return;
+  const result = aStar(stallName, PDR.destination);
+  if (result) {
+    PDR.remainPath=result.path.map(p=>p.clone());
+    PDR.pos=PDR.remainPath[0].clone();
+    PDR.playerMesh.position.set(PDR.pos.x,pathY+0.015,PDR.pos.z);
+    updateNavPanel(); updateFollowCamera();
   }
-
-  driftWarningShown = false;
-  document.getElementById('pdr-correction-modal').style.display = 'none';
-  updateNavPanel();
-  controls.target.set(PDR.pos.x, 0, PDR.pos.z);
+  document.getElementById('pdr-correction-modal').style.display='none';
 };
 
-// Expose start for UI buttons
 window._startPDR = function() {
-  if (!startId || !endId) {
-    alert('Please set a start and destination stall first');
-    return;
-  }
-  startPDR(startId, endId);
+  if (!startId||!endId) { alert('Set a start and destination stall first'); return; }
+  startPDR(startId,endId);
 };
+window._stopPDR = stopPDR;
+window._toggleTrack = function() { if (PDR.active) updateFollowCamera(); };
 
-window._stopPDR  = stopPDR;
 window._showCorrectionModal = function() {
-  const modal = document.getElementById('pdr-correction-modal');
-  if (!modal) return;
-  // Populate with stall list
-  const list = document.getElementById('pdr-correction-list');
-  const q = document.getElementById('pdr-correction-search')?.value.toLowerCase() ?? '';
-  list.innerHTML = Object.keys(stallMeshes).sort()
-    .filter(id => !q || id.toLowerCase().includes(q) || (stallInfo[id]?.company ?? '').toLowerCase().includes(q))
-    .map(id => `<div class="pdr-stall-row" onclick="window._pdrCorrect('${id}')">
-      <span class="pdr-badge">${id}</span>
-      <span>${stallInfo[id]?.company ?? id}</span>
-    </div>`).join('');
-  modal.style.display = 'flex';
+  const modal=document.getElementById('pdr-correction-modal'); if(!modal) return;
+  const q=(document.getElementById('pdr-correction-search')?.value??'').toLowerCase();
+  document.getElementById('pdr-correction-list').innerHTML=Object.keys(stallMeshes).sort()
+    .filter(id=>!q||id.toLowerCase().includes(q)||(stallInfo[id]?.company??'').toLowerCase().includes(q))
+    .map(id=>`<div class="pdr-stall-row" onclick="window._pdrCorrect('${id}')"><span class="pdr-badge">${id}</span><span>${stallInfo[id]?.company??id}</span></div>`).join('');
+  modal.style.display='flex';
 };
 
-window._toggleTrack = function() {
-  PDR.trackCamera = !PDR.trackCamera;
-  const btn = document.getElementById('pdr-track-btn');
-  if (btn) btn.style.borderColor = PDR.trackCamera ? 'var(--accent)' : '';
-};
-function pdrTick() {
-  if (!PDR.active || !PDR.playerMesh) return;
-  // Pulse the accuracy ring
-  const t = performance.now() / 1000;
-  if (PDR.playerRing) PDR.playerRing.material.opacity = 0.15 + 0.15 * Math.sin(t * 2);
+function pdrTick(t) {
+  if (!PDR.active||!PDR.playerMesh) return;
+  const disc=PDR.playerMesh.children[0];
+  if (disc) disc.material.opacity=0.1+0.15*Math.abs(Math.sin(t*2));
 }
+
 
 init().catch(err => {
   console.error('[viewer] init failed:', err);
