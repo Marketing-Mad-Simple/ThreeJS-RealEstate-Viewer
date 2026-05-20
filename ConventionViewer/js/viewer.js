@@ -1370,14 +1370,12 @@ function onDeviceOrientation(e) {
 function updateFollowCamera() {
   if (!PDR.active || !PDR.pos) return;
 
-  // Camera stays directly above the player, looking straight down
-  // worldGroup rotation handles the "map rotates" effect
+  // Place camera directly above the player
   camera.position.set(PDR.pos.x, pathY + NAV_CAM_HEIGHT, PDR.pos.z);
-  camera.lookAt(PDR.pos.x, pathY, PDR.pos.z);
 
-  // Keep camera "up" pointing toward screen top (North in world space)
-  // Since worldGroup rotates, camera.up stays fixed
-  camera.up.set(0, 0, -1);
+  // Look straight down — set rotation directly to avoid gimbal lock from lookAt
+  camera.rotation.set(-Math.PI / 2, 0, 0);
+  camera.updateMatrixWorld();
 }
 
 // ── Nav panel ─────────────────────────────────────────────────────────────────
@@ -1451,9 +1449,6 @@ function startPDR(fromStallName, toStallName) {
 
   // Reset worldGroup rotation
   worldGroup.rotation.y = 0;
-
-  // Fix camera up vector for nav mode
-  camera.up.set(0, 0, -1);
   updateFollowCamera();
 
   document.getElementById('pdr-hud').style.display='flex';
@@ -1469,8 +1464,6 @@ function stopPDR() {
 
   // Reset worldGroup rotation
   worldGroup.rotation.y = 0;
-  // Restore camera up
-  camera.up.set(0, 1, 0);
 
   controls.enabled = true;
   if (savedCam.pos) {
