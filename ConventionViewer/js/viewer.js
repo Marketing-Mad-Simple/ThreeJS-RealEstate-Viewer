@@ -24,6 +24,7 @@ const COL = {
 
 // ─── Runtime state ────────────────────────────────────────────────────────────
 let scene, camera, renderer, controls;
+let worldGroup; // all scene content lives here; rotated in nav mode
 
 const stallMeshes   = {};   // meshName  → THREE.Mesh
 const stallInfo     = {};   // meshName  → { meshName, company, category, extra[] }
@@ -51,7 +52,7 @@ async function init() {
   const gltf = await loadGLB(GLB_PATH);
 
   progress(70, 'Preparing scene…');
-  scene.add(gltf.scene);
+  worldGroup.add(gltf.scene);
   collectStallMeshes(gltf.scene);
   fitCameraToScene(gltf.scene);
 
@@ -94,6 +95,10 @@ function setupScene() {
   scene.background = new THREE.Color(0x0d1117);
   scene.fog = new THREE.FogExp2(0x0d1117, 0.012);
 
+  // All world content lives in worldGroup so we can rotate it in nav mode
+  worldGroup = new THREE.Group();
+  scene.add(worldGroup);
+
   camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 500);
   camera.position.set(0, 30, 50);
 
@@ -101,12 +106,12 @@ function setupScene() {
   controls.enableDamping = true;
   controls.dampingFactor = 0.07;
   controls.minDistance   = 0.5;
-  controls.maxDistance   = 200;   // overridden by fitCameraToScene after GLB loads
+  controls.maxDistance   = 200;
   controls.maxPolarAngle = Math.PI / 2.05;
 }
 
 function setupLights() {
-  scene.add(new THREE.AmbientLight(0xffffff, 1.4));
+  worldGroup.add(new THREE.AmbientLight(0xffffff, 1.4));
 
   const sun = new THREE.DirectionalLight(0xffffff, 2.2);
   sun.position.set(40, 80, 40);
@@ -118,9 +123,9 @@ function setupLights() {
   sun.shadow.camera.right  = 120;
   sun.shadow.camera.top    = 120;
   sun.shadow.camera.bottom = -120;
-  scene.add(sun);
+  worldGroup.add(sun);
 
-  scene.add(new THREE.HemisphereLight(0x8899cc, 0x334455, 0.5));
+  worldGroup.add(new THREE.HemisphereLight(0x8899cc, 0x334455, 0.5));
 }
 
 // ─── CSV Loader ───────────────────────────────────────────────────────────────
@@ -267,7 +272,7 @@ function buildStallLabels() {
     const sprite = makeTextSprite(name, info.company ?? name);
     sprite.position.set(pos.x, top + LABEL_SPRITE_H * 0.6, pos.z);
     sprite.visible = false;
-    scene.add(sprite);
+    worldGroup.add(sprite);
     stallLabelSprites.push({ sprite, pos });
   });
 }
@@ -392,7 +397,7 @@ async function buildNavGraph() {
         }),
       );
       navDebugMesh.add(wire);
-      scene.add(navDebugMesh);
+      worldGroup.add(navDebugMesh);
       console.info('[nav-debug] navmesh ON — green = walkable');
     } else {
       navDebugMesh.visible = !navDebugMesh.visible;
@@ -478,9 +483,9 @@ let pulseOrb      = null;
 let pulseT        = 0;
 
 function clearPathObjects() {
-  pathObjects.forEach(o => scene.remove(o));
+  pathObjects.forEach(o => worldGroup.remove(o));
   pathObjects.length = 0;
-  if (pulseOrb) { scene.remove(pulseOrb); pulseOrb = null; }
+  if (pulseOrb) { worldGroup.remove(pulseOrb); pulseOrb = null; }
   activeCurve = null;
 }
 
@@ -513,7 +518,7 @@ function drawRoute(result) {
       transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide,
     }),
   );
-  scene.add(glowMesh); pathObjects.push(glowMesh);
+  worldGroup.add(glowMesh); pathObjects.push(glowMesh);
 
   // Main ribbon — pure unlit orange, always full saturation
   const mainMesh = new THREE.Mesh(ribbonGeo,
@@ -521,7 +526,7 @@ function drawRoute(result) {
       color: 0xf97316, side: THREE.DoubleSide,
     }),
   );
-  scene.add(mainMesh); pathObjects.push(mainMesh);
+  worldGroup.add(mainMesh); pathObjects.push(mainMesh);
 
   // ── Chevrons ──
   const aW = RIBBON_HALF_W * 1.4, aH = RIBBON_HALF_W * 3.2;
@@ -537,25 +542,25 @@ function drawRoute(result) {
     );
     cone.position.copy(pos);
     cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
-    scene.add(cone); pathObjects.push(cone);
+    worldGroup.add(cone); pathObjects.push(cone);
   }
 
   // ── Pins ──
   const pinR = RIBBON_HALF_W * 2;
   const startPin = new THREE.Mesh(new THREE.SphereGeometry(pinR, 16, 16),
     new THREE.MeshBasicMaterial({ color: 0x22c55e }));
-  startPin.position.copy(rawPts[0]); scene.add(startPin); pathObjects.push(startPin);
+  startPin.position.copy(rawPts[0]); worldGroup.add(startPin); pathObjects.push(startPin);
 
   const endPin = new THREE.Mesh(new THREE.SphereGeometry(pinR, 16, 16),
     new THREE.MeshBasicMaterial({ color: 0xef4444 }));
-  endPin.position.copy(rawPts[rawPts.length - 1]); scene.add(endPin); pathObjects.push(endPin);
+  endPin.position.copy(rawPts[rawPts.length - 1]); worldGroup.add(endPin); pathObjects.push(endPin);
 
   // ── Pulse orb ──
   pulseT = 0;
   pulseOrb = new THREE.Mesh(new THREE.SphereGeometry(RIBBON_HALF_W * 1.6, 14, 14),
     new THREE.MeshBasicMaterial({ color: 0xffffff }));
   pulseOrb.position.copy(rawPts[0]);
-  scene.add(pulseOrb);
+  worldGroup.add(pulseOrb);
 }
 
 // Build a flat ribbon with correct miter joins at every corner.
@@ -1175,16 +1180,41 @@ function animate() {
 }
 
 // ─── PDR Navigation System ────────────────────────────────────────────────────
-const PDR = {
-  active:false, pos:null, heading:0, stepLength:0, worldScale:0,
-  destination:null, fullPath:null, remainPath:null,
-  stepCount:0, lastAccelMag:0, stepCooldown:0, stepThresh:1.18,
-  playerMesh:null,
-};
-const savedCam = { pos:null, target:null };
-const NAV_CAM_HEIGHT = 0.35, NAV_CAM_BEHIND = 0.20;
-let driftWarningShown = false;
+//
+// Free movement: player moves in actual compass heading direction each step.
+// worldGroup rotates so map always faces direction of travel (Google Maps style).
+// Reroute: if player drifts > REROUTE_THRESHOLD from nearest path waypoint,
+// A* is re-run from their current position to the destination.
 
+const PDR = {
+  active:        false,
+  pos:           null,      // THREE.Vector3 — real estimated world position
+  heading:       0,         // smoothed heading in radians
+  smoothHeading: 0,         // low-pass filtered compass degrees
+  rawSamples:    [],        // last N raw compass readings for median filter
+  headingAlpha:  0.10,      // low-pass factor (higher = more responsive)
+  stepLength:    0,
+  worldScale:    0,
+  destination:   null,
+  currentPath:   null,      // current planned path as Vector3[]
+  stepCount:     0,
+  lastAccelMag:  0,
+  stepCooldown:  0,
+  stepThresh:    1.18,
+  playerMesh:    null,
+  posHistory:    [],        // [{x,z,step}] for future analytics/reroute
+};
+
+const savedCam = { pos:null, target:null };
+// Overhead nav camera: fixed position looking straight down at player
+const NAV_CAM_HEIGHT  = 0.45;
+// Reroute if player is this far from nearest planned waypoint (world units)
+const REROUTE_THRESHOLD = 0.15;
+
+let driftWarningShown = false;
+let lastRerouteStep   = -50;  // prevent rerouting every step
+
+// ── Scale ─────────────────────────────────────────────────────────────────────
 function initPDRScale() {
   const box = new THREE.Box3();
   Object.values(stallBoxes).forEach(b => box.union(b));
@@ -1193,18 +1223,37 @@ function initPDRScale() {
   console.info(`[PDR] scale=${PDR.worldScale.toFixed(5)} wu/m  step=${PDR.stepLength.toFixed(5)} wu`);
 }
 
+// ── Player mesh ───────────────────────────────────────────────────────────────
 function buildPlayerMesh() {
-  if (PDR.playerMesh) { scene.remove(PDR.playerMesh); PDR.playerMesh = null; }
-  const r = 0.022, g = new THREE.Group();
-  const disc = new THREE.Mesh(new THREE.CircleGeometry(r*2.5,32),
-    new THREE.MeshBasicMaterial({color:0x3b82f6,transparent:true,opacity:0.25,side:THREE.DoubleSide,depthWrite:false}));
-  disc.rotation.x = -Math.PI/2; g.add(disc);
-  g.add(new THREE.Mesh(new THREE.SphereGeometry(r,16,16), new THREE.MeshBasicMaterial({color:0x3b82f6})));
-  const cone = new THREE.Mesh(new THREE.ConeGeometry(r*.9,r*2.5,8), new THREE.MeshBasicMaterial({color:0xffffff}));
-  cone.position.set(0,0,-r*2.2); cone.rotation.x = Math.PI/2; g.add(cone);
-  g.visible = false; scene.add(g); PDR.playerMesh = g;
+  if (PDR.playerMesh) { worldGroup.remove(PDR.playerMesh); PDR.playerMesh = null; }
+  const g = new THREE.Group();
+
+  // Pulsing disc
+  const disc = new THREE.Mesh(
+    new THREE.CircleGeometry(0.04, 32),
+    new THREE.MeshBasicMaterial({ color:0x3b82f6, transparent:true, opacity:0.28, side:THREE.DoubleSide, depthWrite:false }),
+  );
+  disc.rotation.x = -Math.PI / 2; disc.position.y = 0.001;
+  g.add(disc);
+
+  // Body cylinder
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.012,0.015,0.06,12), new THREE.MeshBasicMaterial({color:0x3b82f6}));
+  body.position.y = 0.03; g.add(body);
+
+  // Head
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.018,12,12), new THREE.MeshBasicMaterial({color:0xffffff}));
+  head.position.y = 0.072; g.add(head);
+
+  // Direction arrow
+  const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.016,0.045,8), new THREE.MeshBasicMaterial({color:0xf97316}));
+  arrow.rotation.x = Math.PI/2; arrow.position.set(0,0.035,-0.038); g.add(arrow);
+
+  g.visible = false;
+  worldGroup.add(g);
+  PDR.playerMesh = g;
 }
 
+// ── Step detection ────────────────────────────────────────────────────────────
 function onDeviceMotion(e) {
   if (!PDR.active) return;
   if (PDR.stepCooldown > 0) { PDR.stepCooldown--; return; }
@@ -1219,71 +1268,152 @@ function onDeviceMotion(e) {
 function registerStep() {
   if (!PDR.active || !PDR.pos) return;
   PDR.stepCount++;
-  advanceAlongPath(PDR.stepLength);
+
+  // Move in actual compass heading direction (free movement)
+  const dx = Math.sin(PDR.heading) * PDR.stepLength;
+  const dz = Math.cos(PDR.heading) * PDR.stepLength;
+  PDR.pos.x += dx;
+  PDR.pos.z += dz;
+  PDR.pos.y  = pathY;
+
+  // Record position history
+  PDR.posHistory.push({ x:PDR.pos.x, z:PDR.pos.z, step:PDR.stepCount });
+  if (PDR.posHistory.length > 500) PDR.posHistory.shift(); // keep last 500 steps
+
+  // Update player mesh (always faces PDR.heading via worldGroup rotation)
+  PDR.playerMesh.position.set(PDR.pos.x, pathY, PDR.pos.z);
+
+  // Check if we should reroute
+  if (PDR.stepCount - lastRerouteStep >= 10) checkReroute();
+
   updateNavPanel();
   updateFollowCamera();
 }
 
-function advanceAlongPath(dist) {
-  if (!PDR.remainPath || PDR.remainPath.length < 2) return;
-  let rem = dist;
-  while (rem > 0 && PDR.remainPath.length > 1) {
-    const a = PDR.remainPath[0], b = PDR.remainPath[1];
-    const seg = Math.sqrt((b.x-a.x)**2+(b.z-a.z)**2);
-    if (rem >= seg) { rem -= seg; PDR.remainPath.shift(); PDR.pos = PDR.remainPath[0].clone(); }
-    else {
-      const t = rem/seg;
-      PDR.pos.x = a.x+(b.x-a.x)*t; PDR.pos.z = a.z+(b.z-a.z)*t; PDR.pos.y = pathY; rem = 0;
-    }
+// ── Reroute detection ─────────────────────────────────────────────────────────
+function checkReroute() {
+  if (!PDR.currentPath || !PDR.destination || !PDR.pos) return;
+
+  // Find nearest waypoint on current path
+  let minDist = Infinity;
+  let nearestIdx = 0;
+  for (let i = 0; i < PDR.currentPath.length; i++) {
+    const wp = PDR.currentPath[i];
+    const d  = Math.sqrt((PDR.pos.x-wp.x)**2 + (PDR.pos.z-wp.z)**2);
+    if (d < minDist) { minDist = d; nearestIdx = i; }
   }
-  PDR.playerMesh.position.set(PDR.pos.x, pathY+0.015, PDR.pos.z);
-  if (PDR.remainPath.length > 1) {
-    const n = PDR.remainPath[1];
-    PDR.playerMesh.rotation.y = -Math.atan2(n.x-PDR.pos.x, n.z-PDR.pos.z);
+
+  if (minDist < REROUTE_THRESHOLD) {
+    // Still on path — trim passed waypoints
+    PDR.currentPath = PDR.currentPath.slice(nearestIdx);
+  } else {
+    // Off path — reroute from current position
+    console.info(`[PDR] Rerouting — ${(minDist/PDR.worldScale).toFixed(1)}m off path`);
+    rerouteFromCurrentPosition();
+    lastRerouteStep = PDR.stepCount;
   }
 }
 
+function rerouteFromCurrentPosition() {
+  if (!PDR.destination || !pathfinder) return;
+
+  // Find nearest stall to current position to use as A* start
+  let nearestStall = null, nearestD = Infinity;
+  Object.entries(centroids).forEach(([name, pos]) => {
+    const d = Math.sqrt((PDR.pos.x-pos.x)**2 + (PDR.pos.z-pos.z)**2);
+    if (d < nearestD) { nearestD = d; nearestStall = name; }
+  });
+
+  if (!nearestStall) return;
+
+  const result = aStar(nearestStall, PDR.destination);
+  if (result) {
+    PDR.currentPath = result.path.map(p => p.clone());
+    // Redraw the path on the map
+    clearPathObjects();
+    drawRoute(result);
+    setRouteHint('↺ Rerouted');
+    setTimeout(() => updateNavPanel(), 1500);
+    console.info(`[PDR] Rerouted via ${nearestStall}`);
+  }
+}
+
+// ── Compass — smoothed heading, rotates worldGroup ────────────────────────────
 function onDeviceOrientation(e) {
   if (!PDR.active) return;
-  const alpha = e.webkitCompassHeading ?? (360-(e.alpha??0));
-  PDR.heading = alpha*Math.PI/180;
-  updateCompassUI(alpha);
-  updateFollowCamera();
+
+  let raw = e.webkitCompassHeading != null
+    ? e.webkitCompassHeading
+    : (360 - (e.alpha ?? 0)) % 360;
+
+  // Median filter (kill spikes)
+  PDR.rawSamples.push(raw);
+  if (PDR.rawSamples.length > 7) PDR.rawSamples.shift();
+  const sorted = [...PDR.rawSamples].sort((a,b)=>a-b);
+  const median = sorted[Math.floor(sorted.length/2)];
+
+  // Low-pass filter with wraparound handling
+  let diff = median - PDR.smoothHeading;
+  if (diff >  180) diff -= 360;
+  if (diff < -180) diff += 360;
+  PDR.smoothHeading = (PDR.smoothHeading + diff * PDR.headingAlpha + 360) % 360;
+  PDR.heading = PDR.smoothHeading * Math.PI / 180;
+
+  // Rotate the world so "forward" (compass direction) faces -Z (camera looks -Z)
+  // worldGroup.rotation.y = heading rotates map so North always aligns with phone North
+  worldGroup.rotation.y = PDR.heading;
+
+  updateCompassUI(PDR.smoothHeading);
 }
 
+// ── Fixed overhead nav camera ─────────────────────────────────────────────────
 function updateFollowCamera() {
   if (!PDR.active || !PDR.pos) return;
-  let travelAngle = PDR.heading;
-  if (PDR.remainPath?.length > 1) {
-    const n = PDR.remainPath[1];
-    travelAngle = Math.atan2(n.x-PDR.pos.x, n.z-PDR.pos.z);
-  }
-  const camX = PDR.pos.x - Math.sin(travelAngle)*NAV_CAM_BEHIND;
-  const camZ = PDR.pos.z - Math.cos(travelAngle)*NAV_CAM_BEHIND;
-  camera.position.set(camX, pathY+NAV_CAM_HEIGHT, camZ);
+
+  // Camera stays directly above the player, looking straight down
+  // worldGroup rotation handles the "map rotates" effect
+  camera.position.set(PDR.pos.x, pathY + NAV_CAM_HEIGHT, PDR.pos.z);
   camera.lookAt(PDR.pos.x, pathY, PDR.pos.z);
+
+  // Keep camera "up" pointing toward screen top (North in world space)
+  // Since worldGroup rotates, camera.up stays fixed
+  camera.up.set(0, 0, -1);
 }
 
+// ── Nav panel ─────────────────────────────────────────────────────────────────
 function updateNavPanel() {
-  const inst = document.getElementById('pdr-instruction');
+  const inst   = document.getElementById('pdr-instruction');
   const distEl = document.getElementById('pdr-distance');
-  if (!inst||!distEl) return;
-  if (!PDR.remainPath || PDR.remainPath.length < 2) {
-    inst.textContent = '🎯 You have arrived!'; distEl.textContent = ''; return;
+  if (!inst || !distEl) return;
+
+  if (!PDR.currentPath || PDR.currentPath.length < 2) {
+    // Check if arrived
+    if (PDR.destination) {
+      const dest = centroids[PDR.destination];
+      if (dest) {
+        const d = Math.sqrt((PDR.pos.x-dest.x)**2+(PDR.pos.z-dest.z)**2);
+        if (d < 0.1) { inst.textContent='🎯 You have arrived!'; distEl.textContent=''; return; }
+      }
+    }
+    inst.textContent='↑ Walk straight'; distEl.textContent=''; return;
   }
+
+  // Total remaining distance
   let total = 0;
-  for (let i=0;i<PDR.remainPath.length-1;i++) {
-    const a=PDR.remainPath[i],b=PDR.remainPath[i+1];
-    total+=Math.sqrt((b.x-a.x)**2+(b.z-a.z)**2);
+  for (let i=0; i<PDR.currentPath.length-1; i++) {
+    const a=PDR.currentPath[i], b=PDR.currentPath[i+1];
+    total += Math.sqrt((b.x-a.x)**2+(b.z-a.z)**2);
   }
   distEl.textContent = `${Math.round(total/PDR.worldScale)}m`;
-  const a=PDR.remainPath[0],b=PDR.remainPath[1],c=PDR.remainPath[2];
+
+  // Next turn
+  const a=PDR.currentPath[0], b=PDR.currentPath[1], c=PDR.currentPath[2];
   let dir = '↑ Walk straight';
   if (c) {
     const s1=Math.atan2(b.x-a.x,b.z-a.z), s2=Math.atan2(c.x-b.x,c.z-b.z);
     const turn = ((s2-s1)*180/Math.PI+540)%360-180;
-    if      (turn>25)  dir='↱ Turn right';
-    else if (turn<-25) dir='↲ Turn left';
+    if      (turn >  25) dir='↱ Turn right';
+    else if (turn < -25) dir='↲ Turn left';
   }
   inst.textContent = dir;
 }
@@ -1293,23 +1423,39 @@ function updateCompassUI(deg) {
   if (el) el.style.transform = `rotate(${-deg}deg)`;
 }
 
+// ── Start / Stop ──────────────────────────────────────────────────────────────
 function startPDR(fromStallName, toStallName) {
   if (!pathfinder) { alert('Navigation not ready'); return; }
   if (!fromStallName||!toStallName) { alert('Set start and destination first'); return; }
   initPDRScale(); buildPlayerMesh();
   const result = aStar(fromStallName, toStallName);
   if (!result) { alert('No route found'); return; }
-  PDR.active=true; PDR.destination=toStallName;
-  PDR.fullPath   = result.path.map(p=>p.clone());
-  PDR.remainPath = result.path.map(p=>p.clone());
-  PDR.stepCount=0; PDR.lastAccelMag=0;
-  PDR.pos = PDR.remainPath[0].clone();
-  PDR.playerMesh.position.set(PDR.pos.x,pathY+0.015,PDR.pos.z);
-  PDR.playerMesh.visible=true;
+
+  PDR.active      = true;
+  PDR.destination = toStallName;
+  PDR.currentPath = result.path.map(p=>p.clone());
+  PDR.stepCount   = 0;
+  PDR.lastAccelMag= 0;
+  PDR.rawSamples  = [];
+  PDR.smoothHeading = 0;
+  PDR.posHistory  = [];
+  PDR.pos = centroids[fromStallName].clone();
+  PDR.pos.y = pathY;
+
+  PDR.playerMesh.position.set(PDR.pos.x, pathY, PDR.pos.z);
+  PDR.playerMesh.visible = true;
+
   savedCam.pos    = camera.position.clone();
   savedCam.target = controls.target.clone();
-  controls.enabled=false;
+  controls.enabled = false;
+
+  // Reset worldGroup rotation
+  worldGroup.rotation.y = 0;
+
+  // Fix camera up vector for nav mode
+  camera.up.set(0, 0, -1);
   updateFollowCamera();
+
   document.getElementById('pdr-hud').style.display='flex';
   document.getElementById('pdr-to').textContent = stallInfo[toStallName]?.company??toStallName;
   const mt=document.getElementById('mobile-top'); if(mt) mt.style.display='none';
@@ -1318,35 +1464,52 @@ function startPDR(fromStallName, toStallName) {
 }
 
 function stopPDR() {
-  PDR.active=false;
-  if (PDR.playerMesh) PDR.playerMesh.visible=false;
-  controls.enabled=true;
-  if (savedCam.pos) { camera.position.copy(savedCam.pos); controls.target.copy(savedCam.target); controls.update(); }
+  PDR.active = false;
+  if (PDR.playerMesh) PDR.playerMesh.visible = false;
+
+  // Reset worldGroup rotation
+  worldGroup.rotation.y = 0;
+  // Restore camera up
+  camera.up.set(0, 1, 0);
+
+  controls.enabled = true;
+  if (savedCam.pos) {
+    camera.position.copy(savedCam.pos);
+    controls.target.copy(savedCam.target);
+    controls.update();
+  }
+
   document.getElementById('pdr-hud').style.display='none';
   if (window.innerWidth<=768) { const mt=document.getElementById('mobile-top'); if(mt) mt.style.display='flex'; }
-  window.removeEventListener('devicemotion',onDeviceMotion);
-  window.removeEventListener('deviceorientation',onDeviceOrientation);
+  window.removeEventListener('devicemotion',      onDeviceMotion);
+  window.removeEventListener('deviceorientation', onDeviceOrientation);
 }
 
 function requestSensorPermissions() {
   if (typeof DeviceMotionEvent?.requestPermission==='function') {
-    DeviceMotionEvent.requestPermission().then(s=>{if(s==='granted') window.addEventListener('devicemotion',onDeviceMotion,{passive:true});}).catch(console.warn);
-    DeviceOrientationEvent.requestPermission().then(s=>{if(s==='granted') window.addEventListener('deviceorientation',onDeviceOrientation,{passive:true});}).catch(console.warn);
+    DeviceMotionEvent.requestPermission()
+      .then(s=>{if(s==='granted') window.addEventListener('devicemotion',onDeviceMotion,{passive:true});})
+      .catch(console.warn);
+    DeviceOrientationEvent.requestPermission()
+      .then(s=>{if(s==='granted') window.addEventListener('deviceorientation',onDeviceOrientation,{passive:true});})
+      .catch(console.warn);
   } else {
-    window.addEventListener('devicemotion',onDeviceMotion,{passive:true});
-    window.addEventListener('deviceorientation',onDeviceOrientation,{passive:true});
+    window.addEventListener('devicemotion',      onDeviceMotion,      {passive:true});
+    window.addEventListener('deviceorientation', onDeviceOrientation, {passive:true});
   }
 }
 
+// ── Manual correction ─────────────────────────────────────────────────────────
 window._pdrCorrect = function(stallName) {
   if (!stallName||!PDR.active) return;
+  PDR.pos = centroids[stallName].clone(); PDR.pos.y = pathY;
+  PDR.playerMesh.position.set(PDR.pos.x, pathY, PDR.pos.z);
   const result = aStar(stallName, PDR.destination);
   if (result) {
-    PDR.remainPath=result.path.map(p=>p.clone());
-    PDR.pos=PDR.remainPath[0].clone();
-    PDR.playerMesh.position.set(PDR.pos.x,pathY+0.015,PDR.pos.z);
-    updateNavPanel(); updateFollowCamera();
+    PDR.currentPath = result.path.map(p=>p.clone());
+    clearPathObjects(); drawRoute(result);
   }
+  updateNavPanel(); updateFollowCamera();
   document.getElementById('pdr-correction-modal').style.display='none';
 };
 
@@ -1354,7 +1517,7 @@ window._startPDR = function() {
   if (!startId||!endId) { alert('Set a start and destination stall first'); return; }
   startPDR(startId,endId);
 };
-window._stopPDR = stopPDR;
+window._stopPDR  = stopPDR;
 window._toggleTrack = function() { if (PDR.active) updateFollowCamera(); };
 
 window._showCorrectionModal = function() {
@@ -1362,16 +1525,16 @@ window._showCorrectionModal = function() {
   const q=(document.getElementById('pdr-correction-search')?.value??'').toLowerCase();
   document.getElementById('pdr-correction-list').innerHTML=Object.keys(stallMeshes).sort()
     .filter(id=>!q||id.toLowerCase().includes(q)||(stallInfo[id]?.company??'').toLowerCase().includes(q))
-    .map(id=>`<div class="pdr-stall-row" onclick="window._pdrCorrect('${id}')"><span class="pdr-badge">${id}</span><span>${stallInfo[id]?.company??id}</span></div>`).join('');
+    .map(id=>`<div class="pdr-stall-row" onclick="window._pdrCorrect('${id}')"><span class="pdr-badge">${id}</span><span>${stallInfo[id]?.company??id}</span></div>`)
+    .join('');
   modal.style.display='flex';
 };
 
 function pdrTick(t) {
   if (!PDR.active||!PDR.playerMesh) return;
   const disc=PDR.playerMesh.children[0];
-  if (disc) disc.material.opacity=0.1+0.15*Math.abs(Math.sin(t*2));
+  if (disc) disc.material.opacity=0.12+0.18*Math.abs(Math.sin(t*2));
 }
-
 
 init().catch(err => {
   console.error('[viewer] init failed:', err);
