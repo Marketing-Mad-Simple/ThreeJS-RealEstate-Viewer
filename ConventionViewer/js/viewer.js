@@ -777,9 +777,6 @@ function buildUI() {
     onSelect: name => setEnd(name),
   });
 
-  // ── Mobile sheet ──
-  initMobileSheet();
-
   // ── Mobile route search inputs ──
   initSearchField({
     input:    document.getElementById('ms-from-input'),
@@ -794,16 +791,34 @@ function buildUI() {
     onSelect: name => { setEnd(name); expandSheet('mid'); },
   });
 
+  // ── Mobile top bar height → push canvas down ──
+  const measureTopBar = () => {
+    const top = document.getElementById('mobile-top');
+    if (top && window.innerWidth <= 768) {
+      const h = top.getBoundingClientRect().height;
+      document.documentElement.style.setProperty('--mob-top', h + 'px');
+    }
+  };
+  // Measure after fonts/layout settle
+  setTimeout(measureTopBar, 300);
+  window.addEventListener('resize', measureTopBar);
+
   // ── Mobile browse search ──
-  document.getElementById('ms-browse-input').addEventListener('input', e => {
-    const q = e.target.value.toLowerCase();
-    document.querySelectorAll('#ms-stall-list .stall-item').forEach(el => {
-      const info = stallInfo[el.dataset.id] ?? { company: el.dataset.id };
-      el.style.display = (!q
-        || el.dataset.id.toLowerCase().includes(q)
-        || info.company.toLowerCase().includes(q)) ? '' : 'none';
+  const msBrowse = document.getElementById('ms-browse-input');
+  if (msBrowse) {
+    msBrowse.addEventListener('input', e => {
+      const q = e.target.value.toLowerCase();
+      document.querySelectorAll('#ms-stall-list .stall-item').forEach(el => {
+        const info = stallInfo[el.dataset.id] ?? { company: el.dataset.id };
+        el.style.display = (!q
+          || el.dataset.id.toLowerCase().includes(q)
+          || info.company.toLowerCase().includes(q)) ? '' : 'none';
+      });
     });
-  });
+  }
+
+  // expose clearRoute globally for mobile clear button
+  window.clearRoute = clearRoute;
 
   // ── Top view ──
   window._topView = () => {
@@ -1093,9 +1108,8 @@ function setRouteUI(which, name) {
 }
 
 function setRouteHint(msg) {
-  ['route-hint','ms-route-hint'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = msg;
+  ['route-hint','ms-route-hint','mobile-route-hint'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.textContent = msg;
   });
 }
 
@@ -1105,10 +1119,12 @@ function setRouteSteps(path) {
     const info = stallInfo[id] ?? { company: id };
     return `<div class="step ${cls}"><span class="step-num">${i + 1}</span><span>${id} · ${info.company}</span></div>`;
   }).join('');
-  ['route-steps','ms-route-steps'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.innerHTML = html;
+  ['route-steps','ms-route-steps','mobile-route-steps'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.innerHTML = html;
   });
+  // Show mobile chip if route found
+  const chip = document.getElementById('mobile-route-chip');
+  if (chip) chip.style.display = path.length ? '' : 'none';
 }
 
 function updateStats() {
