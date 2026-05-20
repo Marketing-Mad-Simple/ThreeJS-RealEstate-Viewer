@@ -77,6 +77,7 @@
       </div>
 
       <button id="btn-clear-route">✕ Clear route</button>
+      <button id="btn-start-nav" onclick="window._startPDR()">🚶 Start Navigation</button>
     </div>
   </div>
 
@@ -130,6 +131,58 @@
   <div id="controls-panel">
     <button class="ctrl-btn" id="btn-reset-cam" title="Reset camera">⌂</button>
     <button class="ctrl-btn" onclick="window._topView && window._topView()" title="Top view">⊙</button>
+  </div>
+
+  <!-- ── PDR Navigation HUD ─────────────────────────────────────────── -->
+  <div id="pdr-hud">
+    <!-- Top bar: compass + destination -->
+    <div id="pdr-top-bar">
+      <div id="pdr-compass">
+        <div id="pdr-compass-arrow">↑</div>
+      </div>
+      <div id="pdr-dest-info">
+        <div class="pdr-label">Navigating to</div>
+        <div id="pdr-to" class="pdr-dest-name">—</div>
+      </div>
+      <button id="pdr-stop-btn" onclick="window._stopPDR()">✕</button>
+    </div>
+
+    <!-- Turn instruction card -->
+    <div id="pdr-instruction-card">
+      <div id="pdr-instruction" class="pdr-instruction-text">Calculating…</div>
+      <div id="pdr-distance" class="pdr-distance-text"></div>
+    </div>
+
+    <!-- Bottom: track camera toggle + correction button -->
+    <div id="pdr-bottom-bar">
+      <button class="pdr-action-btn" onclick="window._showCorrectionModal()">
+        📍 Where am I?
+      </button>
+      <button class="pdr-action-btn" id="pdr-track-btn"
+        onclick="window._toggleTrack && window._toggleTrack()">
+        🎯 Track me
+      </button>
+    </div>
+  </div>
+
+  <!-- Drift warning toast -->
+  <div id="pdr-drift-warning">
+    <span>⚠ Position uncertain</span>
+    <button onclick="window._showCorrectionModal()">Correct</button>
+  </div>
+
+  <!-- Manual correction modal -->
+  <div id="pdr-correction-modal">
+    <div id="pdr-correction-sheet">
+      <div class="pdr-modal-header">
+        <span>📍 Where are you now?</span>
+        <button onclick="document.getElementById('pdr-correction-modal').style.display='none'">✕</button>
+      </div>
+      <input id="pdr-correction-search" class="pdr-search" type="text"
+             placeholder="Search stall or company…"
+             oninput="window._showCorrectionModal()" />
+      <div id="pdr-correction-list"></div>
+    </div>
   </div>
 
   <!-- Tooltip (desktop hover) -->
