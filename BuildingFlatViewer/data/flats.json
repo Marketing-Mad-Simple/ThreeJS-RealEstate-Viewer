@@ -1,0 +1,46 @@
+{
+  "FLAT_1": {
+    "label": "Flat 1",
+    "floor": "3rd Floor",
+    "area": "1,240 sqft",
+    "type": "3 BHK",
+    "price": "₹1.2 Cr",
+    "facing": "North-East",
+    "status": "available",
+    "balconies": 2,
+    "parking": "1 Covered"
+  },
+  "FLAT_2": {
+    "label": "Flat 2",
+    "floor": "3rd Floor",
+    "area": "980 sqft",
+    "type": "2 BHK",
+    "price": "₹88L",
+    "facing": "South",
+    "status": "reserved",
+    "balconies": 1,
+    "parking": "1 Open"
+  },
+  "FLAT_3": {
+    "label": "Flat 3",
+    "floor": "3rd Floor",
+    "area": "1,560 sqft",
+    "type": "4 BHK",
+    "price": "₹1.6 Cr",
+    "facing": "West",
+    "status": "sold",
+    "balconies": 3,
+    "parking": "2 Covered"
+  },
+  "FLAT_4": {
+    "label": "Flat 4",
+    "floor": "3rd Floor",
+    "area": "1,100 sqft",
+    "type": "2 BHK",
+    "price": "₹96L",
+    "facing": "East",
+    "status": "available",
+    "balconies": 1,
+    "parking": "1 Covered"
+  }
+}

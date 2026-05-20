@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>MMS Experience — Building Viewer</title>
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+
+  <!-- ── Three.js Canvas ── -->
+  <canvas id="canvas"></canvas>
+
+  <!-- ── Model Transition Overlay ── -->
+  <div id="transition-overlay"></div>
+
+  <!-- ── Loading Overlay ── -->
+  <div id="loading-overlay">
+    <div class="loading-logo">MMS<span>.</span>Experience</div>
+    <div class="progress-track">
+      <div id="progress-bar"></div>
+    </div>
+    <div id="loading-text">Initialising…</div>
+  </div>
+
+  <!-- ── Header ── -->
+  <header id="header">
+    <div>
+      <div class="brand">MMS<span>.</span>Experience</div>
+      <div class="project-name">Building Viewer — Interactive 3D</div>
+    </div>
+  </header>
+
+  <!-- ── Breadcrumb ── -->
+  <div id="breadcrumb">
+    <span>Building</span>
+    <span class="sep">›</span>
+    <span class="crumb-active" id="crumb-active">Site</span>
+  </div>
+
+  <!-- ── Back Button (interior mode only) ── -->
+  <button id="back-btn" aria-label="Back to exterior">
+    ← Back
+  </button>
+
+  <!-- ── Stats Bar (interior mode) ── -->
+  <div id="stats-bar" class="hidden">
+    <div class="stat-pill available">
+      <div class="stat-dot"></div>
+      <span>Available</span>
+      <span class="count" id="stat-available">—</span>
+    </div>
+    <div class="stat-pill reserved">
+      <div class="stat-dot"></div>
+      <span>Reserved</span>
+      <span class="count" id="stat-reserved">—</span>
+    </div>
+    <div class="stat-pill sold">
+      <div class="stat-dot"></div>
+      <span>Sold</span>
+      <span class="count" id="stat-sold">—</span>
+    </div>
+    <div class="stat-pill total">
+      <div class="stat-dot"></div>
+      <span>Total</span>
+      <span class="count" id="stat-total">—</span>
+    </div>
+  </div>
+
+  <!-- ── Legend (interior mode) ── -->
+  <div id="legend" class="hidden">
+    <div class="legend-title">Legend</div>
+    <div class="legend-item">
+      <div class="legend-swatch available"></div>
+      <span>Available</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch reserved"></div>
+      <span>Reserved</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch sold"></div>
+      <span>Sold / Booked</span>
+    </div>
+  </div>
+
+  <!-- ── Compass ── -->
+  <div id="compass">
+    <div class="compass-needle">
+      <span class="n">N</span>
+      <span>✦</span>
+      <span class="s">S</span>
+    </div>
+  </div>
+
+  <!-- ── Mode Hint ── -->
+  <div id="mode-hint" class="hidden"></div>
+
+  <!-- ── Filter Panel (interior mode) ── -->
+  <div id="filter-panel" class="hidden">
+    <button class="filter-btn f-all active"  onclick="filterStatus('all')">All Flats</button>
+    <button class="filter-btn f-avail"        onclick="filterStatus('available')">Available</button>
+    <button class="filter-btn f-res"          onclick="filterStatus('reserved')">Reserved</button>
+    <button class="filter-btn f-sold"         onclick="filterStatus('sold')">Sold</button>
+  </div>
+
+  <!-- ── Camera Reset ── -->
+  <div id="controls-panel">
+    <button class="ctrl-btn" onclick="resetCamera()" title="Reset Camera">⌂</button>
+  </div>
+
+  <!-- ── Tooltip ── -->
+  <div id="tooltip"></div>
+
+  <!-- ── Flat Popup ── -->
+  <div id="plot-popup"></div>
+
+  <!-- ── Enquiry Modal ── -->
+  <div id="enquiry-overlay">
+    <div id="enquiry-modal" role="dialog" aria-modal="true" aria-labelledby="enq-title">
+      <div class="enq-header">
+        <div>
+          <div class="enq-eyebrow">Enquiry</div>
+          <h2 class="enq-title" id="enq-title">Interested in <span id="enq-flat-label"></span>?</h2>
+        </div>
+        <button id="enq-close" aria-label="Close enquiry">✕</button>
+      </div>
+
+      <div class="enq-body">
+        <div class="enq-row">
+          <div class="enq-field">
+            <label class="enq-label" for="enq-name">Full Name <span class="req">*</span></label>
+            <input id="enq-name" type="text" placeholder="John Doe" autocomplete="name" />
+            <span class="enq-hint">Minimum 2 characters</span>
+          </div>
+          <div class="enq-field">
+            <label class="enq-label" for="enq-phone">Phone <span class="req">*</span></label>
+            <input id="enq-phone" type="tel" placeholder="+91 98765 43210" autocomplete="tel" />
+            <span class="enq-hint">7–15 digits</span>
+          </div>
+        </div>
+
+        <div class="enq-field">
+          <label class="enq-label" for="enq-email">Email Address <span class="req">*</span></label>
+          <input id="enq-email" type="email" placeholder="you@example.com" autocomplete="email" />
+          <span class="enq-hint">Valid email required</span>
+        </div>
+
+        <div class="enq-field">
+          <label class="enq-label" for="enq-message">Message <span class="req">*</span></label>
+          <textarea id="enq-message" rows="3" placeholder="I'd like to know more about this flat…"></textarea>
+          <span class="enq-hint">Minimum 5 characters</span>
+        </div>
+      </div>
+
+      <div class="enq-footer">
+        <div id="enq-toast" class="enq-toast"></div>
+        <button id="enq-submit" class="enq-submit" disabled>Submit Enquiry</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Three.js via CDN (ES module import map) ── -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three":          "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
+        "three/addons/":  "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <script type="module" src="./js/viewer.js"></script>
+
+</body>
+</html>
