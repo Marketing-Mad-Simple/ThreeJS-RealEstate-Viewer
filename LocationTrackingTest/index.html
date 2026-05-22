@@ -15,11 +15,7 @@
       min-height: 100vh;
     }
 
-    h1 {
-      font-size: 18px;
-      font-weight: 500;
-      margin-bottom: 12px;
-    }
+    h1 { font-size: 18px; font-weight: 500; margin-bottom: 12px; }
 
     canvas {
       display: block;
@@ -49,28 +45,44 @@
       -webkit-tap-highlight-color: transparent;
     }
 
-    button.active {
-      background: #1D9E75;
-      color: #fff;
-      border-color: #1D9E75;
-    }
-
-    button.danger {
-      background: #E24B4A;
-      color: #fff;
-      border-color: #E24B4A;
-    }
+    button.active  { background: #1D9E75; color: #fff; border-color: #1D9E75; }
+    button.danger  { background: #E24B4A; color: #fff; border-color: #E24B4A; }
+    button.warning { background: #d48806; color: #fff; border-color: #d48806; }
 
     .stats {
       display: flex;
-      gap: 16px;
+      gap: 14px;
       flex-wrap: wrap;
       font-size: 13px;
       color: #666;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
     }
-
     .stats span { color: #111; font-weight: 500; }
+
+    /* GPS accuracy pill */
+    #gpsPill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      background: #eee;
+      color: #555;
+      margin-bottom: 10px;
+    }
+    #gpsPill .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #ccc;
+      flex-shrink: 0;
+    }
+    #gpsPill.good  { background: #e6f7f0; color: #0f6e56; }
+    #gpsPill.good  .dot { background: #1D9E75; }
+    #gpsPill.poor  { background: #fff7e6; color: #874d00; }
+    #gpsPill.poor  .dot { background: #fa8c16; }
+    #gpsPill.none  { background: #eee; color: #888; }
+    #gpsPill.none  .dot { background: #ccc; }
 
     .note {
       font-size: 13px;
@@ -94,13 +106,27 @@
       margin-top: 10px;
     }
 
+    /* Legend */
+    .legend {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 10px;
+    }
+    .legend-item { display: flex; align-items: center; gap: 5px; }
+    .legend-dot  { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
     @media (prefers-color-scheme: dark) {
-      body { background: #1a1a1a; color: #eee; }
+      body   { background: #1a1a1a; color: #eee; }
       canvas { background: #242424; border-color: #444; }
       button { background: #2a2a2a; color: #eee; border-color: #555; }
       .stats { color: #aaa; }
       .stats span { color: #eee; }
-      .note { background: #2a2500; border-color: #614700; color: #d4b106; }
+      .legend { color: #aaa; }
+      .note  { background: #2a2500; border-color: #614700; color: #d4b106; }
+      #gpsPill.none { background: #2a2a2a; color: #888; }
       #permissionError { background: #2a0000; border-color: #6e1500; color: #ff7875; }
     }
   </style>
@@ -108,12 +134,18 @@
 <body>
 
 <h1>Indoor Movement Tracker</h1>
+
 <canvas id="map" width="700" height="400"></canvas>
 
 <div class="controls">
   <button id="startBtn" onclick="requestAndStart()">Start tracking</button>
-  <button id="moveBtn" onclick="toggleMove()" style="display:none">Walking: OFF</button>
-  <button class="danger" onclick="reset()" style="display:none" id="resetBtn">Reset</button>
+  <button id="moveBtn"  onclick="toggleMove()"    style="display:none">Walking: OFF</button>
+  <button class="danger" onclick="reset()"         style="display:none" id="resetBtn">Reset</button>
+</div>
+
+<div id="gpsPill" class="none">
+  <span class="dot"></span>
+  <span id="gpsLabel">GPS: waiting…</span>
 </div>
 
 <div class="stats">
@@ -123,37 +155,127 @@
   <div>Status: <span id="status">tap Start</span></div>
 </div>
 
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#378ADD"></div> Your position (stationary)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#1D9E75"></div> Your position (walking)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#FA8C16; opacity:0.6"></div> Raw GPS dot</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#1D9E75; border: 2px solid #0f6e56"></div> GPS-corrected path</div>
+</div>
+
 <div class="note">
-  Hold phone upright (portrait). Tap <b>Start tracking</b> and grant sensor permissions.
-  Tap <b>Walking: OFF</b> only while actually walking — tap again when you stop.
-  The green dot shows your position; the arrow shows your heading.
-  Drift is normal over longer distances.
+  Hold phone upright (portrait). Tap <b>Start tracking</b> and grant all permissions.
+  Tap <b>Walking: OFF</b> only while actually moving — tap again when you stop.
+  <b>Green dot</b> = your fused position. <b>Orange dot</b> = raw GPS (shown when accurate enough).
+  GPS corrections apply automatically when accuracy &lt; 20 m.
 </div>
 
 <div id="permissionError"></div>
 
 <script>
   const canvas = document.getElementById('map');
-  const ctx = canvas.getContext('2d');
+  const ctx    = canvas.getContext('2d');
 
-  // State
+  // ── IMU state ─────────────────────────────────────────────────────────────
   let heading = 0;
   let vx = 0, vy = 0;
-  let px = 0, py = 0;
+  let px = 0, py = 0;          // position in metres relative to start (local XY)
   let isMoving = false;
-  let started = false;
-  let lastT = null;
-  let path = [{ x: 0, y: 0 }];
+  let started  = false;
+  let lastT    = null;
+  let path     = [{ x: 0, y: 0 }];
 
-  // Sensor smoothing
   const ALPHA = 0.85;
   let smoothAx = 0, smoothAy = 0;
   let gravX = 0, gravY = 0, gravZ = 9.81;
 
-  // Map scale: pixels per metre
-  const SCALE = 60;
+  const SCALE = 60; // pixels per metre
 
-  // ── Drawing ──────────────────────────────────────────────────────────────
+  // ── GPS / fusion state ────────────────────────────────────────────────────
+  let originLat = null, originLng = null;   // GPS fix at startup (world anchor)
+  let gpsX = null, gpsY = null;             // latest GPS in local metres
+  let gpsAccuracy = Infinity;
+  let gpsWatchId  = null;
+  let lastGpsCorrection = 0;
+
+  // Tuning knobs
+  const GPS_TRUST_ACCURACY = 20;   // metres — only fuse if GPS accuracy < this
+  const GPS_BLEND_STRENGTH = 0.35; // 0 = ignore GPS, 1 = snap to GPS instantly
+  const GPS_CORRECTION_INTERVAL = 3000; // ms between correction pulses
+
+  // ── Coordinate helpers ────────────────────────────────────────────────────
+
+  // Convert lat/lng delta to approximate metres (flat-earth, fine for <1 km)
+  function latLngToMetres(lat, lng, originLat, originLng) {
+    const R = 6371000;
+    const dLat = (lat - originLat) * Math.PI / 180;
+    const dLng = (lng - originLng) * Math.PI / 180;
+    const avgLat = (lat + originLat) / 2 * Math.PI / 180;
+    return {
+      x:  dLng * R * Math.cos(avgLat),
+      y:  dLat * R
+    };
+  }
+
+  // ── GPS handler ───────────────────────────────────────────────────────────
+
+  function onGPS(pos) {
+    const { latitude, longitude, accuracy } = pos.coords;
+    gpsAccuracy = accuracy;
+
+    // Set the world origin on the very first good fix
+    if (originLat === null) {
+      originLat = latitude;
+      originLng = longitude;
+      gpsX = 0; gpsY = 0;
+    } else {
+      const m = latLngToMetres(latitude, longitude, originLat, originLng);
+      gpsX = m.x;
+      gpsY = m.y;
+    }
+
+    // Update GPS pill UI
+    const pill  = document.getElementById('gpsPill');
+    const label = document.getElementById('gpsLabel');
+    if (accuracy < GPS_TRUST_ACCURACY) {
+      pill.className  = 'good';
+      label.textContent = `GPS: ±${Math.round(accuracy)} m — correcting`;
+    } else {
+      pill.className  = 'poor';
+      label.textContent = `GPS: ±${Math.round(accuracy)} m — too noisy`;
+    }
+
+    // Apply correction if accuracy is good enough and enough time has passed
+    const now = Date.now();
+    if (accuracy < GPS_TRUST_ACCURACY && (now - lastGpsCorrection) > GPS_CORRECTION_INTERVAL) {
+      px = px + GPS_BLEND_STRENGTH * (gpsX - px);
+      py = py + GPS_BLEND_STRENGTH * (gpsY - py);
+      lastGpsCorrection = now;
+      path.push({ x: px, y: py, gpsSnap: true }); // mark corrected points
+    }
+
+    draw();
+  }
+
+  function onGPSError(err) {
+    const pill = document.getElementById('gpsPill');
+    pill.className = 'none';
+    document.getElementById('gpsLabel').textContent = 'GPS: unavailable';
+  }
+
+  function startGPS() {
+    if (!navigator.geolocation) {
+      document.getElementById('gpsLabel').textContent = 'GPS: not supported';
+      return;
+    }
+    gpsWatchId = navigator.geolocation.watchPosition(onGPS, onGPSError, {
+      enableHighAccuracy: true,
+      maximumAge: 2000,
+      timeout: 10000
+    });
+    document.getElementById('gpsLabel').textContent = 'GPS: acquiring…';
+  }
+
+  // ── Drawing ───────────────────────────────────────────────────────────────
 
   function draw() {
     const W = canvas.width;
@@ -163,49 +285,80 @@
     ctx.clearRect(0, 0, W, H);
 
     // Grid
-    ctx.strokeStyle = dark ? '#333' : '#eee';
+    ctx.strokeStyle = dark ? '#2e2e2e' : '#eee';
     ctx.lineWidth = 1;
-    for (let x = 0; x < W; x += 40) {
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
-    }
-    for (let y = 0; y < H; y += 40) {
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
-    }
+    for (let x = 0; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+    for (let y = 0; y < H; y += 40) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
 
-    // Origin marker
-    ctx.beginPath();
-    ctx.arc(W / 2, H / 2, 5, 0, Math.PI * 2);
-    ctx.fillStyle = dark ? '#555' : '#ccc';
-    ctx.fill();
+    // Origin cross
+    const ox = W / 2, oy = H / 2;
+    ctx.strokeStyle = dark ? '#555' : '#bbb';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(ox-8,oy); ctx.lineTo(ox+8,oy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(ox,oy-8); ctx.lineTo(ox,oy+8); ctx.stroke();
 
-    // Path
+    // IMU path
     if (path.length > 1) {
       ctx.beginPath();
       ctx.strokeStyle = '#1D9E75';
       ctx.lineWidth = 2.5;
       ctx.lineJoin = 'round';
-      ctx.moveTo(W / 2 + path[0].x * SCALE, H / 2 - path[0].y * SCALE);
+      ctx.moveTo(W/2 + path[0].x * SCALE, H/2 - path[0].y * SCALE);
       for (let i = 1; i < path.length; i++) {
-        ctx.lineTo(W / 2 + path[i].x * SCALE, H / 2 - path[i].y * SCALE);
+        ctx.lineTo(W/2 + path[i].x * SCALE, H/2 - path[i].y * SCALE);
       }
       ctx.stroke();
+
+      // Mark GPS-correction snap points
+      for (let i = 1; i < path.length; i++) {
+        if (path[i].gpsSnap) {
+          const sx = W/2 + path[i].x * SCALE;
+          const sy = H/2 - path[i].y * SCALE;
+          ctx.beginPath();
+          ctx.arc(sx, sy, 4, 0, Math.PI*2);
+          ctx.fillStyle = '#FA8C16';
+          ctx.fill();
+        }
+      }
     }
 
-    // Current position dot
-    const cx = W / 2 + px * SCALE;
-    const cy = H / 2 - py * SCALE;
+    // Raw GPS dot (semi-transparent orange) + accuracy ring
+    if (gpsX !== null && gpsAccuracy < 80) {
+      const gx = W/2 + gpsX * SCALE;
+      const gy = H/2 - gpsY * SCALE;
+
+      // Accuracy circle
+      const accRadius = Math.min((gpsAccuracy / 1) * SCALE, 120); // cap visual size
+      ctx.beginPath();
+      ctx.arc(gx, gy, accRadius, 0, Math.PI*2);
+      ctx.fillStyle   = 'rgba(250,140,22,0.08)';
+      ctx.strokeStyle = 'rgba(250,140,22,0.35)';
+      ctx.lineWidth   = 1;
+      ctx.fill();
+      ctx.stroke();
+
+      // GPS dot
+      ctx.beginPath();
+      ctx.arc(gx, gy, 7, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(250,140,22,0.65)';
+      ctx.fill();
+    }
+
+    // Fused position dot (main dot)
+    const cx = W/2 + px * SCALE;
+    const cy = H/2 - py * SCALE;
 
     ctx.beginPath();
-    ctx.arc(cx, cy, 11, 0, Math.PI * 2);
+    ctx.arc(cx, cy, 11, 0, Math.PI*2);
     ctx.fillStyle = isMoving ? '#1D9E75' : '#378ADD';
     ctx.fill();
 
-    // Heading arrow on dot
+    // Heading arrow
     const hRad = (heading - 90) * Math.PI / 180;
     ctx.beginPath();
-    ctx.moveTo(cx + Math.cos(hRad) * 15, cy + Math.sin(hRad) * 15);
-    ctx.lineTo(cx + Math.cos(hRad + 2.5) * 8, cy + Math.sin(hRad + 2.5) * 8);
-    ctx.lineTo(cx + Math.cos(hRad - 2.5) * 8, cy + Math.sin(hRad - 2.5) * 8);
+    ctx.moveTo(cx + Math.cos(hRad)*15, cy + Math.sin(hRad)*15);
+    ctx.lineTo(cx + Math.cos(hRad+2.5)*8, cy + Math.sin(hRad+2.5)*8);
+    ctx.lineTo(cx + Math.cos(hRad-2.5)*8, cy + Math.sin(hRad-2.5)*8);
     ctx.closePath();
     ctx.fillStyle = '#fff';
     ctx.fill();
@@ -214,11 +367,8 @@
   // ── Sensor handlers ───────────────────────────────────────────────────────
 
   function onOrientation(e) {
-    // Prefer webkitCompassHeading (iOS) for true north; fall back to alpha
     if (typeof e.webkitCompassHeading === 'number') {
       heading = e.webkitCompassHeading;
-    } else if (e.absolute && e.alpha !== null) {
-      heading = (360 - e.alpha) % 360;
     } else if (e.alpha !== null) {
       heading = (360 - e.alpha) % 360;
     }
@@ -231,21 +381,20 @@
     const acc = e.accelerationIncludingGravity;
     if (!acc || acc.x === null) return;
 
-    // Low-pass filter to estimate gravity component
+    // Separate gravity via low-pass
     const LP = 0.85;
-    gravX = LP * gravX + (1 - LP) * acc.x;
-    gravY = LP * gravY + (1 - LP) * acc.y;
-    gravZ = LP * gravZ + (1 - LP) * acc.z;
+    gravX = LP*gravX + (1-LP)*acc.x;
+    gravY = LP*gravY + (1-LP)*acc.y;
+    gravZ = LP*gravZ + (1-LP)*acc.z;
 
-    // Remove gravity to get linear acceleration
     let ax = acc.x - gravX;
     let ay = acc.y - gravY;
 
     // High-pass smooth
-    smoothAx = ALPHA * smoothAx + (1 - ALPHA) * ax;
-    smoothAy = ALPHA * smoothAy + (1 - ALPHA) * ay;
+    smoothAx = ALPHA*smoothAx + (1-ALPHA)*ax;
+    smoothAy = ALPHA*smoothAy + (1-ALPHA)*ay;
 
-    // Dead zone — ignore tiny accelerations (noise)
+    // Dead zone
     const THRESH = 0.15;
     if (Math.abs(smoothAx) < THRESH) smoothAx = 0;
     if (Math.abs(smoothAy) < THRESH) smoothAy = 0;
@@ -256,19 +405,14 @@
     lastT = now;
 
     if (isMoving && dt < 0.5) {
-      // Integrate acceleration → velocity
       vx += smoothAx * dt;
       vy += smoothAy * dt;
+      vx *= 0.97;
+      vy *= 0.97;
 
-      // Velocity damping to reduce unbounded drift
-      const DAMPING = 0.97;
-      vx *= DAMPING;
-      vy *= DAMPING;
-
-      const speed = Math.sqrt(vx * vx + vy * vy);
+      const speed = Math.sqrt(vx*vx + vy*vy);
       document.getElementById('spd').textContent = speed.toFixed(2);
 
-      // Project movement along compass heading (not raw phone axes)
       const hRad = heading * Math.PI / 180;
       px += Math.sin(hRad) * speed * dt;
       py += Math.cos(hRad) * speed * dt;
@@ -293,31 +437,32 @@
     document.getElementById('permissionError').style.display = 'none';
 
     try {
-      // iOS 13+ requires explicit permission for orientation + motion
       if (typeof DeviceOrientationEvent !== 'undefined' &&
           typeof DeviceOrientationEvent.requestPermission === 'function') {
         const r = await DeviceOrientationEvent.requestPermission();
         if (r !== 'granted') {
-          showError('Orientation permission denied. Enable it in Settings → Safari → Motion & Orientation Access.');
+          showError('Orientation permission denied. Go to Settings → Safari → Motion & Orientation Access.');
           return;
         }
       }
-
       if (typeof DeviceMotionEvent !== 'undefined' &&
           typeof DeviceMotionEvent.requestPermission === 'function') {
         const r = await DeviceMotionEvent.requestPermission();
         if (r !== 'granted') {
-          showError('Motion permission denied. Enable it in Settings → Safari → Motion & Orientation Access.');
+          showError('Motion permission denied. Go to Settings → Safari → Motion & Orientation Access.');
           return;
         }
       }
 
       window.addEventListener('deviceorientation', onOrientation, true);
-      window.addEventListener('devicemotion', onMotion, true);
+      window.addEventListener('devicemotion',      onMotion,      true);
+
+      // Start GPS (browser will prompt for location permission automatically)
+      startGPS();
 
       started = true;
       document.getElementById('startBtn').style.display = 'none';
-      document.getElementById('moveBtn').style.display = '';
+      document.getElementById('moveBtn').style.display  = '';
       document.getElementById('resetBtn').style.display = '';
       document.getElementById('status').textContent = 'ready — tap Walking when moving';
 
@@ -333,7 +478,7 @@
 
     const btn = document.getElementById('moveBtn');
     btn.textContent = 'Walking: ' + (isMoving ? 'ON' : 'OFF');
-    btn.className = isMoving ? 'active' : '';
+    btn.className   = isMoving ? 'active' : '';
     document.getElementById('status').textContent = isMoving ? 'tracking movement' : 'stationary';
     draw();
   }
@@ -342,23 +487,29 @@
     px = 0; py = 0; vx = 0; vy = 0;
     path = [{ x: 0, y: 0 }];
     isMoving = false;
-    lastT = null;
+    lastT    = null;
+    originLat = null; originLng = null;
+    gpsX = null; gpsY = null;
+    gpsAccuracy = Infinity;
+    lastGpsCorrection = 0;
+
     document.getElementById('moveBtn').textContent = 'Walking: OFF';
-    document.getElementById('moveBtn').className = '';
-    document.getElementById('status').textContent = 'reset — ready';
-    document.getElementById('pos').textContent = '0, 0';
-    document.getElementById('spd').textContent = '0.00';
+    document.getElementById('moveBtn').className   = '';
+    document.getElementById('status').textContent  = 'reset — ready';
+    document.getElementById('pos').textContent     = '0, 0';
+    document.getElementById('spd').textContent     = '0.00';
+    document.getElementById('gpsPill').className   = 'none';
+    document.getElementById('gpsLabel').textContent = 'GPS: re-acquiring…';
     draw();
   }
 
   function showError(msg) {
     const el = document.getElementById('permissionError');
-    el.textContent = msg;
+    el.textContent   = msg;
     el.style.display = 'block';
     document.getElementById('status').textContent = 'error';
   }
 
-  // Initial render
   draw();
 </script>
 </body>
