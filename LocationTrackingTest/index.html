@@ -18,8 +18,6 @@
     }
     #canvasWrap.grabbing { cursor: grabbing; }
     canvas { display: block; }
-
-    /* top-right canvas buttons */
     .map-btn-group {
       position: absolute; top: 8px; right: 8px;
       display: flex; flex-direction: column; gap: 4px;
@@ -32,24 +30,20 @@
       -webkit-tap-highlight-color: transparent;
     }
     .map-btn:active { background: #eee; }
-
     .controls { display: flex; gap: 8px; margin: 10px 0; flex-wrap: wrap; }
     button {
       padding: 11px 18px; border-radius: 8px; border: 1px solid #ccc;
       background: #fff; color: #111; font-size: 14px; cursor: pointer;
       -webkit-tap-highlight-color: transparent;
     }
-    button.active  { background: #1D9E75; color: #fff; border-color: #1D9E75; }
-    button.danger  { background: #E24B4A; color: #fff; border-color: #E24B4A; }
-    button.warn    { background: #d48806; color: #fff; border-color: #d48806; }
-    button.off     { background: #888;    color: #fff; border-color: #888; }
-
+    button.active { background: #1D9E75; color: #fff; border-color: #1D9E75; }
+    button.danger { background: #E24B4A; color: #fff; border-color: #E24B4A; }
+    button.off    { background: #888;    color: #fff; border-color: #888; }
     .stats {
       display: flex; gap: 12px; flex-wrap: wrap;
       font-size: 13px; color: #666; margin-bottom: 8px;
     }
     .stats span { color: #111; font-weight: 500; }
-
     .pills { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
     .pill {
       display: inline-flex; align-items: center; gap: 5px;
@@ -60,11 +54,9 @@
     .pill.good { background: #e6f7f0; color: #0f6e56; } .pill.good .dot { background: #1D9E75; }
     .pill.poor { background: #fff7e6; color: #874d00; } .pill.poor .dot { background: #fa8c16; }
     .pill.off2 { background: #f0f0f0; color: #888; }    .pill.off2 .dot { background: #bbb; }
-    .pill.step { background: #e6f0ff; color: #1a3a6e; } .pill.step .dot { background: #378ADD; }
-
     .slider-row {
       display: flex; align-items: center; gap: 10px;
-      font-size: 13px; color: #666; margin-bottom: 10px;
+      font-size: 13px; color: #666; margin-bottom: 10px; flex-wrap: wrap;
     }
     .note {
       font-size: 13px; color: #666; line-height: 1.6;
@@ -78,6 +70,13 @@
     }
     .debug { font-size: 11px; color: #aaa; margin-top: 6px; font-family: monospace; line-height: 1.8; }
 
+    /* Speed visualiser bar */
+    #speedBar {
+      height: 6px; border-radius: 3px; background: #eee;
+      margin-bottom: 8px; overflow: hidden;
+    }
+    #speedFill { height: 100%; width: 0%; background: #1D9E75; transition: width 0.1s; }
+
     @media (prefers-color-scheme: dark) {
       body   { background: #1a1a1a; color: #eee; }
       #canvasWrap { background: #242424; border-color: #444; }
@@ -85,6 +84,7 @@
       button { background: #2a2a2a; color: #eee; border-color: #555; }
       .stats { color: #aaa; } .stats span { color: #eee; }
       .pill  { background: #2a2a2a; color: #aaa; }
+      #speedBar { background: #333; }
       .note  { background: #2a2500; border-color: #614700; color: #d4b106; }
       .error-box { background: #2a0000; border-color: #6e1500; color: #ff7875; }
       .debug { color: #555; }
@@ -98,84 +98,138 @@
 <div id="canvasWrap">
   <canvas id="map"></canvas>
   <div class="map-btn-group">
-    <button class="map-btn" onclick="zoomIn()"  title="Zoom in">+</button>
-    <button class="map-btn" onclick="zoomOut()" title="Zoom out">−</button>
+    <button class="map-btn" onclick="zoomIn()"         title="Zoom in">+</button>
+    <button class="map-btn" onclick="zoomOut()"        title="Zoom out">−</button>
     <button class="map-btn" onclick="centerOnPlayer()" title="Re-center">⊙</button>
   </div>
 </div>
 
 <div class="controls">
-  <button id="startBtn" onclick="requestAndStart()">Start tracking</button>
-  <button id="moveBtn"  onclick="toggleMove()"    style="display:none">Walking: OFF</button>
-  <button id="gpsBtn"   onclick="toggleGPS()"     style="display:none">GPS: ON</button>
-  <button class="danger" onclick="reset()"         style="display:none" id="resetBtn">Reset</button>
+  <button id="startBtn"  onclick="requestAndStart()">Start tracking</button>
+  <button id="moveBtn"   onclick="toggleMove()"    style="display:none">Walking: OFF</button>
+  <button id="gpsBtn"    onclick="toggleGPS()"     style="display:none">GPS: ON</button>
+  <button class="danger" onclick="reset()"          style="display:none" id="resetBtn">Reset</button>
 </div>
 
 <div class="pills">
   <div class="pill" id="gpsPill"><span class="dot"></span><span id="gpsLabel">GPS: —</span></div>
-  <div class="pill" id="stepPill"><span class="dot"></span><span id="stepLabel">Steps: 0</span></div>
+  <div class="pill" id="kalPill"><span class="dot" style="background:#9b5de5"></span><span>Kalman heading</span></div>
 </div>
+
+<!-- Speed bar -->
+<div id="speedBar"><div id="speedFill"></div></div>
 
 <div class="stats">
   <div>Heading: <span id="hdg">—</span>°</div>
+  <div>Speed: <span id="spd">0.00</span> m/s</div>
   <div>Position: <span id="pos">0, 0</span> m</div>
   <div>Status: <span id="status">tap Start</span></div>
 </div>
 
+<!-- Sensitivity slider -->
 <div class="slider-row">
-  <label for="slSlider">Step length</label>
-  <input type="range" id="slSlider" min="0.4" max="1.4" step="0.05" value="0.70"
+  <label for="sensSlider">Sensitivity</label>
+  <input type="range" id="sensSlider" min="1" max="10" step="0.5" value="4"
          style="flex:1; max-width:180px"
-         oninput="STEP_LENGTH=parseFloat(this.value); document.getElementById('slVal').textContent=this.value+'m';">
-  <span id="slVal" style="min-width:36px; font-size:13px; color:#666;">0.70m</span>
-  <span style="font-size:12px; color:#aaa;">(tune until distance feels right)</span>
+         oninput="SENSITIVITY=parseFloat(this.value); document.getElementById('sensVal').textContent=this.value;">
+  <span id="sensVal" style="min-width:24px; font-size:13px; color:#666;">4</span>
+  <span style="font-size:12px; color:#aaa;">— raise if movement not detected</span>
 </div>
 
 <div class="note">
-  Hold phone <b>upright, portrait</b>. Tap <b>Start</b> → allow permissions → tap <b>Walking: OFF</b> while moving.
-  Drag the map to pan. Use <b>+ −</b> or pinch to zoom. <b>⊙</b> re-centers on you.
-  Toggle <b>GPS</b> off if it's making you jump around.
+  Hold phone <b>upright, portrait</b>. Tap <b>Start</b> → grant permissions → tap <b>Walking: OFF</b> while moving.
+  Drag to pan, pinch/scroll to zoom, <b>⊙</b> to re-center. Toggle <b>GPS</b> off if it causes jumps.
+  The speed bar fills as you move — if it stays empty while walking, raise the Sensitivity slider.
 </div>
 <div class="error-box" id="errBox"></div>
 <div class="debug" id="dbgEl"></div>
 
 <script>
-// ── Tuning ──────────────────────────────────────────────────────────────
-let   STEP_LENGTH          = 0.70;
-const STEP_HIGH            = 12.5;
-const STEP_LOW             = 9.5;
-const STEP_MIN_MS          = 250;
-const GPS_TRUST_ACC        = 20;    // metres
-const GPS_BLEND            = 0.25;  // gentler blend (was 0.35) — less teleporting
-const GPS_INTERVAL_MS      = 4000;
-const GPS_MAX_JUMP_M       = 8;     // ignore GPS corrections larger than this
+// ── Tuning (user-adjustable via slider) ────────────────────────────────
+let SENSITIVITY = 4;          // 1–10: higher = responds to slower movement
+// Derived constants (recalculated from SENSITIVITY in onMotion)
+// DEAD_ZONE  = base 0.25 / SENSITIVITY  (lower = more sensitive)
+// GAIN       = SENSITIVITY * 0.4        (amplifies detected movement)
 
-// ── State ───────────────────────────────────────────────────────────────
-let heading = 0, px = 0, py = 0;
+// ── GPS tuning ─────────────────────────────────────────────────────────
+const GPS_TRUST_ACC    = 25;   // metres
+const GPS_BLEND        = 0.25;
+const GPS_INTERVAL_MS  = 4000;
+const GPS_MAX_JUMP_M   = 8;
+
+// ── State ──────────────────────────────────────────────────────────────
+let px = 0, py = 0;
+let vx = 0, vy = 0;
 let isMoving = false, started = false;
 let path = [{ x: 0, y: 0 }];
 let gpsEnabled = true;
 
-// Step detection
-let accelLP = 10, stepPhase = 'seek_peak';
-let stepCount = 0, lastStepMs = 0;
+// Raw compass heading (from deviceorientation)
+let compassHeading = 0;
 
-// GPS
+// ── Kalman filter for heading ──────────────────────────────────────────
+// State: [heading, gyro_bias]
+// Fuses compass (noisy but absolute) with gyroscope (smooth but drifts)
+let kAngle    = 0;     // Kalman-estimated heading
+let kBias     = 0;     // estimated gyro bias
+let kP00 = 1, kP01 = 0, kP10 = 0, kP11 = 1; // error covariance matrix
+const Q_ANGLE = 0.001; // process noise — gyro angle
+const Q_BIAS  = 0.003; // process noise — gyro bias
+const R_MEASURE = 0.5; // measurement noise — compass (higher = trust compass less)
+
+function kalmanUpdate(newCompass, gyroRate, dt) {
+  // --- Predict step (integrate gyro) ---
+  const rate = gyroRate - kBias;
+  kAngle += dt * rate;
+
+  // Update covariance
+  kP00 += dt * (dt * kP11 - kP01 - kP10 + Q_ANGLE);
+  kP01 -= dt * kP11;
+  kP10 -= dt * kP11;
+  kP11 += Q_BIAS * dt;
+
+  // --- Update step (correct with compass) ---
+  // Shortest-path compass difference (handle 0/360 wrap)
+  let diff = newCompass - kAngle;
+  if (diff >  180) diff -= 360;
+  if (diff < -180) diff += 360;
+
+  const S  = kP00 + R_MEASURE;
+  const K0 = kP00 / S;
+  const K1 = kP10 / S;
+
+  kAngle += K0 * diff;
+  kBias  += K1 * diff;
+
+  kP00 -= K0 * kP00;
+  kP01 -= K0 * kP01;
+  kP10 -= K1 * kP00;
+  kP11 -= K1 * kP01;
+
+  // Keep in [0, 360)
+  kAngle = ((kAngle % 360) + 360) % 360;
+  return kAngle;
+}
+
+// ── Accelerometer state ────────────────────────────────────────────────
+// Gravity estimate (low-pass)
+let gravX = 0, gravY = 0, gravZ = 9.81;
+// Smoothed linear acceleration (high-pass residual)
+let smoothAx = 0, smoothAy = 0;
+let lastT = null;
+// Last gyro rates (from devicemotion.rotationRate)
+let gyroAlpha = 0; // deg/s around Z (yaw) — what we use for heading
+
+// ── GPS ────────────────────────────────────────────────────────────────
 let originLat = null, originLng = null;
 let gpsX = null, gpsY = null, gpsAccuracy = Infinity;
-let lastGpsCorrection = 0, gpsWatchId = null;
+let lastGpsCorrection = 0;
 
-// ── Viewport (pan + zoom) ───────────────────────────────────────────────
+// ── Viewport ───────────────────────────────────────────────────────────
 const CANVAS_W = 700, CANVAS_H = 420;
-let scale    = 60;   // px per metre
-let viewOX   = CANVAS_W / 2;  // canvas coords of world origin
-let viewOY   = CANVAS_H / 2;
-
-// Pan state
-let isPanning = false, panStartX = 0, panStartY = 0, panOX = 0, panOY = 0;
-
-// Pinch state
-let pinchDist0 = 0, pinchScale0 = 0;
+let scale  = 60;
+let viewOX = CANVAS_W / 2;
+let viewOY = CANVAS_H / 2;
 
 const canvas = document.getElementById('map');
 const ctx    = canvas.getContext('2d');
@@ -186,118 +240,169 @@ canvas.height = CANVAS_H;
 function worldToCanvas(wx, wy) {
   return { x: viewOX + wx * scale, y: viewOY - wy * scale };
 }
-
-function zoomIn()  { scale = Math.min(scale * 1.4, 400); draw(); }
-function zoomOut() { scale = Math.max(scale / 1.4, 10);  draw(); }
+function zoomAt(factor, mx, my) {
+  viewOX = mx + (viewOX - mx) * factor;
+  viewOY = my + (viewOY - my) * factor;
+  scale  = Math.min(Math.max(scale * factor, 8), 500);
+}
+function zoomIn()  { zoomAt(1.4, CANVAS_W/2, CANVAS_H/2); draw(); }
+function zoomOut() { zoomAt(0.71, CANVAS_W/2, CANVAS_H/2); draw(); }
 function centerOnPlayer() {
-  viewOX = CANVAS_W / 2 - px * scale;
-  viewOY = CANVAS_H / 2 + py * scale;
+  viewOX = CANVAS_W/2 - px * scale;
+  viewOY = CANVAS_H/2 + py * scale;
   draw();
 }
 
-// ── Pointer / touch events for pan + pinch ──────────────────────────────
-function getPos(e) { return { x: e.clientX - wrap.getBoundingClientRect().left, y: e.clientY - wrap.getBoundingClientRect().top }; }
-function pinchMid(t) { return { x:(t[0].clientX+t[1].clientX)/2, y:(t[0].clientY+t[1].clientY)/2 }; }
-function pinchDist(t) { return Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY); }
+// ── Pan / pinch ────────────────────────────────────────────────────────
+let isPanning = false, panSX = 0, panSY = 0, panOX = 0, panOY = 0;
+let pinchD0 = 0, pinchS0 = 0;
+
+function wrapRect() { return wrap.getBoundingClientRect(); }
 
 wrap.addEventListener('mousedown', e => {
   isPanning = true; wrap.classList.add('grabbing');
-  const p = getPos(e); panStartX = p.x; panStartY = p.y; panOX = viewOX; panOY = viewOY;
+  panSX = e.clientX; panSY = e.clientY; panOX = viewOX; panOY = viewOY;
 });
 window.addEventListener('mousemove', e => {
   if (!isPanning) return;
-  const p = getPos(e);
-  viewOX = panOX + (p.x - panStartX);
-  viewOY = panOY + (p.y - panStartY);
+  viewOX = panOX + (e.clientX - panSX);
+  viewOY = panOY + (e.clientY - panSY);
   draw();
 });
 window.addEventListener('mouseup', () => { isPanning = false; wrap.classList.remove('grabbing'); });
 
 wrap.addEventListener('wheel', e => {
   e.preventDefault();
-  const factor = e.deltaY < 0 ? 1.15 : 0.87;
-  const rect = wrap.getBoundingClientRect();
-  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
-  // zoom toward cursor
-  viewOX = mx + (viewOX - mx) * factor;
-  viewOY = my + (viewOY - my) * factor;
-  scale = Math.min(Math.max(scale * factor, 10), 400);
+  const r = wrapRect();
+  zoomAt(e.deltaY < 0 ? 1.15 : 0.87, e.clientX - r.left, e.clientY - r.top);
   draw();
 }, { passive: false });
 
 wrap.addEventListener('touchstart', e => {
   if (e.touches.length === 1) {
     isPanning = true;
-    panStartX = e.touches[0].clientX; panStartY = e.touches[0].clientY;
+    panSX = e.touches[0].clientX; panSY = e.touches[0].clientY;
     panOX = viewOX; panOY = viewOY;
   } else if (e.touches.length === 2) {
     isPanning = false;
-    pinchDist0  = pinchDist(e.touches);
-    pinchScale0 = scale;
+    pinchD0 = Math.hypot(e.touches[0].clientX - e.touches[1].clientX,
+                          e.touches[0].clientY - e.touches[1].clientY);
+    pinchS0 = scale;
   }
 }, { passive: true });
 
 wrap.addEventListener('touchmove', e => {
   e.preventDefault();
   if (e.touches.length === 1 && isPanning) {
-    viewOX = panOX + (e.touches[0].clientX - panStartX);
-    viewOY = panOY + (e.touches[0].clientY - panStartY);
+    viewOX = panOX + (e.touches[0].clientX - panSX);
+    viewOY = panOY + (e.touches[0].clientY - panSY);
     draw();
   } else if (e.touches.length === 2) {
-    const d = pinchDist(e.touches);
-    scale = Math.min(Math.max(pinchScale0 * (d / pinchDist0), 10), 400);
-    const mid = pinchMid(e.touches);
-    const rect = wrap.getBoundingClientRect();
-    const mx = mid.x - rect.left, my = mid.y - rect.top;
-    viewOX = mx + (viewOX - mx) * (scale / (pinchScale0 * (d / pinchDist0)));
-    viewOY = my + (viewOY - my) * (scale / (pinchScale0 * (d / pinchDist0)));
+    const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX,
+                          e.touches[0].clientY - e.touches[1].clientY);
+    const newScale = Math.min(Math.max(pinchS0 * (d / pinchD0), 8), 500);
+    const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - wrapRect().left;
+    const my = (e.touches[0].clientY + e.touches[1].clientY) / 2 - wrapRect().top;
+    viewOX = mx + (viewOX - mx) * (newScale / scale);
+    viewOY = my + (viewOY - my) * (newScale / scale);
+    scale  = newScale;
     draw();
   }
 }, { passive: false });
 
 wrap.addEventListener('touchend', e => { if (e.touches.length === 0) isPanning = false; }, { passive: true });
 
-// ── Step detection ──────────────────────────────────────────────────────
-function processStep(mag) {
-  accelLP = 0.85 * accelLP + 0.15 * mag;
-  if (stepPhase === 'seek_peak') {
-    if (accelLP > STEP_HIGH) {
-      const now = Date.now();
-      if (now - lastStepMs > STEP_MIN_MS) {
-        stepCount++; lastStepMs = now;
-        document.getElementById('stepLabel').textContent = `Steps: ${stepCount}`;
-        document.getElementById('stepPill').className = 'pill step';
-        if (isMoving) {
-          const hRad = heading * Math.PI / 180;
-          px += Math.sin(hRad) * STEP_LENGTH;
-          py += Math.cos(hRad) * STEP_LENGTH;
-          path.push({ x: px, y: py });
-          if (path.length > 8000) path.shift();
-          document.getElementById('pos').textContent = px.toFixed(1) + ', ' + py.toFixed(1);
-          // Auto-pan: if player drifts close to edge, re-center gently
-          const c = worldToCanvas(px, py);
-          const margin = 60;
-          if (c.x < margin || c.x > CANVAS_W-margin || c.y < margin || c.y > CANVAS_H-margin) {
-            viewOX += (CANVAS_W/2 - c.x) * 0.15;
-            viewOY += (CANVAS_H/2 - c.y) * 0.15;
-          }
-          draw();
-        }
-      }
-      stepPhase = 'seek_valley';
+// ── Sensor handlers ────────────────────────────────────────────────────
+
+function onOrientation(e) {
+  if (typeof e.webkitCompassHeading === 'number') {
+    compassHeading = e.webkitCompassHeading;
+  } else if (e.alpha !== null) {
+    compassHeading = (360 - e.alpha) % 360;
+  }
+  // heading display updated in onMotion after Kalman
+}
+
+function onMotion(e) {
+  if (!started) return;
+
+  const now = Date.now();
+  if (!lastT) { lastT = now; return; }
+  const dt = Math.min((now - lastT) / 1000, 0.1); // cap at 100ms
+  lastT = now;
+
+  // ── 1. Kalman: fuse compass + gyro for heading ──────────────────────
+  // rotationRate.alpha = rate around Z axis (yaw) in deg/s
+  // On some devices it may be null — fall back to 0 (compass-only mode)
+  const rr = e.rotationRate;
+  const rawGyroYaw = (rr && rr.alpha !== null) ? rr.alpha : 0;
+  const heading = kalmanUpdate(compassHeading, rawGyroYaw, dt);
+  document.getElementById('hdg').textContent = Math.round(heading);
+
+  // ── 2. Linear acceleration (remove gravity via low-pass) ────────────
+  const acc = e.accelerationIncludingGravity;
+  if (!acc || acc.x === null) return;
+
+  const LP = 0.8;
+  gravX = LP * gravX + (1 - LP) * acc.x;
+  gravY = LP * gravY + (1 - LP) * acc.y;
+  gravZ = LP * gravZ + (1 - LP) * acc.z;
+
+  let linX = acc.x - gravX;
+  let linY = acc.y - gravY;
+
+  // ── 3. Adaptive smoothing (high-pass to remove low-freq bias) ───────
+  const HP = 0.6; // more aggressive than before — keeps fast movements
+  smoothAx = HP * smoothAx + (1 - HP) * linX;
+  smoothAy = HP * smoothAy + (1 - HP) * linY;
+
+  // ── 4. Dead zone — scales with SENSITIVITY ──────────────────────────
+  const DEAD = 0.35 / SENSITIVITY;   // low sensitivity → bigger dead zone
+  const GAIN = SENSITIVITY * 0.35;   // amplify detected signal
+
+  let ax = Math.abs(smoothAx) > DEAD ? smoothAx * GAIN : 0;
+  let ay = Math.abs(smoothAy) > DEAD ? smoothAy * GAIN : 0;
+
+  // ── 5. Integrate → velocity → position ─────────────────────────────
+  const DAMP = 0.92; // stronger damping vs before to fight drift
+  vx = (vx + ax * dt) * DAMP;
+  vy = (vy + ay * dt) * DAMP;
+
+  const speed = Math.sqrt(vx*vx + vy*vy);
+
+  // Update speed bar (cap at 2 m/s for bar width)
+  document.getElementById('speedFill').style.width = Math.min(speed / 2, 1) * 100 + '%';
+  document.getElementById('spd').textContent = speed.toFixed(2);
+
+  if (isMoving && speed > 0.01) {
+    // Project along Kalman heading
+    const hRad = heading * Math.PI / 180;
+    px += Math.sin(hRad) * speed * dt;
+    py += Math.cos(hRad) * speed * dt;
+
+    path.push({ x: px, y: py });
+    if (path.length > 8000) path.shift();
+
+    document.getElementById('pos').textContent = px.toFixed(1) + ', ' + py.toFixed(1);
+
+    // Soft auto-pan if player near edge
+    const c = worldToCanvas(px, py);
+    const margin = 60;
+    if (c.x < margin || c.x > CANVAS_W - margin || c.y < margin || c.y > CANVAS_H - margin) {
+      viewOX += (CANVAS_W / 2 - c.x) * 0.12;
+      viewOY += (CANVAS_H / 2 - c.y) * 0.12;
     }
-  } else {
-    if (accelLP < STEP_LOW) stepPhase = 'seek_peak';
+    draw();
   }
 }
 
-// ── GPS ─────────────────────────────────────────────────────────────────
+// ── GPS ────────────────────────────────────────────────────────────────
 function latLngToMetres(lat, lng, oLat, oLng) {
   const R = 6371000;
   const dLat = (lat - oLat) * Math.PI / 180;
   const dLng = (lng - oLng) * Math.PI / 180;
-  const midLat = ((lat + oLat) / 2) * Math.PI / 180;
-  return { x: dLng * R * Math.cos(midLat), y: dLat * R };
+  const mid  = ((lat + oLat) / 2) * Math.PI / 180;
+  return { x: dLng * R * Math.cos(mid), y: dLat * R };
 }
 
 function onGPS(pos) {
@@ -325,17 +430,15 @@ function onGPS(pos) {
   const now = Date.now();
   if (gpsEnabled && accuracy < GPS_TRUST_ACC && (now - lastGpsCorrection) > GPS_INTERVAL_MS) {
     const dx = gpsX - px, dy = gpsY - py;
-    const jump = Math.sqrt(dx*dx + dy*dy);
+    const jump = Math.hypot(dx, dy);
     if (jump < GPS_MAX_JUMP_M) {
-      // Safe correction — blend gently
       px += GPS_BLEND * dx;
       py += GPS_BLEND * dy;
       lastGpsCorrection = now;
       path.push({ x: px, y: py, gpsSnap: true });
-      dbg(`GPS blend ${jump.toFixed(1)}m → (${px.toFixed(1)}, ${py.toFixed(1)})`);
+      dbg(`GPS blend ${jump.toFixed(1)} m`);
     } else {
-      dbg(`GPS jump ${jump.toFixed(1)}m ignored (> ${GPS_MAX_JUMP_M}m)`);
-      pill.className = 'pill poor';
+      dbg(`GPS jump ${jump.toFixed(1)} m — ignored`);
       lbl.textContent = `GPS ±${Math.round(accuracy)} m (jump ignored)`;
     }
   }
@@ -343,11 +446,10 @@ function onGPS(pos) {
 }
 
 function onGPSError(err) {
-  const reasons = { 1:'Location permission denied', 2:'GPS signal unavailable', 3:'GPS timed out — retrying' };
-  const msg = reasons[err.code] || `GPS error ${err.code}`;
+  const msgs = { 1: 'Location permission denied', 2: 'GPS unavailable', 3: 'GPS timeout — retrying' };
   document.getElementById('gpsPill').className = 'pill poor';
-  document.getElementById('gpsLabel').textContent = msg;
-  dbg('GPS err ' + err.code + ': ' + err.message);
+  document.getElementById('gpsLabel').textContent = msgs[err.code] || `GPS error ${err.code}`;
+  dbg('GPS err ' + err.code);
 }
 
 function startGPS() {
@@ -356,10 +458,10 @@ function startGPS() {
   const opts = { enableHighAccuracy: true, maximumAge: 2000, timeout: 15000 };
   navigator.geolocation.getCurrentPosition(pos => {
     onGPS(pos);
-    gpsWatchId = navigator.geolocation.watchPosition(onGPS, onGPSError, opts);
+    navigator.geolocation.watchPosition(onGPS, onGPSError, opts);
   }, err => {
     onGPSError(err);
-    gpsWatchId = navigator.geolocation.watchPosition(onGPS, onGPSError, { ...opts, timeout: 20000 });
+    navigator.geolocation.watchPosition(onGPS, onGPSError, { ...opts, timeout: 20000 });
   }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
 }
 
@@ -369,41 +471,26 @@ function toggleGPS() {
   btn.textContent = 'GPS: ' + (gpsEnabled ? 'ON' : 'OFF');
   btn.className   = gpsEnabled ? '' : 'off';
   if (!gpsEnabled) {
-    document.getElementById('gpsPill').className = 'pill off2';
+    document.getElementById('gpsPill').className   = 'pill off2';
     document.getElementById('gpsLabel').textContent = 'GPS: off (IMU only)';
   }
   draw();
 }
 
-// ── Sensors ─────────────────────────────────────────────────────────────
-function onOrientation(e) {
-  if (typeof e.webkitCompassHeading === 'number') heading = e.webkitCompassHeading;
-  else if (e.alpha !== null) heading = (360 - e.alpha) % 360;
-  document.getElementById('hdg').textContent = Math.round(heading);
-  draw();
-}
-
-function onMotion(e) {
-  if (!started) return;
-  const a = e.accelerationIncludingGravity;
-  if (!a || a.x === null) return;
-  processStep(Math.sqrt(a.x*a.x + a.y*a.y + a.z*a.z));
-}
-
-// ── Drawing ──────────────────────────────────────────────────────────────
+// ── Drawing ────────────────────────────────────────────────────────────
 function draw() {
   const W = CANVAS_W, H = CANVAS_H;
   const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
   ctx.clearRect(0, 0, W, H);
 
-  // Grid — spaced every 1m in world coords
-  const gridStep = scale; // px between grid lines = 1m
-  const offX = ((viewOX % gridStep) + gridStep) % gridStep;
-  const offY = ((viewOY % gridStep) + gridStep) % gridStep;
+  // Grid (1 m squares)
+  const gs = scale;
+  const offX = ((viewOX % gs) + gs) % gs;
+  const offY = ((viewOY % gs) + gs) % gs;
   ctx.strokeStyle = dark ? '#2a2a2a' : '#f0f0f0';
   ctx.lineWidth = 1;
-  for (let x = offX; x < W; x += gridStep) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
-  for (let y = offY; y < H; y += gridStep) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+  for (let x = offX; x < W; x += gs) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  for (let y = offY; y < H; y += gs) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
 
   // Origin cross
   const oc = worldToCanvas(0, 0);
@@ -423,6 +510,7 @@ function draw() {
       ctx.lineTo(p.x, p.y);
     }
     ctx.stroke();
+    // GPS snap dots
     for (let i = 1; i < path.length; i++) {
       if (path[i].gpsSnap) {
         const p = worldToCanvas(path[i].x, path[i].y);
@@ -432,11 +520,10 @@ function draw() {
     }
   }
 
-  // GPS dot
+  // GPS dot + accuracy ring
   if (gpsEnabled && gpsX !== null && gpsAccuracy < 100) {
     const gc = worldToCanvas(gpsX, gpsY);
-    const ring = Math.min(gpsAccuracy * scale, 120);
-    ctx.beginPath(); ctx.arc(gc.x, gc.y, ring, 0, Math.PI*2);
+    ctx.beginPath(); ctx.arc(gc.x, gc.y, Math.min(gpsAccuracy * scale, 120), 0, Math.PI*2);
     ctx.fillStyle = 'rgba(250,140,22,0.07)'; ctx.strokeStyle = 'rgba(250,140,22,0.3)';
     ctx.lineWidth = 1; ctx.fill(); ctx.stroke();
     ctx.beginPath(); ctx.arc(gc.x, gc.y, 7, 0, Math.PI*2);
@@ -448,8 +535,8 @@ function draw() {
   ctx.beginPath(); ctx.arc(pc.x, pc.y, 11, 0, Math.PI*2);
   ctx.fillStyle = isMoving ? '#1D9E75' : '#378ADD'; ctx.fill();
 
-  // Heading arrow
-  const hRad = (heading - 90) * Math.PI / 180;
+  // Heading arrow (uses Kalman angle)
+  const hRad = (kAngle - 90) * Math.PI / 180;
   ctx.beginPath();
   ctx.moveTo(pc.x + Math.cos(hRad)*15, pc.y + Math.sin(hRad)*15);
   ctx.lineTo(pc.x + Math.cos(hRad+2.5)*8, pc.y + Math.sin(hRad+2.5)*8);
@@ -457,15 +544,16 @@ function draw() {
   ctx.closePath(); ctx.fillStyle = '#fff'; ctx.fill();
 
   // Scale bar
-  const barM = Math.pow(2, Math.round(Math.log2(80/scale))); // nice power-of-2 metres
+  const barM  = Math.pow(2, Math.round(Math.log2(80 / scale)));
   const barPx = barM * scale;
   ctx.fillStyle = dark ? '#555' : '#ccc';
-  ctx.fillRect(12, H-22, barPx, 4);
+  ctx.fillRect(12, H - 22, barPx, 4);
   ctx.fillStyle = dark ? '#aaa' : '#555';
-  ctx.font = '11px sans-serif'; ctx.fillText(barM + ' m', 12, H-27);
+  ctx.font = '11px sans-serif';
+  ctx.fillText(barM + ' m', 12, H - 27);
 }
 
-// ── Controls ─────────────────────────────────────────────────────────────
+// ── Controls ───────────────────────────────────────────────────────────
 async function requestAndStart() {
   document.getElementById('status').textContent = 'requesting permissions…';
   document.getElementById('errBox').style.display = 'none';
@@ -484,6 +572,7 @@ async function requestAndStart() {
     window.addEventListener('devicemotion',      onMotion,      true);
     startGPS();
     started = true;
+    kAngle = 0; kBias = 0; // init Kalman to current compass on start
     document.getElementById('startBtn').style.display = 'none';
     document.getElementById('moveBtn').style.display  = '';
     document.getElementById('gpsBtn').style.display   = '';
@@ -494,25 +583,30 @@ async function requestAndStart() {
 
 function toggleMove() {
   isMoving = !isMoving;
+  if (isMoving) { vx = 0; vy = 0; }  // zero velocity on start so old drift doesn't carry over
   const btn = document.getElementById('moveBtn');
   btn.textContent = 'Walking: ' + (isMoving ? 'ON' : 'OFF');
   btn.className   = isMoving ? 'active' : '';
-  document.getElementById('status').textContent = isMoving ? 'tracking steps' : 'stationary';
+  document.getElementById('status').textContent = isMoving ? 'tracking movement' : 'stationary';
   draw();
 }
 
 function reset() {
-  px = 0; py = 0; path = [{ x: 0, y: 0 }];
-  isMoving = false; stepCount = 0; stepPhase = 'seek_peak';
+  px = 0; py = 0; vx = 0; vy = 0;
+  path = [{ x: 0, y: 0 }];
+  isMoving = false; lastT = null;
+  smoothAx = 0; smoothAy = 0;
+  gravX = 0; gravY = 0; gravZ = 9.81;
+  kAngle = 0; kBias = 0; kP00 = 1; kP01 = 0; kP10 = 0; kP11 = 1;
   originLat = null; originLng = null;
   gpsX = null; gpsY = null; gpsAccuracy = Infinity; lastGpsCorrection = 0;
-  viewOX = CANVAS_W/2; viewOY = CANVAS_H/2;
+  viewOX = CANVAS_W / 2; viewOY = CANVAS_H / 2;
   document.getElementById('moveBtn').textContent  = 'Walking: OFF';
   document.getElementById('moveBtn').className    = '';
   document.getElementById('status').textContent   = 'reset — ready';
   document.getElementById('pos').textContent      = '0, 0';
-  document.getElementById('stepLabel').textContent = 'Steps: 0';
-  document.getElementById('stepPill').className   = 'pill';
+  document.getElementById('spd').textContent      = '0.00';
+  document.getElementById('speedFill').style.width = '0%';
   document.getElementById('gpsPill').className    = 'pill';
   document.getElementById('gpsLabel').textContent = 'GPS: re-acquiring…';
   draw();
@@ -525,7 +619,8 @@ function showErr(msg) {
 }
 function dbg(msg) {
   const el = document.getElementById('dbgEl');
-  el.textContent = [new Date().toLocaleTimeString()+'  '+msg, ...el.textContent.split('\n').slice(0,4)].join('\n');
+  el.textContent = [new Date().toLocaleTimeString() + '  ' + msg,
+                    ...el.textContent.split('\n').slice(0, 4)].join('\n');
 }
 
 draw();
