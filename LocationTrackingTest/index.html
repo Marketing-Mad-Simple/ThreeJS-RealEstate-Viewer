@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Indoor Movement Tracker</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f5f5f5;
+      color: #111;
+      padding: 1rem;
+      min-height: 100vh;
+    }
+
+    h1 {
+      font-size: 18px;
+      font-weight: 500;
+      margin-bottom: 12px;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      background: #fff;
+      touch-action: none;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin: 12px 0;
+      flex-wrap: wrap;
+    }
+
+    button {
+      padding: 12px 20px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      background: #fff;
+      color: #111;
+      font-size: 15px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button.active {
+      background: #1D9E75;
+      color: #fff;
+      border-color: #1D9E75;
+    }
+
+    button.danger {
+      background: #E24B4A;
+      color: #fff;
+      border-color: #E24B4A;
+    }
+
+    .stats {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 12px;
+    }
+
+    .stats span { color: #111; font-weight: 500; }
+
+    .note {
+      font-size: 13px;
+      color: #666;
+      line-height: 1.6;
+      background: #fffbe6;
+      border: 1px solid #ffe58f;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-top: 12px;
+    }
+
+    #permissionError {
+      display: none;
+      background: #fff2f0;
+      border: 1px solid #ffccc7;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #a8071a;
+      margin-top: 10px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body { background: #1a1a1a; color: #eee; }
+      canvas { background: #242424; border-color: #444; }
+      button { background: #2a2a2a; color: #eee; border-color: #555; }
+      .stats { color: #aaa; }
+      .stats span { color: #eee; }
+      .note { background: #2a2500; border-color: #614700; color: #d4b106; }
+      #permissionError { background: #2a0000; border-color: #6e1500; color: #ff7875; }
+    }
+  </style>
+</head>
+<body>
+
+<h1>Indoor Movement Tracker</h1>
+<canvas id="map" width="700" height="400"></canvas>
+
+<div class="controls">
+  <button id="startBtn" onclick="requestAndStart()">Start tracking</button>
+  <button id="moveBtn" onclick="toggleMove()" style="display:none">Walking: OFF</button>
+  <button class="danger" onclick="reset()" style="display:none" id="resetBtn">Reset</button>
+</div>
+
+<div class="stats">
+  <div>Heading: <span id="hdg">—</span>°</div>
+  <div>Speed: <span id="spd">0.00</span> m/s</div>
+  <div>Position: <span id="pos">0, 0</span> m</div>
+  <div>Status: <span id="status">tap Start</span></div>
+</div>
+
+<div class="note">
+  Hold phone upright (portrait). Tap <b>Start tracking</b> and grant sensor permissions.
+  Tap <b>Walking: OFF</b> only while actually walking — tap again when you stop.
+  The green dot shows your position; the arrow shows your heading.
+  Drift is normal over longer distances.
+</div>
+
+<div id="permissionError"></div>
+
+<script>
+  const canvas = document.getElementById('map');
+  const ctx = canvas.getContext('2d');
+
+  // State
+  let heading = 0;
+  let vx = 0, vy = 0;
+  let px = 0, py = 0;
+  let isMoving = false;
+  let started = false;
+  let lastT = null;
+  let path = [{ x: 0, y: 0 }];
+
+  // Sensor smoothing
+  const ALPHA = 0.85;
+  let smoothAx = 0, smoothAy = 0;
+  let gravX = 0, gravY = 0, gravZ = 9.81;
+
+  // Map scale: pixels per metre
+  const SCALE = 60;
+
+  // ── Drawing ──────────────────────────────────────────────────────────────
+
+  function draw() {
+    const W = canvas.width;
+    const H = canvas.height;
+    const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+    ctx.clearRect(0, 0, W, H);
+
+    // Grid
+    ctx.strokeStyle = dark ? '#333' : '#eee';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < W; x += 40) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+    }
+    for (let y = 0; y < H; y += 40) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+    }
+
+    // Origin marker
+    ctx.beginPath();
+    ctx.arc(W / 2, H / 2, 5, 0, Math.PI * 2);
+    ctx.fillStyle = dark ? '#555' : '#ccc';
+    ctx.fill();
+
+    // Path
+    if (path.length > 1) {
+      ctx.beginPath();
+      ctx.strokeStyle = '#1D9E75';
+      ctx.lineWidth = 2.5;
+      ctx.lineJoin = 'round';
+      ctx.moveTo(W / 2 + path[0].x * SCALE, H / 2 - path[0].y * SCALE);
+      for (let i = 1; i < path.length; i++) {
+        ctx.lineTo(W / 2 + path[i].x * SCALE, H / 2 - path[i].y * SCALE);
+      }
+      ctx.stroke();
+    }
+
+    // Current position dot
+    const cx = W / 2 + px * SCALE;
+    const cy = H / 2 - py * SCALE;
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, 11, 0, Math.PI * 2);
+    ctx.fillStyle = isMoving ? '#1D9E75' : '#378ADD';
+    ctx.fill();
+
+    // Heading arrow on dot
+    const hRad = (heading - 90) * Math.PI / 180;
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(hRad) * 15, cy + Math.sin(hRad) * 15);
+    ctx.lineTo(cx + Math.cos(hRad + 2.5) * 8, cy + Math.sin(hRad + 2.5) * 8);
+    ctx.lineTo(cx + Math.cos(hRad - 2.5) * 8, cy + Math.sin(hRad - 2.5) * 8);
+    ctx.closePath();
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+  }
+
+  // ── Sensor handlers ───────────────────────────────────────────────────────
+
+  function onOrientation(e) {
+    // Prefer webkitCompassHeading (iOS) for true north; fall back to alpha
+    if (typeof e.webkitCompassHeading === 'number') {
+      heading = e.webkitCompassHeading;
+    } else if (e.absolute && e.alpha !== null) {
+      heading = (360 - e.alpha) % 360;
+    } else if (e.alpha !== null) {
+      heading = (360 - e.alpha) % 360;
+    }
+    document.getElementById('hdg').textContent = Math.round(heading);
+    draw();
+  }
+
+  function onMotion(e) {
+    if (!started) return;
+    const acc = e.accelerationIncludingGravity;
+    if (!acc || acc.x === null) return;
+
+    // Low-pass filter to estimate gravity component
+    const LP = 0.85;
+    gravX = LP * gravX + (1 - LP) * acc.x;
+    gravY = LP * gravY + (1 - LP) * acc.y;
+    gravZ = LP * gravZ + (1 - LP) * acc.z;
+
+    // Remove gravity to get linear acceleration
+    let ax = acc.x - gravX;
+    let ay = acc.y - gravY;
+
+    // High-pass smooth
+    smoothAx = ALPHA * smoothAx + (1 - ALPHA) * ax;
+    smoothAy = ALPHA * smoothAy + (1 - ALPHA) * ay;
+
+    // Dead zone — ignore tiny accelerations (noise)
+    const THRESH = 0.15;
+    if (Math.abs(smoothAx) < THRESH) smoothAx = 0;
+    if (Math.abs(smoothAy) < THRESH) smoothAy = 0;
+
+    const now = Date.now();
+    if (!lastT) { lastT = now; return; }
+    const dt = (now - lastT) / 1000;
+    lastT = now;
+
+    if (isMoving && dt < 0.5) {
+      // Integrate acceleration → velocity
+      vx += smoothAx * dt;
+      vy += smoothAy * dt;
+
+      // Velocity damping to reduce unbounded drift
+      const DAMPING = 0.97;
+      vx *= DAMPING;
+      vy *= DAMPING;
+
+      const speed = Math.sqrt(vx * vx + vy * vy);
+      document.getElementById('spd').textContent = speed.toFixed(2);
+
+      // Project movement along compass heading (not raw phone axes)
+      const hRad = heading * Math.PI / 180;
+      px += Math.sin(hRad) * speed * dt;
+      py += Math.cos(hRad) * speed * dt;
+
+      path.push({ x: px, y: py });
+      if (path.length > 5000) path.shift();
+
+      document.getElementById('pos').textContent = px.toFixed(1) + ', ' + py.toFixed(1);
+      draw();
+
+    } else if (!isMoving) {
+      vx *= 0.85;
+      vy *= 0.85;
+      document.getElementById('spd').textContent = '0.00';
+    }
+  }
+
+  // ── Controls ──────────────────────────────────────────────────────────────
+
+  async function requestAndStart() {
+    document.getElementById('status').textContent = 'requesting permissions…';
+    document.getElementById('permissionError').style.display = 'none';
+
+    try {
+      // iOS 13+ requires explicit permission for orientation + motion
+      if (typeof DeviceOrientationEvent !== 'undefined' &&
+          typeof DeviceOrientationEvent.requestPermission === 'function') {
+        const r = await DeviceOrientationEvent.requestPermission();
+        if (r !== 'granted') {
+          showError('Orientation permission denied. Enable it in Settings → Safari → Motion & Orientation Access.');
+          return;
+        }
+      }
+
+      if (typeof DeviceMotionEvent !== 'undefined' &&
+          typeof DeviceMotionEvent.requestPermission === 'function') {
+        const r = await DeviceMotionEvent.requestPermission();
+        if (r !== 'granted') {
+          showError('Motion permission denied. Enable it in Settings → Safari → Motion & Orientation Access.');
+          return;
+        }
+      }
+
+      window.addEventListener('deviceorientation', onOrientation, true);
+      window.addEventListener('devicemotion', onMotion, true);
+
+      started = true;
+      document.getElementById('startBtn').style.display = 'none';
+      document.getElementById('moveBtn').style.display = '';
+      document.getElementById('resetBtn').style.display = '';
+      document.getElementById('status').textContent = 'ready — tap Walking when moving';
+
+    } catch (err) {
+      showError('Error: ' + err.message);
+    }
+  }
+
+  function toggleMove() {
+    isMoving = !isMoving;
+    lastT = null;
+    if (isMoving) { vx = 0; vy = 0; }
+
+    const btn = document.getElementById('moveBtn');
+    btn.textContent = 'Walking: ' + (isMoving ? 'ON' : 'OFF');
+    btn.className = isMoving ? 'active' : '';
+    document.getElementById('status').textContent = isMoving ? 'tracking movement' : 'stationary';
+    draw();
+  }
+
+  function reset() {
+    px = 0; py = 0; vx = 0; vy = 0;
+    path = [{ x: 0, y: 0 }];
+    isMoving = false;
+    lastT = null;
+    document.getElementById('moveBtn').textContent = 'Walking: OFF';
+    document.getElementById('moveBtn').className = '';
+    document.getElementById('status').textContent = 'reset — ready';
+    document.getElementById('pos').textContent = '0, 0';
+    document.getElementById('spd').textContent = '0.00';
+    draw();
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('permissionError');
+    el.textContent = msg;
+    el.style.display = 'block';
+    document.getElementById('status').textContent = 'error';
+  }
+
+  // Initial render
+  draw();
+</script>
+</body>
+</html>
