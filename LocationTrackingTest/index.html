@@ -10,84 +10,105 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: #f5f5f5; color: #111; padding: 1rem; min-height: 100vh;
     }
-    h1 { font-size: 18px; font-weight: 500; margin-bottom: 12px; }
-    canvas {
-      display: block; width: 100%; height: auto;
-      border: 1px solid #ddd; border-radius: 12px; background: #fff; touch-action: none;
+    h1 { font-size: 18px; font-weight: 500; margin-bottom: 10px; }
+    #canvasWrap {
+      position: relative; border: 1px solid #ddd; border-radius: 12px;
+      overflow: hidden; background: #fff; cursor: grab; user-select: none;
+      touch-action: none;
     }
-    .controls { display: flex; gap: 10px; margin: 12px 0; flex-wrap: wrap; }
+    #canvasWrap.grabbing { cursor: grabbing; }
+    canvas { display: block; }
+
+    /* top-right canvas buttons */
+    .map-btn-group {
+      position: absolute; top: 8px; right: 8px;
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .map-btn {
+      width: 34px; height: 34px; border-radius: 8px;
+      border: 1px solid #ddd; background: rgba(255,255,255,0.92);
+      font-size: 16px; cursor: pointer; display: flex;
+      align-items: center; justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .map-btn:active { background: #eee; }
+
+    .controls { display: flex; gap: 8px; margin: 10px 0; flex-wrap: wrap; }
     button {
-      padding: 12px 20px; border-radius: 8px; border: 1px solid #ccc;
-      background: #fff; color: #111; font-size: 15px; cursor: pointer;
+      padding: 11px 18px; border-radius: 8px; border: 1px solid #ccc;
+      background: #fff; color: #111; font-size: 14px; cursor: pointer;
       -webkit-tap-highlight-color: transparent;
     }
     button.active  { background: #1D9E75; color: #fff; border-color: #1D9E75; }
     button.danger  { background: #E24B4A; color: #fff; border-color: #E24B4A; }
+    button.warn    { background: #d48806; color: #fff; border-color: #d48806; }
+    button.off     { background: #888;    color: #fff; border-color: #888; }
 
     .stats {
-      display: flex; gap: 14px; flex-wrap: wrap;
+      display: flex; gap: 12px; flex-wrap: wrap;
       font-size: 13px; color: #666; margin-bottom: 8px;
     }
     .stats span { color: #111; font-weight: 500; }
 
-    .pills { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+    .pills { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
     .pill {
       display: inline-flex; align-items: center; gap: 5px;
       font-size: 12px; padding: 3px 10px; border-radius: 20px;
       background: #eee; color: #555;
     }
     .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; flex-shrink: 0; }
-    .pill.good { background: #e6f7f0; color: #0f6e56; }
-    .pill.good .dot { background: #1D9E75; }
-    .pill.poor { background: #fff7e6; color: #874d00; }
-    .pill.poor .dot { background: #fa8c16; }
-    .pill.step { background: #e6f0ff; color: #1a3a6e; }
-    .pill.step .dot { background: #378ADD; }
+    .pill.good { background: #e6f7f0; color: #0f6e56; } .pill.good .dot { background: #1D9E75; }
+    .pill.poor { background: #fff7e6; color: #874d00; } .pill.poor .dot { background: #fa8c16; }
+    .pill.off2 { background: #f0f0f0; color: #888; }    .pill.off2 .dot { background: #bbb; }
+    .pill.step { background: #e6f0ff; color: #1a3a6e; } .pill.step .dot { background: #378ADD; }
 
-    .legend {
-      display: flex; gap: 14px; flex-wrap: wrap;
-      font-size: 12px; color: #666; margin-bottom: 10px;
+    .slider-row {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 13px; color: #666; margin-bottom: 10px;
     }
-    .legend-item { display: flex; align-items: center; gap: 5px; }
-    .legend-dot  { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-
     .note {
       font-size: 13px; color: #666; line-height: 1.6;
       background: #fffbe6; border: 1px solid #ffe58f;
-      border-radius: 8px; padding: 10px 14px; margin-top: 12px;
+      border-radius: 8px; padding: 10px 14px; margin-top: 10px;
     }
     .error-box {
       display: none; background: #fff2f0; border: 1px solid #ffccc7;
       border-radius: 8px; padding: 10px 14px; font-size: 13px;
-      color: #a8071a; margin-top: 10px;
+      color: #a8071a; margin-top: 8px;
     }
-    .debug {
-      font-size: 11px; color: #aaa; margin-top: 8px;
-      font-family: monospace; line-height: 1.8;
-    }
+    .debug { font-size: 11px; color: #aaa; margin-top: 6px; font-family: monospace; line-height: 1.8; }
 
     @media (prefers-color-scheme: dark) {
       body   { background: #1a1a1a; color: #eee; }
-      canvas { background: #242424; border-color: #444; }
+      #canvasWrap { background: #242424; border-color: #444; }
+      .map-btn { background: rgba(40,40,40,0.92); border-color: #555; color: #eee; }
       button { background: #2a2a2a; color: #eee; border-color: #555; }
       .stats { color: #aaa; } .stats span { color: #eee; }
-      .legend { color: #aaa; }
-      .pill   { background: #2a2a2a; color: #aaa; }
-      .note   { background: #2a2500; border-color: #614700; color: #d4b106; }
+      .pill  { background: #2a2a2a; color: #aaa; }
+      .note  { background: #2a2500; border-color: #614700; color: #d4b106; }
       .error-box { background: #2a0000; border-color: #6e1500; color: #ff7875; }
-      .debug  { color: #555; }
+      .debug { color: #555; }
     }
   </style>
 </head>
 <body>
 
 <h1>Indoor Movement Tracker</h1>
-<canvas id="map" width="700" height="400"></canvas>
+
+<div id="canvasWrap">
+  <canvas id="map"></canvas>
+  <div class="map-btn-group">
+    <button class="map-btn" onclick="zoomIn()"  title="Zoom in">+</button>
+    <button class="map-btn" onclick="zoomOut()" title="Zoom out">−</button>
+    <button class="map-btn" onclick="centerOnPlayer()" title="Re-center">⊙</button>
+  </div>
+</div>
 
 <div class="controls">
   <button id="startBtn" onclick="requestAndStart()">Start tracking</button>
-  <button id="moveBtn"  onclick="toggleMove()" style="display:none">Walking: OFF</button>
-  <button class="danger" onclick="reset()"     style="display:none" id="resetBtn">Reset</button>
+  <button id="moveBtn"  onclick="toggleMove()"    style="display:none">Walking: OFF</button>
+  <button id="gpsBtn"   onclick="toggleGPS()"     style="display:none">GPS: ON</button>
+  <button class="danger" onclick="reset()"         style="display:none" id="resetBtn">Reset</button>
 </div>
 
 <div class="pills">
@@ -97,103 +118,180 @@
 
 <div class="stats">
   <div>Heading: <span id="hdg">—</span>°</div>
-  <div>Step length: <span id="slEl">0.70</span> m</div>
   <div>Position: <span id="pos">0, 0</span> m</div>
   <div>Status: <span id="status">tap Start</span></div>
 </div>
 
-<div style="display:flex; align-items:center; gap:10px; margin-bottom:10px; font-size:13px; color:#666;">
+<div class="slider-row">
   <label for="slSlider">Step length</label>
-  <input type="range" id="slSlider" min="0.4" max="1.2" step="0.05" value="0.70"
-         style="flex:1; max-width:200px"
-         oninput="STEP_LENGTH=parseFloat(this.value); document.getElementById('slEl').textContent=this.value;">
-  <span style="font-size:12px; color:#999;">(adjust if movement feels off)</span>
-</div>
-
-<div class="legend">
-  <div class="legend-item"><div class="legend-dot" style="background:#378ADD"></div>Position (still)</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#1D9E75"></div>Position (walking)</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#fa8c16; opacity:0.7"></div>Raw GPS</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#fa8c16; border:2px solid #d46b08"></div>GPS snap point</div>
+  <input type="range" id="slSlider" min="0.4" max="1.4" step="0.05" value="0.70"
+         style="flex:1; max-width:180px"
+         oninput="STEP_LENGTH=parseFloat(this.value); document.getElementById('slVal').textContent=this.value+'m';">
+  <span id="slVal" style="min-width:36px; font-size:13px; color:#666;">0.70m</span>
+  <span style="font-size:12px; color:#aaa;">(tune until distance feels right)</span>
 </div>
 
 <div class="note">
-  Hold phone <b>upright, portrait</b>. Tap <b>Start</b>, allow all permissions.
-  Tap <b>Walking: OFF</b> while moving, tap again when you stop.
-  Uses <b>step detection</b> (more reliable than raw acceleration) — each detected step moves you forward by the step length above. Adjust the slider if the distance feels wrong.
+  Hold phone <b>upright, portrait</b>. Tap <b>Start</b> → allow permissions → tap <b>Walking: OFF</b> while moving.
+  Drag the map to pan. Use <b>+ −</b> or pinch to zoom. <b>⊙</b> re-centers on you.
+  Toggle <b>GPS</b> off if it's making you jump around.
 </div>
-
 <div class="error-box" id="errBox"></div>
-<div class="debug" id="debug"></div>
+<div class="debug" id="dbgEl"></div>
 
 <script>
-// ── Tuning ─────────────────────────────────────────────────────────────────
-let   STEP_LENGTH           = 0.70;  // metres per step (user-adjustable)
-const STEP_THRESHOLD_HIGH   = 12.5;  // m/s² — peak needed to count a step
-const STEP_THRESHOLD_LOW    = 9.5;   // m/s² — valley before next peak
-const STEP_MIN_INTERVAL_MS  = 250;   // ignore steps faster than this (250 ms = 4 steps/s)
-const GPS_TRUST_ACCURACY    = 25;    // metres — fuse GPS only below this
-const GPS_BLEND             = 0.35;  // 0=ignore GPS, 1=snap to GPS
-const GPS_INTERVAL_MS       = 3000;  // min ms between GPS corrections
+// ── Tuning ──────────────────────────────────────────────────────────────
+let   STEP_LENGTH          = 0.70;
+const STEP_HIGH            = 12.5;
+const STEP_LOW             = 9.5;
+const STEP_MIN_MS          = 250;
+const GPS_TRUST_ACC        = 20;    // metres
+const GPS_BLEND            = 0.25;  // gentler blend (was 0.35) — less teleporting
+const GPS_INTERVAL_MS      = 4000;
+const GPS_MAX_JUMP_M       = 8;     // ignore GPS corrections larger than this
 
-// ── State ──────────────────────────────────────────────────────────────────
+// ── State ───────────────────────────────────────────────────────────────
 let heading = 0, px = 0, py = 0;
 let isMoving = false, started = false;
 let path = [{ x: 0, y: 0 }];
+let gpsEnabled = true;
 
 // Step detection
-let accelMag = 10, accelLP = 10;   // running magnitude + low-pass
-let stepPhase = 'seek_peak';        // 'seek_peak' | 'seek_valley'
+let accelLP = 10, stepPhase = 'seek_peak';
 let stepCount = 0, lastStepMs = 0;
 
 // GPS
 let originLat = null, originLng = null;
 let gpsX = null, gpsY = null, gpsAccuracy = Infinity;
-let lastGpsCorrection = 0;
+let lastGpsCorrection = 0, gpsWatchId = null;
 
-const SCALE = 60; // px per metre
+// ── Viewport (pan + zoom) ───────────────────────────────────────────────
+const CANVAS_W = 700, CANVAS_H = 420;
+let scale    = 60;   // px per metre
+let viewOX   = CANVAS_W / 2;  // canvas coords of world origin
+let viewOY   = CANVAS_H / 2;
 
-// ── Step detection ─────────────────────────────────────────────────────────
-// Works on the magnitude of accelerationIncludingGravity (|a|).
-// At rest ≈ 9.81 m/s².  Each footfall produces a wave: peak → valley → peak.
-// We detect peaks above HIGH threshold and require a valley below LOW in between.
+// Pan state
+let isPanning = false, panStartX = 0, panStartY = 0, panOX = 0, panOY = 0;
 
+// Pinch state
+let pinchDist0 = 0, pinchScale0 = 0;
+
+const canvas = document.getElementById('map');
+const ctx    = canvas.getContext('2d');
+const wrap   = document.getElementById('canvasWrap');
+canvas.width  = CANVAS_W;
+canvas.height = CANVAS_H;
+
+function worldToCanvas(wx, wy) {
+  return { x: viewOX + wx * scale, y: viewOY - wy * scale };
+}
+
+function zoomIn()  { scale = Math.min(scale * 1.4, 400); draw(); }
+function zoomOut() { scale = Math.max(scale / 1.4, 10);  draw(); }
+function centerOnPlayer() {
+  viewOX = CANVAS_W / 2 - px * scale;
+  viewOY = CANVAS_H / 2 + py * scale;
+  draw();
+}
+
+// ── Pointer / touch events for pan + pinch ──────────────────────────────
+function getPos(e) { return { x: e.clientX - wrap.getBoundingClientRect().left, y: e.clientY - wrap.getBoundingClientRect().top }; }
+function pinchMid(t) { return { x:(t[0].clientX+t[1].clientX)/2, y:(t[0].clientY+t[1].clientY)/2 }; }
+function pinchDist(t) { return Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY); }
+
+wrap.addEventListener('mousedown', e => {
+  isPanning = true; wrap.classList.add('grabbing');
+  const p = getPos(e); panStartX = p.x; panStartY = p.y; panOX = viewOX; panOY = viewOY;
+});
+window.addEventListener('mousemove', e => {
+  if (!isPanning) return;
+  const p = getPos(e);
+  viewOX = panOX + (p.x - panStartX);
+  viewOY = panOY + (p.y - panStartY);
+  draw();
+});
+window.addEventListener('mouseup', () => { isPanning = false; wrap.classList.remove('grabbing'); });
+
+wrap.addEventListener('wheel', e => {
+  e.preventDefault();
+  const factor = e.deltaY < 0 ? 1.15 : 0.87;
+  const rect = wrap.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  // zoom toward cursor
+  viewOX = mx + (viewOX - mx) * factor;
+  viewOY = my + (viewOY - my) * factor;
+  scale = Math.min(Math.max(scale * factor, 10), 400);
+  draw();
+}, { passive: false });
+
+wrap.addEventListener('touchstart', e => {
+  if (e.touches.length === 1) {
+    isPanning = true;
+    panStartX = e.touches[0].clientX; panStartY = e.touches[0].clientY;
+    panOX = viewOX; panOY = viewOY;
+  } else if (e.touches.length === 2) {
+    isPanning = false;
+    pinchDist0  = pinchDist(e.touches);
+    pinchScale0 = scale;
+  }
+}, { passive: true });
+
+wrap.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (e.touches.length === 1 && isPanning) {
+    viewOX = panOX + (e.touches[0].clientX - panStartX);
+    viewOY = panOY + (e.touches[0].clientY - panStartY);
+    draw();
+  } else if (e.touches.length === 2) {
+    const d = pinchDist(e.touches);
+    scale = Math.min(Math.max(pinchScale0 * (d / pinchDist0), 10), 400);
+    const mid = pinchMid(e.touches);
+    const rect = wrap.getBoundingClientRect();
+    const mx = mid.x - rect.left, my = mid.y - rect.top;
+    viewOX = mx + (viewOX - mx) * (scale / (pinchScale0 * (d / pinchDist0)));
+    viewOY = my + (viewOY - my) * (scale / (pinchScale0 * (d / pinchDist0)));
+    draw();
+  }
+}, { passive: false });
+
+wrap.addEventListener('touchend', e => { if (e.touches.length === 0) isPanning = false; }, { passive: true });
+
+// ── Step detection ──────────────────────────────────────────────────────
 function processStep(mag) {
-  const LP = 0.85;
-  accelLP = LP * accelLP + (1 - LP) * mag;   // smooth magnitude
-
+  accelLP = 0.85 * accelLP + 0.15 * mag;
   if (stepPhase === 'seek_peak') {
-    if (accelLP > STEP_THRESHOLD_HIGH) {
+    if (accelLP > STEP_HIGH) {
       const now = Date.now();
-      if (now - lastStepMs > STEP_MIN_INTERVAL_MS) {
-        // ✅ Counted a step
-        stepCount++;
-        lastStepMs = now;
+      if (now - lastStepMs > STEP_MIN_MS) {
+        stepCount++; lastStepMs = now;
         document.getElementById('stepLabel').textContent = `Steps: ${stepCount}`;
         document.getElementById('stepPill').className = 'pill step';
-
         if (isMoving) {
           const hRad = heading * Math.PI / 180;
           px += Math.sin(hRad) * STEP_LENGTH;
           py += Math.cos(hRad) * STEP_LENGTH;
           path.push({ x: px, y: py });
-          if (path.length > 5000) path.shift();
+          if (path.length > 8000) path.shift();
           document.getElementById('pos').textContent = px.toFixed(1) + ', ' + py.toFixed(1);
+          // Auto-pan: if player drifts close to edge, re-center gently
+          const c = worldToCanvas(px, py);
+          const margin = 60;
+          if (c.x < margin || c.x > CANVAS_W-margin || c.y < margin || c.y > CANVAS_H-margin) {
+            viewOX += (CANVAS_W/2 - c.x) * 0.15;
+            viewOY += (CANVAS_H/2 - c.y) * 0.15;
+          }
           draw();
         }
       }
       stepPhase = 'seek_valley';
     }
   } else {
-    // seek_valley: wait for magnitude to drop before allowing next peak
-    if (accelLP < STEP_THRESHOLD_LOW) {
-      stepPhase = 'seek_peak';
-    }
+    if (accelLP < STEP_LOW) stepPhase = 'seek_peak';
   }
 }
 
-// ── GPS ────────────────────────────────────────────────────────────────────
-
+// ── GPS ─────────────────────────────────────────────────────────────────
 function latLngToMetres(lat, lng, oLat, oLng) {
   const R = 6371000;
   const dLat = (lat - oLat) * Math.PI / 180;
@@ -205,174 +303,182 @@ function latLngToMetres(lat, lng, oLat, oLng) {
 function onGPS(pos) {
   const { latitude, longitude, accuracy } = pos.coords;
   gpsAccuracy = accuracy;
-
   if (originLat === null) {
     originLat = latitude; originLng = longitude;
     gpsX = 0; gpsY = 0;
-    dbg(`GPS origin set: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
+    dbg(`GPS origin: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
   } else {
     const m = latLngToMetres(latitude, longitude, originLat, originLng);
     gpsX = m.x; gpsY = m.y;
   }
 
-  const pill  = document.getElementById('gpsPill');
-  const label = document.getElementById('gpsLabel');
-  if (accuracy < GPS_TRUST_ACCURACY) {
-    pill.className = 'pill good';
-    label.textContent = `GPS ±${Math.round(accuracy)} m ✓`;
+  const pill = document.getElementById('gpsPill');
+  const lbl  = document.getElementById('gpsLabel');
+  if (!gpsEnabled) { pill.className = 'pill off2'; lbl.textContent = 'GPS: off'; return; }
+
+  if (accuracy < GPS_TRUST_ACC) {
+    pill.className = 'pill good'; lbl.textContent = `GPS ±${Math.round(accuracy)} m ✓`;
   } else {
-    pill.className = 'pill poor';
-    label.textContent = `GPS ±${Math.round(accuracy)} m (noisy)`;
+    pill.className = 'pill poor'; lbl.textContent = `GPS ±${Math.round(accuracy)} m (noisy)`;
   }
 
   const now = Date.now();
-  if (accuracy < GPS_TRUST_ACCURACY && (now - lastGpsCorrection) > GPS_INTERVAL_MS) {
-    px = px + GPS_BLEND * (gpsX - px);
-    py = py + GPS_BLEND * (gpsY - py);
-    lastGpsCorrection = now;
-    path.push({ x: px, y: py, gpsSnap: true });
-    dbg(`GPS correction → (${px.toFixed(1)}, ${py.toFixed(1)})`);
+  if (gpsEnabled && accuracy < GPS_TRUST_ACC && (now - lastGpsCorrection) > GPS_INTERVAL_MS) {
+    const dx = gpsX - px, dy = gpsY - py;
+    const jump = Math.sqrt(dx*dx + dy*dy);
+    if (jump < GPS_MAX_JUMP_M) {
+      // Safe correction — blend gently
+      px += GPS_BLEND * dx;
+      py += GPS_BLEND * dy;
+      lastGpsCorrection = now;
+      path.push({ x: px, y: py, gpsSnap: true });
+      dbg(`GPS blend ${jump.toFixed(1)}m → (${px.toFixed(1)}, ${py.toFixed(1)})`);
+    } else {
+      dbg(`GPS jump ${jump.toFixed(1)}m ignored (> ${GPS_MAX_JUMP_M}m)`);
+      pill.className = 'pill poor';
+      lbl.textContent = `GPS ±${Math.round(accuracy)} m (jump ignored)`;
+    }
   }
   draw();
 }
 
 function onGPSError(err) {
-  // err.code: 1=PERMISSION_DENIED, 2=UNAVAILABLE, 3=TIMEOUT
-  const reasons = {
-    1: 'Location permission denied — check browser/OS settings',
-    2: 'GPS signal unavailable (indoors is normal)',
-    3: 'GPS timed out — retrying…'
-  };
+  const reasons = { 1:'Location permission denied', 2:'GPS signal unavailable', 3:'GPS timed out — retrying' };
   const msg = reasons[err.code] || `GPS error ${err.code}`;
   document.getElementById('gpsPill').className = 'pill poor';
   document.getElementById('gpsLabel').textContent = msg;
-  dbg('GPS err code ' + err.code + ': ' + err.message);
+  dbg('GPS err ' + err.code + ': ' + err.message);
 }
 
 function startGPS() {
-  if (!navigator.geolocation) {
-    document.getElementById('gpsLabel').textContent = 'GPS: not supported by browser';
-    return;
-  }
+  if (!navigator.geolocation) { document.getElementById('gpsLabel').textContent = 'GPS: not supported'; return; }
   document.getElementById('gpsLabel').textContent = 'GPS: acquiring…';
-
-  // First try a one-shot high-accuracy fix, then switch to watch
-  navigator.geolocation.getCurrentPosition(
-    (pos) => {
-      onGPS(pos);
-      navigator.geolocation.watchPosition(onGPS, onGPSError, {
-        enableHighAccuracy: true, maximumAge: 2000, timeout: 15000
-      });
-    },
-    (err) => {
-      onGPSError(err);
-      // Still try to watch even if first fix failed
-      navigator.geolocation.watchPosition(onGPS, onGPSError, {
-        enableHighAccuracy: true, maximumAge: 5000, timeout: 20000
-      });
-    },
-    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-  );
+  const opts = { enableHighAccuracy: true, maximumAge: 2000, timeout: 15000 };
+  navigator.geolocation.getCurrentPosition(pos => {
+    onGPS(pos);
+    gpsWatchId = navigator.geolocation.watchPosition(onGPS, onGPSError, opts);
+  }, err => {
+    onGPSError(err);
+    gpsWatchId = navigator.geolocation.watchPosition(onGPS, onGPSError, { ...opts, timeout: 20000 });
+  }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
 }
 
-// ── Orientation ────────────────────────────────────────────────────────────
-
-function onOrientation(e) {
-  if (typeof e.webkitCompassHeading === 'number') {
-    heading = e.webkitCompassHeading;
-  } else if (e.alpha !== null) {
-    heading = (360 - e.alpha) % 360;
+function toggleGPS() {
+  gpsEnabled = !gpsEnabled;
+  const btn = document.getElementById('gpsBtn');
+  btn.textContent = 'GPS: ' + (gpsEnabled ? 'ON' : 'OFF');
+  btn.className   = gpsEnabled ? '' : 'off';
+  if (!gpsEnabled) {
+    document.getElementById('gpsPill').className = 'pill off2';
+    document.getElementById('gpsLabel').textContent = 'GPS: off (IMU only)';
   }
-  document.getElementById('hdg').textContent = Math.round(heading);
   draw();
 }
 
-// ── Motion (feeds step detector) ──────────────────────────────────────────
+// ── Sensors ─────────────────────────────────────────────────────────────
+function onOrientation(e) {
+  if (typeof e.webkitCompassHeading === 'number') heading = e.webkitCompassHeading;
+  else if (e.alpha !== null) heading = (360 - e.alpha) % 360;
+  document.getElementById('hdg').textContent = Math.round(heading);
+  draw();
+}
 
 function onMotion(e) {
   if (!started) return;
   const a = e.accelerationIncludingGravity;
   if (!a || a.x === null) return;
-  const mag = Math.sqrt(a.x*a.x + a.y*a.y + a.z*a.z);
-  processStep(mag);
+  processStep(Math.sqrt(a.x*a.x + a.y*a.y + a.z*a.z));
 }
 
-// ── Drawing ────────────────────────────────────────────────────────────────
-
+// ── Drawing ──────────────────────────────────────────────────────────────
 function draw() {
-  const W = canvas.width, H = canvas.height;
+  const W = CANVAS_W, H = CANVAS_H;
   const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
   ctx.clearRect(0, 0, W, H);
 
-  // Grid
-  ctx.strokeStyle = dark ? '#2e2e2e' : '#eee';
+  // Grid — spaced every 1m in world coords
+  const gridStep = scale; // px between grid lines = 1m
+  const offX = ((viewOX % gridStep) + gridStep) % gridStep;
+  const offY = ((viewOY % gridStep) + gridStep) % gridStep;
+  ctx.strokeStyle = dark ? '#2a2a2a' : '#f0f0f0';
   ctx.lineWidth = 1;
-  for (let x = 0; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
-  for (let y = 0; y < H; y += 40) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+  for (let x = offX; x < W; x += gridStep) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  for (let y = offY; y < H; y += gridStep) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
 
   // Origin cross
-  ctx.strokeStyle = dark ? '#555' : '#bbb';
-  ctx.lineWidth = 1;
-  const ox = W/2, oy = H/2;
-  ctx.beginPath(); ctx.moveTo(ox-8,oy); ctx.lineTo(ox+8,oy); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(ox,oy-8); ctx.lineTo(ox,oy+8); ctx.stroke();
+  const oc = worldToCanvas(0, 0);
+  if (oc.x > -20 && oc.x < W+20 && oc.y > -20 && oc.y < H+20) {
+    ctx.strokeStyle = dark ? '#555' : '#bbb'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(oc.x-8,oc.y); ctx.lineTo(oc.x+8,oc.y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(oc.x,oc.y-8); ctx.lineTo(oc.x,oc.y+8); ctx.stroke();
+  }
 
   // Path
   if (path.length > 1) {
     ctx.beginPath(); ctx.strokeStyle = '#1D9E75'; ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
-    ctx.moveTo(W/2 + path[0].x*SCALE, H/2 - path[0].y*SCALE);
-    for (let i = 1; i < path.length; i++)
-      ctx.lineTo(W/2 + path[i].x*SCALE, H/2 - path[i].y*SCALE);
+    const p0 = worldToCanvas(path[0].x, path[0].y);
+    ctx.moveTo(p0.x, p0.y);
+    for (let i = 1; i < path.length; i++) {
+      const p = worldToCanvas(path[i].x, path[i].y);
+      ctx.lineTo(p.x, p.y);
+    }
     ctx.stroke();
-
-    // GPS snap markers
     for (let i = 1; i < path.length; i++) {
       if (path[i].gpsSnap) {
-        ctx.beginPath();
-        ctx.arc(W/2 + path[i].x*SCALE, H/2 - path[i].y*SCALE, 4, 0, Math.PI*2);
+        const p = worldToCanvas(path[i].x, path[i].y);
+        ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI*2);
         ctx.fillStyle = '#fa8c16'; ctx.fill();
       }
     }
   }
 
-  // Raw GPS dot + accuracy ring
-  if (gpsX !== null && gpsAccuracy < 100) {
-    const gx = W/2 + gpsX*SCALE, gy = H/2 - gpsY*SCALE;
-    const ring = Math.min(gpsAccuracy * SCALE, 120);
-    ctx.beginPath(); ctx.arc(gx, gy, ring, 0, Math.PI*2);
+  // GPS dot
+  if (gpsEnabled && gpsX !== null && gpsAccuracy < 100) {
+    const gc = worldToCanvas(gpsX, gpsY);
+    const ring = Math.min(gpsAccuracy * scale, 120);
+    ctx.beginPath(); ctx.arc(gc.x, gc.y, ring, 0, Math.PI*2);
     ctx.fillStyle = 'rgba(250,140,22,0.07)'; ctx.strokeStyle = 'rgba(250,140,22,0.3)';
     ctx.lineWidth = 1; ctx.fill(); ctx.stroke();
-    ctx.beginPath(); ctx.arc(gx, gy, 7, 0, Math.PI*2);
+    ctx.beginPath(); ctx.arc(gc.x, gc.y, 7, 0, Math.PI*2);
     ctx.fillStyle = 'rgba(250,140,22,0.7)'; ctx.fill();
   }
 
-  // Main dot
-  const cx = W/2 + px*SCALE, cy = H/2 - py*SCALE;
-  ctx.beginPath(); ctx.arc(cx, cy, 11, 0, Math.PI*2);
+  // Player dot
+  const pc = worldToCanvas(px, py);
+  ctx.beginPath(); ctx.arc(pc.x, pc.y, 11, 0, Math.PI*2);
   ctx.fillStyle = isMoving ? '#1D9E75' : '#378ADD'; ctx.fill();
 
   // Heading arrow
   const hRad = (heading - 90) * Math.PI / 180;
   ctx.beginPath();
-  ctx.moveTo(cx + Math.cos(hRad)*15, cy + Math.sin(hRad)*15);
-  ctx.lineTo(cx + Math.cos(hRad+2.5)*8, cy + Math.sin(hRad+2.5)*8);
-  ctx.lineTo(cx + Math.cos(hRad-2.5)*8, cy + Math.sin(hRad-2.5)*8);
+  ctx.moveTo(pc.x + Math.cos(hRad)*15, pc.y + Math.sin(hRad)*15);
+  ctx.lineTo(pc.x + Math.cos(hRad+2.5)*8, pc.y + Math.sin(hRad+2.5)*8);
+  ctx.lineTo(pc.x + Math.cos(hRad-2.5)*8, pc.y + Math.sin(hRad-2.5)*8);
   ctx.closePath(); ctx.fillStyle = '#fff'; ctx.fill();
+
+  // Scale bar
+  const barM = Math.pow(2, Math.round(Math.log2(80/scale))); // nice power-of-2 metres
+  const barPx = barM * scale;
+  ctx.fillStyle = dark ? '#555' : '#ccc';
+  ctx.fillRect(12, H-22, barPx, 4);
+  ctx.fillStyle = dark ? '#aaa' : '#555';
+  ctx.font = '11px sans-serif'; ctx.fillText(barM + ' m', 12, H-27);
 }
 
-// ── Controls ───────────────────────────────────────────────────────────────
-
+// ── Controls ─────────────────────────────────────────────────────────────
 async function requestAndStart() {
   document.getElementById('status').textContent = 'requesting permissions…';
   document.getElementById('errBox').style.display = 'none';
   try {
     if (typeof DeviceOrientationEvent?.requestPermission === 'function') {
-      const r = await DeviceOrientationEvent.requestPermission();
-      if (r !== 'granted') { showErr('Orientation denied — Settings → Safari → Motion & Orientation Access'); return; }
+      if ((await DeviceOrientationEvent.requestPermission()) !== 'granted') {
+        showErr('Orientation denied — Settings → Safari → Motion & Orientation Access'); return;
+      }
     }
     if (typeof DeviceMotionEvent?.requestPermission === 'function') {
-      const r = await DeviceMotionEvent.requestPermission();
-      if (r !== 'granted') { showErr('Motion denied — Settings → Safari → Motion & Orientation Access'); return; }
+      if ((await DeviceMotionEvent.requestPermission()) !== 'granted') {
+        showErr('Motion denied — Settings → Safari → Motion & Orientation Access'); return;
+      }
     }
     window.addEventListener('deviceorientation', onOrientation, true);
     window.addEventListener('devicemotion',      onMotion,      true);
@@ -380,9 +486,10 @@ async function requestAndStart() {
     started = true;
     document.getElementById('startBtn').style.display = 'none';
     document.getElementById('moveBtn').style.display  = '';
+    document.getElementById('gpsBtn').style.display   = '';
     document.getElementById('resetBtn').style.display = '';
     document.getElementById('status').textContent = 'ready — tap Walking when moving';
-  } catch(err) { showErr('Error: ' + err.message); }
+  } catch(e) { showErr('Error: ' + e.message); }
 }
 
 function toggleMove() {
@@ -399,13 +506,14 @@ function reset() {
   isMoving = false; stepCount = 0; stepPhase = 'seek_peak';
   originLat = null; originLng = null;
   gpsX = null; gpsY = null; gpsAccuracy = Infinity; lastGpsCorrection = 0;
-  document.getElementById('moveBtn').textContent = 'Walking: OFF';
-  document.getElementById('moveBtn').className   = '';
-  document.getElementById('status').textContent  = 'reset — ready';
-  document.getElementById('pos').textContent     = '0, 0';
+  viewOX = CANVAS_W/2; viewOY = CANVAS_H/2;
+  document.getElementById('moveBtn').textContent  = 'Walking: OFF';
+  document.getElementById('moveBtn').className    = '';
+  document.getElementById('status').textContent   = 'reset — ready';
+  document.getElementById('pos').textContent      = '0, 0';
   document.getElementById('stepLabel').textContent = 'Steps: 0';
-  document.getElementById('stepPill').className  = 'pill';
-  document.getElementById('gpsPill').className   = 'pill';
+  document.getElementById('stepPill').className   = 'pill';
+  document.getElementById('gpsPill').className    = 'pill';
   document.getElementById('gpsLabel').textContent = 'GPS: re-acquiring…';
   draw();
 }
@@ -415,15 +523,11 @@ function showErr(msg) {
   el.textContent = msg; el.style.display = 'block';
   document.getElementById('status').textContent = 'error';
 }
-
 function dbg(msg) {
-  const el = document.getElementById('debug');
-  const line = new Date().toLocaleTimeString() + '  ' + msg;
-  el.textContent = [line, ...el.textContent.split('\n').slice(0,4)].join('\n');
+  const el = document.getElementById('dbgEl');
+  el.textContent = [new Date().toLocaleTimeString()+'  '+msg, ...el.textContent.split('\n').slice(0,4)].join('\n');
 }
 
-const canvas = document.getElementById('map');
-const ctx    = canvas.getContext('2d');
 draw();
 </script>
 </body>
