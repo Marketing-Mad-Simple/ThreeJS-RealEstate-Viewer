@@ -3,691 +3,210 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-  <title>Indoor 3D Tracker</title>
+  <title>Sensor Debug</title>
   <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    html,body{width:100%;height:100%;overflow:hidden;background:#111;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-
-    #three-canvas{position:fixed;inset:0;width:100%!important;height:100%!important}
-
-    /* ── HUD overlay ── */
-    #hud{
-      position:fixed;bottom:0;left:0;right:0;
-      padding:12px 14px 18px;
-      background:linear-gradient(to top,rgba(0,0,0,.85) 0%,rgba(0,0,0,0) 100%);
-      display:flex;flex-direction:column;gap:8px;
-      pointer-events:none;
+    body { font-family: monospace; background: #111; color: #eee; padding: 16px; font-size: 13px; }
+    h2 { color: #1D9E75; margin-bottom: 12px; }
+    .block { background: #1e1e1e; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+    .label { color: #888; font-size: 11px; margin-bottom: 4px; }
+    .val { font-size: 18px; font-weight: bold; color: #fff; }
+    .row { display: flex; gap: 16px; flex-wrap: wrap; }
+    .cell { flex: 1; min-width: 80px; }
+    button {
+      padding: 12px 20px; border-radius: 8px; border: none;
+      background: #1D9E75; color: #fff; font-size: 15px; cursor: pointer;
+      margin-bottom: 16px; display: block; width: 100%;
     }
-    #hud>*{pointer-events:auto}
-
-    .hud-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-
-    .btn{
-      padding:10px 16px;border-radius:10px;border:none;
-      font-size:14px;font-weight:500;cursor:pointer;
-      -webkit-tap-highlight-color:transparent;
-      backdrop-filter:blur(8px);
-    }
-    .btn-primary {background:rgba(255,255,255,.15);color:#fff}
-    .btn-active  {background:#1D9E75;color:#fff}
-    .btn-danger  {background:#E24B4A;color:#fff}
-    .btn-off     {background:rgba(255,255,255,.08);color:#888}
-
-    .pills{display:flex;gap:6px;flex-wrap:wrap}
-    .pill{
-      display:inline-flex;align-items:center;gap:5px;
-      font-size:11px;padding:3px 9px;border-radius:20px;
-      background:rgba(255,255,255,.1);color:#ccc;
-    }
-    .pill .dot{width:7px;height:7px;border-radius:50%;background:#555;flex-shrink:0}
-    .pill.good{background:rgba(29,158,117,.25);color:#5eefc0} .pill.good .dot{background:#1D9E75}
-    .pill.poor{background:rgba(250,140,22,.2);color:#ffc069}  .pill.poor .dot{background:#fa8c16}
-    .pill.off2{background:rgba(255,255,255,.06);color:#666}    .pill.off2 .dot{background:#444}
-    .pill.kal {background:rgba(155,93,229,.2);color:#d3a8ff}   .pill.kal  .dot{background:#9b5de5}
-
-    .stats{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:#aaa}
-    .stats span{color:#fff;font-weight:500}
-
-    #speedBar{height:4px;border-radius:2px;background:rgba(255,255,255,.1);overflow:hidden;width:100%;max-width:300px}
-    #speedFill{height:100%;width:0%;background:#1D9E75;transition:width .1s}
-
-    /* sensitivity slider */
-    .slider-row{display:flex;align-items:center;gap:8px;font-size:12px;color:#aaa}
-    .slider-row input{flex:1;max-width:150px;accent-color:#1D9E75}
-
-    /* loading screen */
-    #loading{
-      position:fixed;inset:0;background:#111;
-      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
-      color:#fff;font-size:15px;z-index:999;
-    }
-    #loadBar{width:220px;height:4px;border-radius:2px;background:#333;overflow:hidden}
-    #loadFill{height:100%;width:0%;background:#1D9E75;transition:width .3s}
-    #loadMsg{color:#aaa;font-size:13px}
-
-    #errBox{
-      display:none;position:fixed;top:16px;left:50%;transform:translateX(-50%);
-      background:#5a0000;color:#ffaaaa;padding:10px 16px;border-radius:8px;
-      font-size:13px;z-index:1000;max-width:90vw;text-align:center;
-    }
-
-    /* top-right compass */
-    #compass{
-      position:fixed;top:14px;right:14px;width:44px;height:44px;
-      background:rgba(0,0,0,.55);border-radius:50%;
-      display:flex;align-items:center;justify-content:center;
-      font-size:20px;pointer-events:none;
-      backdrop-filter:blur(6px);
-    }
-    /* top-left recenter */
-    #recenterBtn{
-      position:fixed;top:14px;left:14px;
-      padding:8px 12px;border-radius:8px;border:none;
-      background:rgba(0,0,0,.55);color:#fff;font-size:13px;cursor:pointer;
-      backdrop-filter:blur(6px);
-    }
+    #log { font-size: 11px; color: #666; white-space: pre; max-height: 200px; overflow-y: auto; }
+    .bar-wrap { height: 8px; background: #333; border-radius: 4px; margin-top: 4px; overflow: hidden; }
+    .bar { height: 100%; background: #1D9E75; border-radius: 4px; transition: width 0.05s; }
+    .warn { color: #fa8c16; }
+    .good { color: #1D9E75; }
   </style>
 </head>
 <body>
+<h2>Sensor Debug</h2>
+<button onclick="requestSensors()">Request Sensor Permissions</button>
 
-<div id="loading">
-  <div style="font-size:20px;font-weight:600">Indoor Tracker</div>
-  <div id="loadBar"><div id="loadFill"></div></div>
-  <div id="loadMsg">Loading scene…</div>
-</div>
-
-<canvas id="three-canvas"></canvas>
-
-<button id="recenterBtn" onclick="recenterCamera()">⊙ Follow</button>
-<div id="compass">⬆</div>
-<div id="errBox"></div>
-
-<div id="hud">
-  <div class="pills">
-    <div class="pill kal"><span class="dot"></span>Kalman heading</div>
-    <div class="pill" id="gpsPill"><span class="dot"></span><span id="gpsLabel">GPS: —</span></div>
-    <div class="pill" id="navPill"><span class="dot" style="background:#378ADD"></span><span id="navLabel">Navmesh: loading</span></div>
-  </div>
-
-  <div id="speedBar"><div id="speedFill"></div></div>
-
-  <div class="stats">
-    <div>Heading: <span id="hdg">—</span>°</div>
-    <div>Speed: <span id="spd">0.00</span> m/s</div>
-    <div>Pos: <span id="pos">0, 0</span> m</div>
-    <div>Status: <span id="status">loading…</span></div>
-  </div>
-
-  <div class="slider-row">
-    <span>Sensitivity</span>
-    <input type="range" id="sensSlider" min="1" max="10" step="0.5" value="4"
-      oninput="SENSITIVITY=parseFloat(this.value);document.getElementById('sensVal').textContent=this.value">
-    <span id="sensVal">4</span>
-  </div>
-
-  <div class="hud-row">
-    <button class="btn btn-primary" id="startBtn" onclick="requestAndStart()">Start tracking</button>
-    <button class="btn btn-primary" id="moveBtn"  onclick="toggleMove()" style="display:none">Walking: OFF</button>
-    <button class="btn btn-primary" id="gpsBtn"   onclick="toggleGPS()"  style="display:none">GPS: ON</button>
-    <button class="btn btn-danger"  id="resetBtn" onclick="reset()"       style="display:none">Reset</button>
+<div class="block">
+  <div class="label">accelerationIncludingGravity (raw)</div>
+  <div class="row">
+    <div class="cell"><div class="label">X</div><div class="val" id="rawX">—</div></div>
+    <div class="cell"><div class="label">Y</div><div class="val" id="rawY">—</div></div>
+    <div class="cell"><div class="label">Z</div><div class="val" id="rawZ">—</div></div>
+    <div class="cell"><div class="label">|mag|</div><div class="val" id="rawMag">—</div></div>
   </div>
 </div>
 
-<!-- Three.js r128 + GLTFLoader (CDN, free) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<div class="block">
+  <div class="label">acceleration (gravity removed by browser)</div>
+  <div class="row">
+    <div class="cell"><div class="label">X</div><div class="val" id="linX">—</div></div>
+    <div class="cell"><div class="label">Y</div><div class="val" id="linY">—</div></div>
+    <div class="cell"><div class="label">Z</div><div class="val" id="linZ">—</div></div>
+    <div class="cell"><div class="label">|mag|</div><div class="val" id="linMag">—</div></div>
+  </div>
+</div>
+
+<div class="block">
+  <div class="label">rotationRate (gyro deg/s)</div>
+  <div class="row">
+    <div class="cell"><div class="label">alpha (yaw)</div><div class="val" id="gyroA">—</div></div>
+    <div class="cell"><div class="label">beta (pitch)</div><div class="val" id="gyroB">—</div></div>
+    <div class="cell"><div class="label">gamma (roll)</div><div class="val" id="gyroG">—</div></div>
+  </div>
+</div>
+
+<div class="block">
+  <div class="label">deviceorientation (compass)</div>
+  <div class="row">
+    <div class="cell"><div class="label">alpha</div><div class="val" id="oriA">—</div></div>
+    <div class="cell"><div class="label">beta</div><div class="val" id="oriB">—</div></div>
+    <div class="cell"><div class="label">gamma</div><div class="val" id="oriG">—</div></div>
+    <div class="cell"><div class="label">webkitCompassHeading</div><div class="val" id="wkH">—</div></div>
+  </div>
+</div>
+
+<div class="block">
+  <div class="label">Gravity-subtracted linear accel (our manual method)</div>
+  <div class="row">
+    <div class="cell"><div class="label">linX (manual)</div><div class="val" id="mLinX">—</div></div>
+    <div class="cell"><div class="label">linY (manual)</div><div class="val" id="mLinY">—</div></div>
+  </div>
+  <div style="margin-top:8px">
+    <div class="label">magnitude (shake phone to see this go up)</div>
+    <div class="val" id="mLinMag">—</div>
+    <div class="bar-wrap"><div class="bar" id="mLinBar" style="width:0%"></div></div>
+  </div>
+</div>
+
+<div class="block">
+  <div class="label" id="diagLabel">Diagnosis</div>
+  <div id="diag" style="font-size:14px; line-height:1.8;">waiting for sensors…</div>
+</div>
+
+<div class="block">
+  <div class="label">Raw event log (last 6)</div>
+  <div id="log"></div>
+</div>
 
 <script>
-'use strict';
-// ═══════════════════════════════════════════════════════
-//  TUNING
-// ═══════════════════════════════════════════════════════
-let SENSITIVITY    = 4;
-const GPS_TRUST    = 25;
-const GPS_BLEND    = 0.25;
-const GPS_GAP_MS   = 4000;
-const GPS_JUMP_MAX = 8;
-const AVATAR_Y_OFF = 0.18; // metres above navmesh surface
-
-// ═══════════════════════════════════════════════════════
-//  THREE.JS SCENE
-// ═══════════════════════════════════════════════════════
-const canvas   = document.getElementById('three-canvas');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.outputEncoding  = THREE.sRGBEncoding;
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type    = THREE.PCFSoftShadowMap;
-renderer.toneMapping       = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.1;
-
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x1a1a2e);
-scene.fog = new THREE.Fog(0x1a1a2e, 30, 80);
-
-// Camera — top-ish isometric-like perspective that follows avatar
-const camera = new THREE.PerspectiveCamera(55, 1, 0.01, 200);
-let camFollowing = true;
-let camOffset    = new THREE.Vector3(0, 18, 12); // world offset from avatar
-
-// Lighting
-const ambient = new THREE.AmbientLight(0xffffff, 0.6);
-scene.add(ambient);
-const sun = new THREE.DirectionalLight(0xffeedd, 1.2);
-sun.position.set(10, 20, 10);
-sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
-sun.shadow.camera.near = 0.5;
-sun.shadow.camera.far  = 100;
-sun.shadow.camera.left = sun.shadow.camera.bottom = -30;
-sun.shadow.camera.right = sun.shadow.camera.top   =  30;
-scene.add(sun);
-const fill = new THREE.DirectionalLight(0xaaccff, 0.35);
-fill.position.set(-8, 10, -10);
-scene.add(fill);
-
-// Avatar — simple glowing capsule
-const avatarGroup = new THREE.Group();
-const bodyGeo  = new THREE.CylinderGeometry(0.18, 0.18, 0.55, 16);
-const capGeo   = new THREE.SphereGeometry(0.18, 16, 8);
-const avatarMat = new THREE.MeshStandardMaterial({ color: 0x1D9E75, emissive: 0x0a4030, roughness: 0.4, metalness: 0.1 });
-const body = new THREE.Mesh(bodyGeo, avatarMat);
-body.castShadow = true;
-const capT = new THREE.Mesh(capGeo, avatarMat);
-capT.position.y = 0.275;
-const capB = new THREE.Mesh(capGeo, avatarMat);
-capB.position.y = -0.275;
-avatarGroup.add(body, capT, capB);
-
-// Direction arrow on top
-const arrowGeo = new THREE.ConeGeometry(0.09, 0.22, 8);
-const arrowMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x888888 });
-const arrow = new THREE.Mesh(arrowGeo, arrowMat);
-arrow.position.set(0, 0.55, 0);
-arrow.rotation.x = Math.PI / 2; // point toward +Z initially
-avatarGroup.add(arrow);
-
-// Pulse ring on ground
-const ringGeo = new THREE.RingGeometry(0.22, 0.30, 32);
-const ringMat = new THREE.MeshBasicMaterial({ color: 0x1D9E75, side: THREE.DoubleSide, transparent: true, opacity: 0.6 });
-const ring    = new THREE.Mesh(ringGeo, ringMat);
-ring.rotation.x = -Math.PI / 2;
-ring.position.y = 0.01;
-avatarGroup.add(ring);
-avatarGroup.position.set(0, 0, 0);
-scene.add(avatarGroup);
-
-// Resize
-function onResize() {
-  const W = window.innerWidth, H = window.innerHeight;
-  renderer.setSize(W, H);
-  camera.aspect = W / H;
-  camera.updateProjectionMatrix();
-}
-window.addEventListener('resize', onResize);
-onResize();
-
-// ═══════════════════════════════════════════════════════
-//  NAVMESH
-// ═══════════════════════════════════════════════════════
-// We store navmesh triangles in world space for fast lookup.
-// Each triangle: { a, b, c } as THREE.Vector3 (Y is height).
-let navTriangles = [];
-let navReady     = false;
-
-// BVH-lite: axis-aligned bounding boxes per triangle for quick rejection
-function buildNavmesh(mesh) {
-  const geo   = mesh.geometry.clone();
-  // Apply the full world matrix so vertices are in scene world space
-  geo.applyMatrix4(mesh.matrixWorld);
-
-  const pos  = geo.attributes.position;
-  const idx  = geo.index ? geo.index.array : null;
-  const triCount = idx ? idx.length / 3 : pos.count / 3;
-  navTriangles = [];
-
-  const v = (i) => new THREE.Vector3(pos.getX(i), pos.getY(i), pos.getZ(i));
-
-  for (let t = 0; t < triCount; t++) {
-    const i0 = idx ? idx[t*3]   : t*3;
-    const i1 = idx ? idx[t*3+1] : t*3+1;
-    const i2 = idx ? idx[t*3+2] : t*3+2;
-    const a = v(i0), b = v(i1), c = v(i2);
-    const minX = Math.min(a.x,b.x,c.x), maxX = Math.max(a.x,b.x,c.x);
-    const minZ = Math.min(a.z,b.z,c.z), maxZ = Math.max(a.z,b.z,c.z);
-    navTriangles.push({ a, b, c, minX, maxX, minZ, maxZ });
-  }
-
-  document.getElementById('navLabel').textContent = `Navmesh: ${navTriangles.length} tris`;
-  document.getElementById('navPill').querySelector('.dot').style.background = '#1D9E75';
-  navReady = true;
-  console.log(`Navmesh built: ${navTriangles.length} triangles`);
-}
-
-// Point-in-triangle test (XZ plane, ignore Y)
-function pointInTriXZ(px, pz, a, b, c) {
-  const d1 = sign(px,pz, a.x,a.z, b.x,b.z);
-  const d2 = sign(px,pz, b.x,b.z, c.x,c.z);
-  const d3 = sign(px,pz, c.x,c.z, a.x,a.z);
-  const hasNeg = (d1<0)||(d2<0)||(d3<0);
-  const hasPos = (d1>0)||(d2>0)||(d3>0);
-  return !(hasNeg && hasPos);
-}
-function sign(p1x,p1z, p2x,p2z, p3x,p3z) {
-  return (p1x-p3x)*(p2z-p3z)-(p2x-p3x)*(p1z-p3z);
-}
-
-// Barycentric Y interpolation on the triangle
-function triY(px, pz, a, b, c) {
-  const v0x=c.x-a.x, v0z=c.z-a.z;
-  const v1x=b.x-a.x, v1z=b.z-a.z;
-  const v2x=px -a.x, v2z=pz -a.z;
-  const dot00=v0x*v0x+v0z*v0z, dot01=v0x*v1x+v0z*v1z;
-  const dot02=v0x*v2x+v0z*v2z, dot11=v1x*v1x+v1z*v1z;
-  const dot12=v1x*v2x+v1z*v2z;
-  const inv = 1/(dot00*dot11-dot01*dot01);
-  const u=(dot11*dot02-dot01*dot12)*inv;
-  const v=(dot00*dot12-dot01*dot02)*inv;
-  return a.y + v*(b.y-a.y) + u*(c.y-a.y);
-}
-
-// Find which triangle contains (px,pz) — returns triangle or null
-function findTriangle(px, pz) {
-  for (const t of navTriangles) {
-    if (px<t.minX||px>t.maxX||pz<t.minZ||pz>t.maxZ) continue;
-    if (pointInTriXZ(px, pz, t.a, t.b, t.c)) return t;
-  }
-  return null;
-}
-
-// Wall-slide constraint:
-//  Try to move from (ox,oz) → (nx,nz).
-//  If destination is outside navmesh, slide along the movement vector
-//  projected onto the nearest navmesh boundary edge.
-function constrainToNavmesh(ox, oz, nx, nz) {
-  if (!navReady) return { x: nx, z: nz, y: 0 };
-
-  // Direct move OK?
-  let tri = findTriangle(nx, nz);
-  if (tri) return { x: nx, z: nz, y: triY(nx,nz,tri.a,tri.b,tri.c) };
-
-  // Try wall sliding: project movement onto XZ and attempt lateral slide
-  const dx = nx - ox, dz = nz - oz;
-  const len = Math.sqrt(dx*dx + dz*dz);
-  if (len < 0.0001) {
-    const cur = findTriangle(ox, oz);
-    return { x: ox, z: oz, y: cur ? triY(ox,oz,cur.a,cur.b,cur.c) : 0 };
-  }
-
-  // Try sliding along X only
-  const sx = ox + dx, sz = oz;
-  tri = findTriangle(sx, sz);
-  if (tri) return { x: sx, z: sz, y: triY(sx,sz,tri.a,tri.b,tri.c) };
-
-  // Try sliding along Z only
-  const sx2 = ox, sz2 = oz + dz;
-  tri = findTriangle(sx2, sz2);
-  if (tri) return { x: sx2, z: sz2, y: triY(sx2,sz2,tri.a,tri.b,tri.c) };
-
-  // Can't move — stay put
-  const cur = findTriangle(ox, oz);
-  return { x: ox, z: oz, y: cur ? triY(ox,oz,cur.a,cur.b,cur.c) : 0 };
-}
-
-// ═══════════════════════════════════════════════════════
-//  LOAD GLB
-// ═══════════════════════════════════════════════════════
-function setLoad(pct, msg) {
-  document.getElementById('loadFill').style.width = pct + '%';
-  document.getElementById('loadMsg').textContent  = msg;
-}
-
-const loader = new THREE.GLTFLoader();
-loader.load(
-  'models/Room_Interior.glb',
-  (gltf) => {
-    setLoad(90, 'Building navmesh…');
-
-    gltf.scene.traverse(obj => {
-      if (obj.isMesh) {
-        obj.castShadow    = true;
-        obj.receiveShadow = true;
-
-        if (obj.name === 'NAV_MESH') {
-          // Build navmesh from this mesh (world matrix already applied after scene.add)
-          obj.visible = false; // hide nav visual
-        }
-      }
-    });
-
-    scene.add(gltf.scene);
-
-    // Now that scene is added, matrices are computed — build navmesh
-    gltf.scene.traverse(obj => {
-      if (obj.isMesh && obj.name === 'NAV_MESH') {
-        obj.updateWorldMatrix(true, false);
-        buildNavmesh(obj);
-
-        // Place avatar at navmesh centroid
-        const cx = (navTriangles.reduce((s,t)=>s+t.a.x+t.b.x+t.c.x,0))/(navTriangles.length*3);
-        const cz = (navTriangles.reduce((s,t)=>s+t.a.z+t.b.z+t.c.z,0))/(navTriangles.length*3);
-        const startTri = findTriangle(cx, cz) || navTriangles[0];
-        const startY   = startTri ? triY(cx,cz,startTri.a,startTri.b,startTri.c) : 0;
-        avatarWorldX = cx; avatarWorldZ = cz; avatarWorldY = startY;
-        avatarGroup.position.set(cx, startY + AVATAR_Y_OFF, cz);
-      }
-    });
-
-    setLoad(100, 'Ready!');
-    setTimeout(() => {
-      document.getElementById('loading').style.display = 'none';
-      document.getElementById('status').textContent = 'tap Start tracking';
-    }, 400);
-  },
-  (xhr) => {
-    if (xhr.total) setLoad(Math.round(xhr.loaded/xhr.total*85), `Loading… ${Math.round(xhr.loaded/1024/1024)}MB`);
-  },
-  (err) => {
-    document.getElementById('loading').style.display = 'none';
-    showErr('Could not load models/Room_Interior.glb — make sure the file is in the models/ folder next to this HTML. ' + err.message);
-  }
-);
-
-// ═══════════════════════════════════════════════════════
-//  AVATAR POSITION IN WORLD SPACE
-// ═══════════════════════════════════════════════════════
-let avatarWorldX = 0, avatarWorldY = 0, avatarWorldZ = 0;
-let avatarHeading = 0; // degrees, Three.js world (0=north/+Z, 90=east)
-
-// IMU position is accumulated in world-space metres directly
-// (no separate local coordinate — we work in Three.js world units)
-
-// ═══════════════════════════════════════════════════════
-//  KALMAN FILTER (heading)
-// ═══════════════════════════════════════════════════════
-let compassHeading = 0;
-let kAngle=0, kBias=0, kP00=1, kP01=0, kP10=0, kP11=1;
-const Q_ANGLE=0.001, Q_BIAS=0.003, R_MEAS=0.5;
-
-function kalman(newCompass, gyroRate, dt) {
-  const rate = gyroRate - kBias;
-  kAngle += dt * rate;
-  kP00 += dt*(dt*kP11 - kP01 - kP10 + Q_ANGLE);
-  kP01 -= dt*kP11; kP10 -= dt*kP11; kP11 += Q_BIAS*dt;
-  let diff = newCompass - kAngle;
-  if (diff>180) diff-=360; if (diff<-180) diff+=360;
-  const S=kP00+R_MEAS, K0=kP00/S, K1=kP10/S;
-  kAngle+=K0*diff; kBias+=K1*diff;
-  kP00-=K0*kP00; kP01-=K0*kP01; kP10-=K1*kP00; kP11-=K1*kP01;
-  kAngle=((kAngle%360)+360)%360;
-  return kAngle;
-}
-
-// ═══════════════════════════════════════════════════════
-//  ACCELEROMETER / MOTION
-// ═══════════════════════════════════════════════════════
 let gravX=0, gravY=0, gravZ=9.81;
-let smoothAx=0, smoothAy=0;
-let vx=0, vy=0;
-let lastT=null;
-let isMoving=false, started=false;
+let logLines=[];
+let motionCount=0;
 
-function onOrientation(e) {
-  if (typeof e.webkitCompassHeading==='number') compassHeading=e.webkitCompassHeading;
-  else if (e.alpha!==null) compassHeading=(360-e.alpha)%360;
+async function requestSensors() {
+  try {
+    if (typeof DeviceOrientationEvent?.requestPermission === 'function') {
+      const r = await DeviceOrientationEvent.requestPermission();
+      if (r !== 'granted') { alert('Orientation denied'); return; }
+    }
+    if (typeof DeviceMotionEvent?.requestPermission === 'function') {
+      const r = await DeviceMotionEvent.requestPermission();
+      if (r !== 'granted') { alert('Motion denied'); return; }
+    }
+    window.addEventListener('deviceorientation', onOri, true);
+    window.addEventListener('devicemotion', onMotion, true);
+    document.querySelector('button').textContent = '✓ Sensors active — now walk with phone';
+    document.querySelector('button').style.background = '#0f6e56';
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+function onOri(e) {
+  document.getElementById('oriA').textContent = e.alpha !== null ? e.alpha.toFixed(1) : 'null';
+  document.getElementById('oriB').textContent = e.beta  !== null ? e.beta.toFixed(1)  : 'null';
+  document.getElementById('oriG').textContent = e.gamma !== null ? e.gamma.toFixed(1) : 'null';
+  document.getElementById('wkH').textContent  = e.webkitCompassHeading !== undefined ? e.webkitCompassHeading.toFixed(1) : 'undefined';
 }
 
 function onMotion(e) {
-  if (!started) return;
-  const now=Date.now();
-  if (!lastT){lastT=now;return;}
-  const dt=Math.min((now-lastT)/1000,0.1);
-  lastT=now;
+  motionCount++;
+  const acc = e.accelerationIncludingGravity;
+  const lin = e.acceleration;
+  const rr  = e.rotationRate;
 
-  // Kalman heading
-  const rr=e.rotationRate;
-  const gyroYaw=(rr&&rr.alpha!==null)?rr.alpha:0;
-  const heading=kalman(compassHeading,gyroYaw,dt);
-  avatarHeading=heading;
-  document.getElementById('hdg').textContent=Math.round(heading);
+  // Raw
+  if (acc && acc.x !== null) {
+    const mag = Math.sqrt(acc.x**2 + acc.y**2 + acc.z**2);
+    document.getElementById('rawX').textContent = acc.x.toFixed(3);
+    document.getElementById('rawY').textContent = acc.y.toFixed(3);
+    document.getElementById('rawZ').textContent = acc.z.toFixed(3);
+    document.getElementById('rawMag').textContent = mag.toFixed(3);
 
-  // Update compass rose
-  document.getElementById('compass').style.transform=`rotate(${-heading}deg)`;
-
-  // Linear accel
-  const acc=e.accelerationIncludingGravity;
-  if (!acc||acc.x===null) return;
-  const LP=0.8;
-  gravX=LP*gravX+(1-LP)*acc.x;
-  gravY=LP*gravY+(1-LP)*acc.y;
-  gravZ=LP*gravZ+(1-LP)*acc.z;
-  let linX=acc.x-gravX, linY=acc.y-gravY;
-  const HP=0.6;
-  smoothAx=HP*smoothAx+(1-HP)*linX;
-  smoothAy=HP*smoothAy+(1-HP)*linY;
-  const DEAD=0.35/SENSITIVITY, GAIN=SENSITIVITY*0.35;
-  const ax=Math.abs(smoothAx)>DEAD?smoothAx*GAIN:0;
-  const ay=Math.abs(smoothAy)>DEAD?smoothAy*GAIN:0;
-  vx=(vx+ax*dt)*0.92; vy=(vy+ay*dt)*0.92;
-  const speed=Math.sqrt(vx*vx+vy*vy);
-  document.getElementById('speedFill').style.width=Math.min(speed/2,1)*100+'%';
-  document.getElementById('spd').textContent=speed.toFixed(2);
-
-  if (isMoving && speed>0.01) {
-    // heading: 0°=north(+Z in Three default), convert to Three.js XZ
-    // In Three.js: +X is right, +Z is toward viewer (south)
-    // compass 0°=north, 90°=east → dx=sin(h), dz=cos(h) ... but Three +Z=south
-    // so: dx=sin(h)*speed*dt, dz=-cos(h)*speed*dt  (north = -Z)
-    const hRad=heading*Math.PI/180;
-    const dx= Math.sin(hRad)*speed*dt;
-    const dz=-Math.cos(hRad)*speed*dt;
-
-    const nx=avatarWorldX+dx, nz=avatarWorldZ+dz;
-    const result=constrainToNavmesh(avatarWorldX,avatarWorldZ,nx,nz);
-    avatarWorldX=result.x; avatarWorldZ=result.z; avatarWorldY=result.y;
-
-    avatarGroup.position.set(avatarWorldX, avatarWorldY+AVATAR_Y_OFF, avatarWorldZ);
-
-    // Rotate avatar to face heading
-    avatarGroup.rotation.y = -hRad;
-
-    document.getElementById('pos').textContent=avatarWorldX.toFixed(1)+', '+avatarWorldZ.toFixed(1);
-  }
-}
-
-// ═══════════════════════════════════════════════════════
-//  GPS
-// ═══════════════════════════════════════════════════════
-// GPS gives us lat/lng → metres offset from origin.
-// We apply that offset directly into Three.js world space.
-let gpsEnabled=true;
-let originLat=null, originLng=null;
-let gpsX=null, gpsZ=null, gpsAccuracy=Infinity;
-let lastGpsCorr=0;
-
-function latLngToM(lat,lng,oLat,oLng){
-  const R=6371000;
-  const dLat=(lat-oLat)*Math.PI/180;
-  const dLng=(lng-oLng)*Math.PI/180;
-  const mid=((lat+oLat)/2)*Math.PI/180;
-  // north (+dLat) → -Z in Three (north=-Z), east (+dLng) → +X
-  return { x: dLng*R*Math.cos(mid), z: -dLat*R };
-}
-
-function onGPS(pos){
-  const{latitude,longitude,accuracy}=pos.coords;
-  gpsAccuracy=accuracy;
-  if (originLat===null){
-    originLat=latitude; originLng=longitude;
-    gpsX=avatarWorldX; gpsZ=avatarWorldZ; // anchor GPS origin to current avatar pos
+    // Manual gravity removal
+    const LP = 0.8;
+    gravX = LP*gravX + (1-LP)*acc.x;
+    gravY = LP*gravY + (1-LP)*acc.y;
+    gravZ = LP*gravZ + (1-LP)*acc.z;
+    const mx = acc.x - gravX;
+    const my = acc.y - gravY;
+    const mMag = Math.sqrt(mx**2 + my**2);
+    document.getElementById('mLinX').textContent = mx.toFixed(4);
+    document.getElementById('mLinY').textContent = my.toFixed(4);
+    document.getElementById('mLinMag').textContent = mMag.toFixed(4);
+    document.getElementById('mLinBar').style.width = Math.min(mMag/3*100, 100) + '%';
   } else {
-    const m=latLngToM(latitude,longitude,originLat,originLng);
-    gpsX=avatarWorldX+m.x; gpsZ=avatarWorldZ+m.z; // relative to anchor
+    document.getElementById('rawX').textContent = 'NULL';
+    document.getElementById('rawX').className = 'val warn';
   }
-  const pill=document.getElementById('gpsPill');
-  const lbl =document.getElementById('gpsLabel');
-  if (!gpsEnabled){pill.className='pill off2';lbl.textContent='GPS: off';return;}
-  if (accuracy<GPS_TRUST){pill.className='pill good';lbl.textContent=`GPS ±${Math.round(accuracy)}m ✓`;}
-  else{pill.className='pill poor';lbl.textContent=`GPS ±${Math.round(accuracy)}m (noisy)`;}
-  const now=Date.now();
-  if (gpsEnabled&&accuracy<GPS_TRUST&&(now-lastGpsCorr)>GPS_GAP_MS){
-    const dx=gpsX-avatarWorldX, dz=gpsZ-avatarWorldZ;
-    const jump=Math.hypot(dx,dz);
-    if (jump<GPS_JUMP_MAX){
-      const tx=avatarWorldX+GPS_BLEND*dx, tz=avatarWorldZ+GPS_BLEND*dz;
-      const tri=findTriangle(tx,tz);
-      if (tri){ // only apply GPS correction if it stays on navmesh
-        avatarWorldX=tx; avatarWorldZ=tz;
-        avatarWorldY=triY(tx,tz,tri.a,tri.b,tri.c);
-        avatarGroup.position.set(avatarWorldX,avatarWorldY+AVATAR_Y_OFF,avatarWorldZ);
-        lastGpsCorr=now;
-      }
-    }
+
+  // Browser linear accel
+  if (lin && lin.x !== null) {
+    const lmag = Math.sqrt(lin.x**2 + lin.y**2 + lin.z**2);
+    document.getElementById('linX').textContent = lin.x.toFixed(3);
+    document.getElementById('linY').textContent = lin.y.toFixed(3);
+    document.getElementById('linZ').textContent = lin.z.toFixed(3);
+    document.getElementById('linMag').textContent = lmag.toFixed(3);
+  } else {
+    document.getElementById('linX').textContent = 'null (normal on some devices)';
+  }
+
+  // Gyro
+  if (rr && rr.alpha !== null) {
+    document.getElementById('gyroA').textContent = rr.alpha.toFixed(2);
+    document.getElementById('gyroB').textContent = rr.beta.toFixed(2);
+    document.getElementById('gyroG').textContent = rr.gamma.toFixed(2);
+  } else {
+    document.getElementById('gyroA').textContent = 'null';
+  }
+
+  // Diagnosis every 30 events
+  if (motionCount % 30 === 0) diagnose(acc, lin, rr);
+
+  // Log
+  if (motionCount % 10 === 0 && acc && acc.x !== null) {
+    logLines.unshift(`[${motionCount}] aig=(${acc.x.toFixed(2)},${acc.y.toFixed(2)},${acc.z.toFixed(2)}) manLin=(${(acc.x-gravX).toFixed(3)},${(acc.y-gravY).toFixed(3)})`);
+    if (logLines.length > 6) logLines.pop();
+    document.getElementById('log').textContent = logLines.join('\n');
   }
 }
-function onGPSError(err){
-  const m={1:'Location denied',2:'GPS unavailable',3:'GPS timeout'};
-  document.getElementById('gpsPill').className='pill poor';
-  document.getElementById('gpsLabel').textContent=m[err.code]||'GPS error';
-}
-function startGPS(){
-  if(!navigator.geolocation){document.getElementById('gpsLabel').textContent='GPS: unsupported';return;}
-  document.getElementById('gpsLabel').textContent='GPS: acquiring…';
-  const opt={enableHighAccuracy:true,maximumAge:2000,timeout:15000};
-  navigator.geolocation.getCurrentPosition(p=>{
-    onGPS(p);
-    navigator.geolocation.watchPosition(onGPS,onGPSError,opt);
-  },onGPSError,{enableHighAccuracy:true,timeout:15000,maximumAge:0});
-}
-function toggleGPS(){
-  gpsEnabled=!gpsEnabled;
-  const btn=document.getElementById('gpsBtn');
-  btn.textContent='GPS: '+(gpsEnabled?'ON':'OFF');
-  btn.className=gpsEnabled?'btn btn-primary':'btn btn-off';
-  if (!gpsEnabled){document.getElementById('gpsPill').className='pill off2';document.getElementById('gpsLabel').textContent='GPS: off';}
-}
 
-// ═══════════════════════════════════════════════════════
-//  CAMERA FOLLOW
-// ═══════════════════════════════════════════════════════
-const camTarget=new THREE.Vector3();
-function recenterCamera(){camFollowing=true;}
+function diagnose(acc, lin, rr) {
+  const lines = [];
+  if (!acc || acc.x === null) {
+    lines.push('❌ accelerationIncludingGravity is NULL — sensor blocked or unsupported');
+  } else {
+    const mag = Math.sqrt(acc.x**2 + acc.y**2 + acc.z**2);
+    if (mag < 1) lines.push('⚠️ accel magnitude very low (' + mag.toFixed(2) + ') — may be in units other than m/s²');
+    else if (mag > 8 && mag < 12) lines.push('✅ accel magnitude looks correct (~9.8 m/s² at rest): ' + mag.toFixed(2));
+    else if (mag > 80) lines.push('⚠️ accel magnitude ~100x too large — device may report in cm/s² or g×100');
+    else lines.push('ℹ️ accel magnitude: ' + mag.toFixed(2));
 
-function updateCamera(){
-  if (!camFollowing) return;
-  camTarget.set(avatarWorldX, avatarWorldY, avatarWorldZ);
-  const desired=camTarget.clone().add(camOffset);
-  camera.position.lerp(desired,0.08);
-  camera.lookAt(camTarget);
-}
-
-// Camera orbit with mouse/touch when not following
-let orbitActive=false, orbitSX=0, orbitSY=0;
-const canvas3=document.getElementById('three-canvas');
-canvas3.addEventListener('mousedown',e=>{if(e.target===canvas3){orbitActive=true;orbitSX=e.clientX;orbitSY=e.clientY;camFollowing=false;}});
-window.addEventListener('mouseup',()=>orbitActive=false);
-window.addEventListener('mousemove',e=>{
-  if(!orbitActive)return;
-  const dx=(e.clientX-orbitSX)*0.01, dy=(e.clientY-orbitSY)*0.01;
-  orbitSX=e.clientX; orbitSY=e.clientY;
-  // Rotate camOffset around Y
-  const len=Math.sqrt(camOffset.x*camOffset.x+camOffset.z*camOffset.z);
-  const angle=Math.atan2(camOffset.x,camOffset.z)+dx;
-  camOffset.x=Math.sin(angle)*len;
-  camOffset.z=Math.cos(angle)*len;
-  camOffset.y=Math.max(3,Math.min(35, camOffset.y-dy*3));
-});
-
-canvas3.addEventListener('wheel',e=>{
-  e.preventDefault();
-  const f=e.deltaY<0?0.85:1.18;
-  camOffset.multiplyScalar(f);
-  if(camOffset.length()<3)camOffset.setLength(3);
-  if(camOffset.length()>60)camOffset.setLength(60);
-},{passive:false});
-
-// ═══════════════════════════════════════════════════════
-//  RENDER LOOP
-// ═══════════════════════════════════════════════════════
-let pulse=0;
-function animate(){
-  requestAnimationFrame(animate);
-  // Pulse ring
-  pulse+=0.04;
-  ring.material.opacity=0.35+0.25*Math.sin(pulse);
-  ring.scale.setScalar(1+0.12*Math.sin(pulse*0.7));
-  // Avatar color based on moving state
-  avatarMat.color.setHex(isMoving?0x1D9E75:0x378ADD);
-  avatarMat.emissive.setHex(isMoving?0x0a4030:0x0a1830);
-  updateCamera();
-  renderer.render(scene,camera);
-}
-animate();
-
-// ═══════════════════════════════════════════════════════
-//  CONTROLS
-// ═══════════════════════════════════════════════════════
-async function requestAndStart(){
-  document.getElementById('status').textContent='requesting permissions…';
-  try{
-    if(typeof DeviceOrientationEvent?.requestPermission==='function'){
-      if((await DeviceOrientationEvent.requestPermission())!=='granted'){
-        showErr('Orientation denied — Settings → Safari → Motion & Orientation Access');return;
-      }
-    }
-    if(typeof DeviceMotionEvent?.requestPermission==='function'){
-      if((await DeviceMotionEvent.requestPermission())!=='granted'){
-        showErr('Motion denied — Settings → Safari → Motion & Orientation Access');return;
-      }
-    }
-    window.addEventListener('deviceorientation',onOrientation,true);
-    window.addEventListener('devicemotion',onMotion,true);
-    startGPS();
-    started=true;
-    kAngle=0;kBias=0;
-    document.getElementById('startBtn').style.display='none';
-    document.getElementById('moveBtn').style.display='';
-    document.getElementById('gpsBtn').style.display='';
-    document.getElementById('resetBtn').style.display='';
-    document.getElementById('status').textContent='ready — tap Walking when moving';
-  }catch(e){showErr('Error: '+e.message);}
-}
-function toggleMove(){
-  isMoving=!isMoving;
-  if(isMoving){vx=0;vy=0;}
-  const btn=document.getElementById('moveBtn');
-  btn.textContent='Walking: '+(isMoving?'ON':'OFF');
-  btn.className=isMoving?'btn btn-active':'btn btn-primary';
-  document.getElementById('status').textContent=isMoving?'tracking movement':'stationary';
-}
-function reset(){
-  vx=0;vy=0;smoothAx=0;smoothAy=0;gravX=0;gravY=0;gravZ=9.81;
-  isMoving=false;lastT=null;
-  kAngle=0;kBias=0;kP00=1;kP01=0;kP10=0;kP11=1;
-  originLat=null;originLng=null;gpsX=null;gpsZ=null;gpsAccuracy=Infinity;lastGpsCorr=0;
-  // Return avatar to navmesh centroid
-  if(navTriangles.length){
-    const tri=navTriangles[Math.floor(navTriangles.length/2)];
-    avatarWorldX=(tri.a.x+tri.b.x+tri.c.x)/3;
-    avatarWorldZ=(tri.a.z+tri.b.z+tri.c.z)/3;
-    avatarWorldY=(tri.a.y+tri.b.y+tri.c.y)/3;
-    avatarGroup.position.set(avatarWorldX,avatarWorldY+AVATAR_Y_OFF,avatarWorldZ);
+    const mLinMag = Math.sqrt((acc.x-gravX)**2 + (acc.y-gravY)**2);
+    if (mLinMag < 0.05) lines.push('⚠️ linear accel magnitude very small (' + mLinMag.toFixed(4) + ') — dead zone will eat it. Try sensitivity=10');
+    else lines.push('✅ linear accel responding: ' + mLinMag.toFixed(4));
   }
-  camFollowing=true;
-  document.getElementById('moveBtn').textContent='Walking: OFF';
-  document.getElementById('moveBtn').className='btn btn-primary';
-  document.getElementById('status').textContent='reset — ready';
-  document.getElementById('pos').textContent='0, 0';
-  document.getElementById('spd').textContent='0.00';
-  document.getElementById('speedFill').style.width='0%';
-  document.getElementById('gpsPill').className='pill';
-  document.getElementById('gpsLabel').textContent='GPS: re-acquiring…';
-}
-function showErr(msg){
-  const el=document.getElementById('errBox');
-  el.textContent=msg;el.style.display='block';
-  document.getElementById('status').textContent='error';
-  setTimeout(()=>el.style.display='none',8000);
+
+  if (!lin || lin.x === null) lines.push('ℹ️ browser e.acceleration is null (normal — we use manual gravity removal)');
+  else lines.push('✅ browser e.acceleration available too');
+
+  if (!rr || rr.alpha === null) lines.push('⚠️ rotationRate null — Kalman will use compass only (still works)');
+  else lines.push('✅ rotationRate available (Kalman gets gyro data)');
+
+  document.getElementById('diag').innerHTML = lines.map(l =>
+    l.startsWith('❌') || l.startsWith('⚠️') ? `<span class="warn">${l}</span>` :
+    l.startsWith('✅') ? `<span class="good">${l}</span>` : l
+  ).join('<br>');
 }
 </script>
 </body>
