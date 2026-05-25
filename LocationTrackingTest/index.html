@@ -6,44 +6,62 @@
   <title>Indoor 3D Tracker</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
-    html,body{width:100%;height:100%;overflow:hidden;background:#111;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    html,body{width:100%;height:100%;overflow:hidden;background:#111;
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
     #three-canvas{position:fixed;inset:0;width:100%!important;height:100%!important}
 
     #hud{
       position:fixed;bottom:0;left:0;right:0;
-      padding:12px 14px 20px;
-      background:linear-gradient(to top,rgba(0,0,0,.88) 0%,rgba(0,0,0,0) 100%);
+      padding:12px 14px 22px;
+      background:linear-gradient(to top,rgba(0,0,0,.9),rgba(0,0,0,0));
       display:flex;flex-direction:column;gap:8px;pointer-events:none;
     }
     #hud>*{pointer-events:auto}
     .hud-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-    .btn{padding:10px 16px;border-radius:10px;border:none;font-size:14px;font-weight:500;cursor:pointer;-webkit-tap-highlight-color:transparent;backdrop-filter:blur(8px);}
+
+    .btn{padding:11px 18px;border-radius:10px;border:none;font-size:14px;
+      font-weight:500;cursor:pointer;-webkit-tap-highlight-color:transparent;}
     .btn-primary{background:rgba(255,255,255,.15);color:#fff}
     .btn-active {background:#1D9E75;color:#fff}
     .btn-danger {background:#E24B4A;color:#fff}
     .btn-off    {background:rgba(255,255,255,.08);color:#666}
+
     .pills{display:flex;gap:6px;flex-wrap:wrap}
-    .pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:3px 9px;border-radius:20px;background:rgba(255,255,255,.1);color:#ccc;}
+    .pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;
+      padding:3px 9px;border-radius:20px;background:rgba(255,255,255,.1);color:#ccc;}
     .pill .dot{width:7px;height:7px;border-radius:50%;background:#555;flex-shrink:0}
     .pill.good{background:rgba(29,158,117,.25);color:#5eefc0} .pill.good .dot{background:#1D9E75}
-    .pill.poor{background:rgba(250,140,22,.2);color:#ffc069}  .pill.poor .dot{background:#fa8c16}
-    .pill.off2{background:rgba(255,255,255,.06);color:#555}    .pill.off2 .dot{background:#333}
-    .stats{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:#aaa}
-    .stats span{color:#fff;font-weight:500}
-    #speedBar{height:4px;border-radius:2px;background:rgba(255,255,255,.1);overflow:hidden;width:100%;max-width:300px}
-    #speedFill{height:100%;width:0%;background:#1D9E75;transition:width .08s}
-    .slider-row{display:flex;align-items:center;gap:8px;font-size:12px;color:#aaa}
-    .slider-row input{flex:1;max-width:150px;accent-color:#1D9E75}
+    .pill.poor{background:rgba(250,140,22,.2) ;color:#ffc069} .pill.poor .dot{background:#fa8c16}
+    .pill.off2{background:rgba(255,255,255,.06);color:#555}   .pill.off2 .dot{background:#333}
 
-    #loading{position:fixed;inset:0;background:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:#fff;font-size:15px;z-index:999;}
+    .stats{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:#aaa}
+    .stats span{color:#fff;font-weight:500}
+
+    .slider-row{display:flex;align-items:center;gap:8px;font-size:12px;color:#aaa;flex-wrap:wrap}
+    .slider-row input{flex:1;max-width:140px;accent-color:#1D9E75}
+
+    #loading{position:fixed;inset:0;background:#111;display:flex;flex-direction:column;
+      align-items:center;justify-content:center;gap:16px;color:#fff;font-size:15px;z-index:999;}
     #loadBar{width:220px;height:4px;border-radius:2px;background:#333;overflow:hidden}
     #loadFill{height:100%;width:0%;background:#1D9E75;transition:width .3s}
     #loadMsg{color:#aaa;font-size:13px}
 
-    #errBox{display:none;position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#5a0000;color:#ffaaaa;padding:10px 16px;border-radius:8px;font-size:13px;z-index:1000;max-width:90vw;text-align:center;}
-    #compass{position:fixed;top:14px;right:14px;width:44px;height:44px;background:rgba(0,0,0,.55);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;pointer-events:none;backdrop-filter:blur(6px);}
-    #recenterBtn{position:fixed;top:14px;left:14px;padding:8px 12px;border-radius:8px;border:none;background:rgba(0,0,0,.55);color:#fff;font-size:13px;cursor:pointer;backdrop-filter:blur(6px);}
-    #tiltInfo{position:fixed;top:62px;left:14px;padding:6px 10px;border-radius:8px;background:rgba(0,0,0,.55);color:#aaa;font-size:11px;pointer-events:none;backdrop-filter:blur(6px);line-height:1.6;}
+    #errBox{display:none;position:fixed;top:16px;left:50%;transform:translateX(-50%);
+      background:#5a0000;color:#ffaaaa;padding:10px 16px;border-radius:8px;
+      font-size:13px;z-index:1000;max-width:90vw;text-align:center;}
+
+    #compass{position:fixed;top:14px;right:14px;width:44px;height:44px;
+      background:rgba(0,0,0,.6);border-radius:50%;display:flex;
+      align-items:center;justify-content:center;font-size:20px;
+      pointer-events:none;backdrop-filter:blur(6px);}
+
+    #recenterBtn{position:fixed;top:14px;left:14px;padding:8px 12px;border-radius:8px;
+      border:none;background:rgba(0,0,0,.6);color:#fff;font-size:13px;
+      cursor:pointer;backdrop-filter:blur(6px);}
+
+    #stepFlash{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+      width:60px;height:60px;border-radius:50%;pointer-events:none;
+      background:rgba(29,158,117,0);border:2px solid rgba(29,158,117,0);}
   </style>
 </head>
 <body>
@@ -57,524 +75,602 @@
 <canvas id="three-canvas"></canvas>
 <button id="recenterBtn" onclick="recenterCamera()">⊙ Follow</button>
 <div id="compass">⬆</div>
-<div id="tiltInfo">tilt: —</div>
+<div id="stepFlash"></div>
 <div id="errBox"></div>
 
 <div id="hud">
   <div class="pills">
-    <div class="pill good"><span class="dot"></span>Kalman + tilt-compensated</div>
+    <div class="pill good"><span class="dot"></span>Step detection + Kalman heading</div>
     <div class="pill" id="gpsPill"><span class="dot"></span><span id="gpsLabel">GPS: —</span></div>
-    <div class="pill" id="navPill"><span class="dot" style="background:#555"></span><span id="navLabel">Navmesh: loading</span></div>
+    <div class="pill" id="navPill"><span class="dot" style="background:#555"></span>
+      <span id="navLabel">Navmesh: loading</span></div>
   </div>
-
-  <div id="speedBar"><div id="speedFill"></div></div>
 
   <div class="stats">
     <div>Heading: <span id="hdg">—</span>°</div>
-    <div>Speed: <span id="spd">0.00</span> m/s</div>
+    <div>Steps: <span id="stepCount">0</span></div>
     <div>Pos: <span id="pos">0, 0</span> m</div>
     <div>Status: <span id="status">loading…</span></div>
   </div>
 
   <div class="slider-row">
-    <span>Sensitivity</span>
-    <input type="range" id="sensSlider" min="1" max="10" step="0.5" value="4"
-      oninput="SENSITIVITY=parseFloat(this.value);document.getElementById('sensVal').textContent=this.value">
-    <span id="sensVal">4</span>
-    <span style="color:#555;font-size:11px">— raise if not moving</span>
+    <span>Step length</span>
+    <input type="range" id="slSlider" min="0.3" max="1.5" step="0.05" value="0.72"
+      oninput="STEP_LENGTH=parseFloat(this.value);
+               document.getElementById('slVal').textContent=this.value+'m'">
+    <span id="slVal">0.72m</span>
+  </div>
+
+  <div class="slider-row">
+    <span>Step threshold</span>
+    <input type="range" id="thSlider" min="0.3" max="4.0" step="0.1" value="1.2"
+      oninput="STEP_THRESH=parseFloat(this.value);
+               document.getElementById('thVal').textContent=this.value">
+    <span id="thVal">1.2</span>
+    <span style="color:#555;font-size:11px">— lower if steps not detected</span>
   </div>
 
   <div class="hud-row">
-    <button class="btn btn-primary" id="startBtn"  onclick="requestAndStart()">Start tracking</button>
-    <button class="btn btn-primary" id="moveBtn"   onclick="toggleMove()"  style="display:none">Walking: OFF</button>
-    <button class="btn btn-primary" id="gpsBtn"    onclick="toggleGPS()"   style="display:none">GPS: ON</button>
-    <button class="btn btn-danger"  id="resetBtn"  onclick="reset()"       style="display:none">Reset</button>
+    <button class="btn btn-primary" id="startBtn" onclick="requestAndStart()">Start tracking</button>
+    <button class="btn btn-primary" id="moveBtn"  onclick="toggleMove()" style="display:none">Walking: OFF</button>
+    <button class="btn btn-primary" id="gpsBtn"   onclick="toggleGPS()"  style="display:none">GPS: ON</button>
+    <button class="btn btn-danger"  id="resetBtn" onclick="reset()"      style="display:none">Reset</button>
   </div>
 </div>
 
+<!-- Three r128 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 
 <script>
 'use strict';
 
-// ═══════════════════════════════════════════
-//  TUNING
-// ═══════════════════════════════════════════
-let SENSITIVITY   = 4;
-const DEAD_BASE   = 0.08;   // dead zone (m/s²) — lower than before
-const GAIN_BASE   = 1.8;    // amplification
-const VEL_DAMP    = 0.88;   // velocity damping per frame
-const GPS_TRUST   = 25;
-const GPS_BLEND   = 0.25;
-const GPS_GAP_MS  = 4000;
-const GPS_JUMP_MAX= 8;
-const AVATAR_Y_OFF= 0.18;
+// ─── Tuning ────────────────────────────────────────────────────────────────
+let STEP_LENGTH = 0.72;   // metres per step
+let STEP_THRESH = 1.2;    // m/s² deviation from baseline to count a step
+const STEP_MIN_MS  = 220; // fastest possible cadence guard
+const GPS_TRUST    = 25;
+const GPS_BLEND    = 0.25;
+const GPS_GAP_MS   = 4000;
+const GPS_JUMP_MAX = 8;
 
-// ═══════════════════════════════════════════
-//  THREE.JS SETUP
-// ═══════════════════════════════════════════
+// ─── Renderer ──────────────────────────────────────────────────────────────
 const canvas   = document.getElementById('three-canvas');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.outputEncoding   = THREE.sRGBEncoding;
-renderer.shadowMap.enabled= true;
-renderer.shadowMap.type   = THREE.PCFSoftShadowMap;
-renderer.toneMapping      = THREE.ACESFilmicToneMapping;
+renderer.outputEncoding    = THREE.sRGBEncoding;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type    = THREE.PCFSoftShadowMap;
+renderer.toneMapping       = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.1;
 
-const scene = new THREE.Scene();
+const scene  = new THREE.Scene();
 scene.background = new THREE.Color(0x1a1a2e);
 scene.fog = new THREE.Fog(0x1a1a2e, 35, 90);
 
 const camera = new THREE.PerspectiveCamera(55, 1, 0.01, 200);
 let camFollowing = true;
-let camOffset    = new THREE.Vector3(0, 18, 12);
+const camOffset  = new THREE.Vector3(0, 18, 12);
 
-// Lighting
+// ─── Lighting ──────────────────────────────────────────────────────────────
 scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+
 const sun = new THREE.DirectionalLight(0xffeedd, 1.2);
 sun.position.set(10, 20, 10);
 sun.castShadow = true;
-sun.shadow.mapSize.set(2048,2048);
-sun.shadow.camera.left=sun.shadow.camera.bottom=-30;
-sun.shadow.camera.right=sun.shadow.camera.top=30;
-sun.shadow.camera.far=100;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left   = -30; sun.shadow.camera.right = 30;
+sun.shadow.camera.bottom = -30; sun.shadow.camera.top   = 30;
+sun.shadow.camera.far    = 100;
 scene.add(sun);
+
 const fill = new THREE.DirectionalLight(0xaaccff, 0.35);
-fill.position.set(-8,10,-10); scene.add(fill);
+fill.position.set(-8, 10, -10);
+scene.add(fill);
 
-// Avatar
-const avatarGroup = new THREE.Group();
-const avatarMat = new THREE.MeshStandardMaterial({color:0x1D9E75,emissive:0x0a4030,roughness:0.4,metalness:0.1});
-const body  = new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.18,0.55,16), avatarMat);
-body.castShadow=true;
-const capT  = new THREE.Mesh(new THREE.SphereGeometry(0.18,16,8), avatarMat); capT.position.y=0.275;
-const capB  = new THREE.Mesh(new THREE.SphereGeometry(0.18,16,8), avatarMat); capB.position.y=-0.275;
-const arrowMat = new THREE.MeshStandardMaterial({color:0xffffff,emissive:0x888888});
-const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.09,0.22,8), arrowMat);
-arrow.position.set(0,0.5,0); arrow.rotation.x=Math.PI/2;
-const ringMat = new THREE.MeshBasicMaterial({color:0x1D9E75,side:THREE.DoubleSide,transparent:true,opacity:0.6});
-const ring  = new THREE.Mesh(new THREE.RingGeometry(0.22,0.30,32), ringMat);
-ring.rotation.x=-Math.PI/2; ring.position.y=0.01;
-avatarGroup.add(body,capT,capB,arrow,ring);
-scene.add(avatarGroup);
+// ─── Avatar ────────────────────────────────────────────────────────────────
+// Built from primitives — no read-only property issues
+const avatarRoot = new THREE.Object3D(); // separate object so we never touch GLB nodes
+scene.add(avatarRoot);
 
-function onResize(){
-  const W=window.innerWidth, H=window.innerHeight;
-  renderer.setSize(W,H); camera.aspect=W/H; camera.updateProjectionMatrix();
+const avatarMat = new THREE.MeshStandardMaterial({
+  color: 0x1D9E75, emissive: 0x0a4030, roughness: 0.4, metalness: 0.1
+});
+const body = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.55, 16), avatarMat);
+body.castShadow = true;
+avatarRoot.add(body);
+
+const capT = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 8), avatarMat);
+capT.position.y = 0.275; avatarRoot.add(capT);
+
+const capB = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 8), avatarMat);
+capB.position.y = -0.275; avatarRoot.add(capB);
+
+const arrowMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x888888 });
+const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.22, 8), arrowMat);
+arrow.position.set(0, 0.5, 0);
+arrow.rotation.x = Math.PI / 2;
+avatarRoot.add(arrow);
+
+const ringMat = new THREE.MeshBasicMaterial({
+  color: 0x1D9E75, side: THREE.DoubleSide, transparent: true, opacity: 0.6
+});
+const ring = new THREE.Mesh(new THREE.RingGeometry(0.22, 0.30, 32), ringMat);
+ring.rotation.x = -Math.PI / 2;
+ring.position.y = 0.01;
+avatarRoot.add(ring);
+
+// Avatar world position (we update avatarRoot.position from these)
+let aX = 0, aY = 0, aZ = 0;
+const AVATAR_HOVER = 0.18;
+
+function placeAvatar(x, y, z) {
+  aX = x; aY = y; aZ = z;
+  avatarRoot.position.set(x, y + AVATAR_HOVER, z);
 }
-window.addEventListener('resize',onResize); onResize();
 
-// ═══════════════════════════════════════════
-//  NAVMESH
-// ═══════════════════════════════════════════
-let navTriangles=[], navReady=false;
+// ─── Resize ────────────────────────────────────────────────────────────────
+function onResize() {
+  const W = window.innerWidth, H = window.innerHeight;
+  renderer.setSize(W, H);
+  camera.aspect = W / H;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', onResize);
+onResize();
 
-function buildNavmesh(mesh){
+// ─── Navmesh ───────────────────────────────────────────────────────────────
+let navTriangles = [], navReady = false;
+
+function buildNavmesh(mesh) {
+  // Clone geometry and bake world matrix so vertices are in scene space
   const geo = mesh.geometry.clone();
   geo.applyMatrix4(mesh.matrixWorld);
-  const pos=geo.attributes.position;
-  const idx=geo.index?geo.index.array:null;
-  const triCount=idx?idx.length/3:pos.count/3;
-  navTriangles=[];
-  const v=i=>new THREE.Vector3(pos.getX(i),pos.getY(i),pos.getZ(i));
-  for(let t=0;t<triCount;t++){
-    const i0=idx?idx[t*3]:t*3, i1=idx?idx[t*3+1]:t*3+1, i2=idx?idx[t*3+2]:t*3+2;
-    const a=v(i0),b=v(i1),c=v(i2);
-    navTriangles.push({a,b,c,
-      minX:Math.min(a.x,b.x,c.x),maxX:Math.max(a.x,b.x,c.x),
-      minZ:Math.min(a.z,b.z,c.z),maxZ:Math.max(a.z,b.z,c.z)});
+
+  const pos      = geo.attributes.position;
+  const idxArr   = geo.index ? geo.index.array : null;
+  const triCount = idxArr ? idxArr.length / 3 : pos.count / 3;
+
+  navTriangles = [];
+  for (let t = 0; t < triCount; t++) {
+    const i0 = idxArr ? idxArr[t*3]   : t*3;
+    const i1 = idxArr ? idxArr[t*3+1] : t*3+1;
+    const i2 = idxArr ? idxArr[t*3+2] : t*3+2;
+    const a = new THREE.Vector3(pos.getX(i0), pos.getY(i0), pos.getZ(i0));
+    const b = new THREE.Vector3(pos.getX(i1), pos.getY(i1), pos.getZ(i1));
+    const c = new THREE.Vector3(pos.getX(i2), pos.getY(i2), pos.getZ(i2));
+    navTriangles.push({
+      a, b, c,
+      minX: Math.min(a.x, b.x, c.x), maxX: Math.max(a.x, b.x, c.x),
+      minZ: Math.min(a.z, b.z, c.z), maxZ: Math.max(a.z, b.z, c.z),
+    });
   }
-  document.getElementById('navLabel').textContent=`Navmesh: ${navTriangles.length} tris`;
-  document.getElementById('navPill').querySelector('.dot').style.background='#1D9E75';
-  navReady=true;
-  console.log('Navmesh:',navTriangles.length,'triangles');
+
+  document.getElementById('navLabel').textContent = `Navmesh: ${navTriangles.length} tris`;
+  document.getElementById('navPill').querySelector('.dot').style.background = '#1D9E75';
+  navReady = true;
+  console.log('Navmesh ready:', navTriangles.length, 'triangles');
 }
 
-function sign2(p1x,p1z,p2x,p2z,p3x,p3z){return(p1x-p3x)*(p2z-p3z)-(p2x-p3x)*(p1z-p3z);}
-function ptInTri(px,pz,a,b,c){
-  const d1=sign2(px,pz,a.x,a.z,b.x,b.z);
-  const d2=sign2(px,pz,b.x,b.z,c.x,c.z);
-  const d3=sign2(px,pz,c.x,c.z,a.x,a.z);
-  return !((d1<0||d2<0||d3<0)&&(d1>0||d2>0||d3>0));
+function _sign(p1x,p1z, p2x,p2z, p3x,p3z) {
+  return (p1x-p3x)*(p2z-p3z) - (p2x-p3x)*(p1z-p3z);
 }
-function triY(px,pz,a,b,c){
-  const v0x=c.x-a.x,v0z=c.z-a.z,v1x=b.x-a.x,v1z=b.z-a.z,v2x=px-a.x,v2z=pz-a.z;
-  const d00=v0x*v0x+v0z*v0z,d01=v0x*v1x+v0z*v1z,d02=v0x*v2x+v0z*v2z;
-  const d11=v1x*v1x+v1z*v1z,d12=v1x*v2x+v1z*v2z;
-  const inv=1/(d00*d11-d01*d01);
-  const u=(d11*d02-d01*d12)*inv,v=(d00*d12-d01*d02)*inv;
-  return a.y+v*(b.y-a.y)+u*(c.y-a.y);
+function ptInTri(px, pz, a, b, c) {
+  const d1 = _sign(px,pz, a.x,a.z, b.x,b.z);
+  const d2 = _sign(px,pz, b.x,b.z, c.x,c.z);
+  const d3 = _sign(px,pz, c.x,c.z, a.x,a.z);
+  const hasNeg = (d1<0)||(d2<0)||(d3<0);
+  const hasPos = (d1>0)||(d2>0)||(d3>0);
+  return !(hasNeg && hasPos);
 }
-function findTri(px,pz){
-  for(const t of navTriangles){
-    if(px<t.minX||px>t.maxX||pz<t.minZ||pz>t.maxZ) continue;
-    if(ptInTri(px,pz,t.a,t.b,t.c)) return t;
+function triY(px, pz, a, b, c) {
+  const v0x=c.x-a.x, v0z=c.z-a.z;
+  const v1x=b.x-a.x, v1z=b.z-a.z;
+  const v2x=px-a.x,  v2z=pz-a.z;
+  const d00=v0x*v0x+v0z*v0z, d01=v0x*v1x+v0z*v1z, d02=v0x*v2x+v0z*v2z;
+  const d11=v1x*v1x+v1z*v1z, d12=v1x*v2x+v1z*v2z;
+  const inv = 1 / (d00*d11 - d01*d01);
+  const u = (d11*d02 - d01*d12) * inv;
+  const v = (d00*d12 - d01*d02) * inv;
+  return a.y + v*(b.y-a.y) + u*(c.y-a.y);
+}
+function findTri(px, pz) {
+  for (const t of navTriangles) {
+    if (px<t.minX||px>t.maxX||pz<t.minZ||pz>t.maxZ) continue;
+    if (ptInTri(px, pz, t.a, t.b, t.c)) return t;
   }
   return null;
 }
-function constrain(ox,oz,nx,nz){
-  if(!navReady) return{x:nx,z:nz,y:0};
-  let t=findTri(nx,nz);
-  if(t) return{x:nx,z:nz,y:triY(nx,nz,t.a,t.b,t.c)};
-  // wall slide X
-  t=findTri(nx,oz); if(t) return{x:nx,z:oz,y:triY(nx,oz,t.a,t.b,t.c)};
-  // wall slide Z
-  t=findTri(ox,nz); if(t) return{x:ox,z:nz,y:triY(ox,nz,t.a,t.b,t.c)};
-  // stay
-  t=findTri(ox,oz);
-  return{x:ox,z:oz,y:t?triY(ox,oz,t.a,t.b,t.c):0};
+function constrain(ox, oz, nx, nz) {
+  if (!navReady) return { x:nx, z:nz, y:0 };
+  let t;
+  t = findTri(nx, nz); if (t) return { x:nx, z:nz, y:triY(nx,nz,t.a,t.b,t.c) };
+  t = findTri(nx, oz); if (t) return { x:nx, z:oz, y:triY(nx,oz,t.a,t.b,t.c) };
+  t = findTri(ox, nz); if (t) return { x:ox, z:nz, y:triY(ox,nz,t.a,t.b,t.c) };
+  t = findTri(ox, oz);
+  return { x:ox, z:oz, y: t ? triY(ox,oz,t.a,t.b,t.c) : aY };
 }
 
-// ═══════════════════════════════════════════
-//  LOAD GLB
-// ═══════════════════════════════════════════
-function setLoad(pct,msg){
-  document.getElementById('loadFill').style.width=pct+'%';
-  document.getElementById('loadMsg').textContent=msg;
+// ─── Load GLB ──────────────────────────────────────────────────────────────
+function setLoad(pct, msg) {
+  document.getElementById('loadFill').style.width = pct + '%';
+  document.getElementById('loadMsg').textContent  = msg;
 }
 
-new THREE.GLTFLoader().load('models/Room_Interior.glb', gltf=>{
-  setLoad(90,'Building navmesh…');
-  gltf.scene.traverse(o=>{
-    if(o.isMesh){ o.castShadow=o.receiveShadow=true; if(o.name==='NAV_MESH') o.visible=false; }
-  });
-  scene.add(gltf.scene);
-  gltf.scene.traverse(o=>{
-    if(o.isMesh&&o.name==='NAV_MESH'){
-      o.updateWorldMatrix(true,false);
-      buildNavmesh(o);
-      // Start at centroid of first triangle
-      const t0=navTriangles[Math.floor(navTriangles.length/2)];
-      avatarWX=(t0.a.x+t0.b.x+t0.c.x)/3;
-      avatarWZ=(t0.a.z+t0.b.z+t0.c.z)/3;
-      const st=findTri(avatarWX,avatarWZ)||t0;
-      avatarWY=triY(avatarWX,avatarWZ,st.a,st.b,st.c);
-      avatarGroup.position.set(avatarWX,avatarWY+AVATAR_Y_OFF,avatarWZ);
+const gltfLoader = new THREE.GLTFLoader();
+gltfLoader.load(
+  'models/Room_Interior.glb',
+  (gltf) => {
+    setLoad(90, 'Building navmesh…');
+
+    // Enable shadows on all meshes; hide navmesh visual
+    gltf.scene.traverse((obj) => {
+      if (!obj.isMesh) return;
+      obj.castShadow    = true;
+      obj.receiveShadow = true;
+      if (obj.name === 'NAV_MESH') obj.visible = false;
+    });
+
+    // Add the GLB scene as-is — don't touch its node positions
+    scene.add(gltf.scene);
+
+    // Now world matrices are valid — build navmesh
+    let navMeshFound = false;
+    gltf.scene.traverse((obj) => {
+      if (!obj.isMesh || obj.name !== 'NAV_MESH') return;
+      obj.updateWorldMatrix(true, false);
+      buildNavmesh(obj);
+      navMeshFound = true;
+
+      // Place avatar at a sensible starting position
+      if (navTriangles.length > 0) {
+        const mid = navTriangles[Math.floor(navTriangles.length / 2)];
+        const sx  = (mid.a.x + mid.b.x + mid.c.x) / 3;
+        const sz  = (mid.a.z + mid.b.z + mid.c.z) / 3;
+        const tri = findTri(sx, sz) || mid;
+        placeAvatar(sx, triY(sx, sz, tri.a, tri.b, tri.c), sz);
+      }
+    });
+
+    if (!navMeshFound) {
+      showErr('NAV_MESH not found in GLB — navmesh constraints disabled');
+      navReady = false;
     }
-  });
-  setLoad(100,'Ready!');
-  setTimeout(()=>{
-    document.getElementById('loading').style.display='none';
-    document.getElementById('status').textContent='tap Start tracking';
-  },400);
-}, xhr=>{
-  if(xhr.total) setLoad(Math.round(xhr.loaded/xhr.total*85),`Loading… ${(xhr.loaded/1024/1024).toFixed(1)}MB`);
-}, err=>{
-  document.getElementById('loading').style.display='none';
-  showErr('Could not load models/Room_Interior.glb — '+err.message);
-});
 
-// ═══════════════════════════════════════════
-//  AVATAR STATE
-// ═══════════════════════════════════════════
-let avatarWX=0, avatarWY=0, avatarWZ=0;
+    setLoad(100, 'Ready!');
+    setTimeout(() => {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('status').textContent    = 'tap Start tracking';
+    }, 400);
+  },
+  (xhr) => {
+    if (xhr.total) setLoad(
+      Math.round(xhr.loaded / xhr.total * 85),
+      `Loading… ${(xhr.loaded/1024/1024).toFixed(1)} MB`
+    );
+  },
+  (err) => {
+    document.getElementById('loading').style.display = 'none';
+    showErr('Could not load models/Room_Interior.glb — ' + err.message);
+  }
+);
 
-// ═══════════════════════════════════════════
-//  KALMAN FILTER (heading)
-// ═══════════════════════════════════════════
-let compassHeading=0;
-let kAngle=0,kBias=0,kP00=1,kP01=0,kP10=0,kP11=1;
-function kalman(newC,gyroRate,dt){
-  const rate=gyroRate-kBias;
-  kAngle+=dt*rate;
-  kP00+=dt*(dt*kP11-kP01-kP10+0.001); kP01-=dt*kP11; kP10-=dt*kP11; kP11+=0.003*dt;
-  let diff=newC-kAngle;
-  if(diff>180)diff-=360; if(diff<-180)diff+=360;
-  const S=kP00+0.5,K0=kP00/S,K1=kP10/S;
-  kAngle+=K0*diff; kBias+=K1*diff;
-  kP00-=K0*kP00; kP01-=K0*kP01; kP10-=K1*kP00; kP11-=K1*kP01;
-  kAngle=((kAngle%360)+360)%360;
+// ─── Kalman filter (heading only) ─────────────────────────────────────────
+let compassHeading = 0;
+let kAngle=0, kBias=0, kP00=1, kP01=0, kP10=0, kP11=1;
+
+function kalman(newC, gyroRate, dt) {
+  const rate = gyroRate - kBias;
+  kAngle += dt * rate;
+  kP00 += dt*(dt*kP11 - kP01 - kP10 + 0.001);
+  kP01 -= dt * kP11;
+  kP10 -= dt * kP11;
+  kP11 += 0.003 * dt;
+  let d = newC - kAngle;
+  if (d >  180) d -= 360;
+  if (d < -180) d += 360;
+  const S=kP00+0.5, K0=kP00/S, K1=kP10/S;
+  kAngle += K0*d; kBias += K1*d;
+  kP00 -= K0*kP00; kP01 -= K0*kP01;
+  kP10 -= K1*kP00; kP11 -= K1*kP01;
+  kAngle = ((kAngle % 360) + 360) % 360;
   return kAngle;
 }
 
-// ═══════════════════════════════════════════
-//  TILT-COMPENSATED ACCELERATION
-// ═══════════════════════════════════════════
-// Device orientation angles (radians)
-let oriBeta=0, oriGamma=0;   // beta=tilt fwd/back, gamma=tilt left/right
+// ─── Step detection ────────────────────────────────────────────────────────
+// Uses total |aig| magnitude — works regardless of phone orientation.
+// At rest: |aig| ≈ 9.81.  Each footfall: peak above baseline, then valley below.
+let magLP      = 9.81;
+let stepPhase  = 'seek_peak';
+let stepCount  = 0;
+let lastStepMs = 0;
 
-// Velocity in world horizontal plane (X,Z) — metres/second
-let velX=0, velZ=0;
-let lastT=null;
-let isMoving=false, started=false;
-
-function onOrientation(e){
-  // Compass
-  if(typeof e.webkitCompassHeading==='number') compassHeading=e.webkitCompassHeading;
-  else if(e.alpha!==null) compassHeading=(360-e.alpha)%360;
-  // Tilt angles for acceleration compensation
-  if(e.beta  !==null) oriBeta  = e.beta  * Math.PI/180;
-  if(e.gamma !==null) oriGamma = e.gamma * Math.PI/180;
-  document.getElementById('tiltInfo').textContent=
-    `β:${(e.beta||0).toFixed(0)}° γ:${(e.gamma||0).toFixed(0)}°`;
+function flashStep() {
+  const el = document.getElementById('stepFlash');
+  el.style.transition = 'none';
+  el.style.background = 'rgba(29,158,117,0.35)';
+  el.style.border     = '2px solid rgba(29,158,117,0.8)';
+  requestAnimationFrame(() => {
+    el.style.transition = 'all 0.4s ease-out';
+    el.style.background = 'rgba(29,158,117,0)';
+    el.style.border     = '2px solid rgba(29,158,117,0)';
+  });
 }
 
-function onMotion(e){
-  if(!started) return;
-  const now=Date.now();
-  if(!lastT){lastT=now;return;}
-  const dt=Math.min((now-lastT)/1000, 0.1);
-  lastT=now;
+// ─── Sensor state ──────────────────────────────────────────────────────────
+let lastMotionT = null;
+let isMoving    = false;
+let started     = false;
 
-  // ── Kalman heading ──────────────────────────────────────────────────
-  const rr=e.rotationRate;
-  const gyroYaw=(rr&&rr.alpha!=null)?rr.alpha:0;
-  const heading=kalman(compassHeading,gyroYaw,dt);
-  document.getElementById('hdg').textContent=Math.round(heading);
-  document.getElementById('compass').style.transform=`rotate(${-heading}deg)`;
-
-  // ── Tilt-compensated linear acceleration ────────────────────────────
-  //
-  // When phone is held upright (beta≈90°), the sensor frame is rotated.
-  // We need to rotate the raw accelerometer vector back to a gravity-aligned
-  // (Earth) frame, then project onto the horizontal plane.
-  //
-  // Using e.accelerationIncludingGravity (aig):
-  //   Earth frame via rotation by beta (pitch) and gamma (roll):
-  //   ax_earth =  aig.x*cos(gamma) - aig.y*sin(beta)*sin(gamma) + aig.z*cos(beta)*sin(gamma)
-  //   ay_earth =                      aig.y*cos(beta)            + aig.z*sin(beta)
-  //   az_earth = -aig.x*sin(gamma) - aig.y*sin(beta)*cos(gamma) + aig.z*cos(beta)*cos(gamma)
-  //
-  // az_earth ≈ gravity (9.81), ax_earth and ay_earth are horizontal linear accel.
-  // We then map ax_earth→world-X and ay_earth→world-Z using compass heading.
-
-  const aig=e.accelerationIncludingGravity;
-  if(!aig||aig.x===null) return;
-
-  const sb=Math.sin(oriBeta), cb=Math.cos(oriBeta);
-  const sg=Math.sin(oriGamma),cg=Math.cos(oriGamma);
-
-  // Rotate to Earth frame
-  const ax_e =  aig.x*cg - aig.y*sb*sg + aig.z*cb*sg;
-  const ay_e =              aig.y*cb    + aig.z*sb;
-  // az_e would be gravity ≈ 9.81 — we don't need it
-
-  // ax_e = east-ish, ay_e = up — but we want horizontal forward/side.
-  // Actually after this rotation:
-  //   ax_e = device left/right projected to horizontal  → maps to world East/West
-  //   ay_e = device up direction (gravity removed gives vertical accel) — not useful
-  // We also need the "forward" component which comes from az_e:
-  const az_e = -aig.x*sg - aig.y*sb*cg + aig.z*cb*cg;
-  // az_e ≈ 9.81 at rest (gravity). Remove gravity:
-  const linForward = az_e - 9.81; // forward/backward in device frame projected to horizontal
-  const linSide    = ax_e;        // side-to-side
-
-  // Smooth (light LP to reduce noise, not kill signal)
-  const LP=0.5;
-  smoothFwd = LP*smoothFwd + (1-LP)*linForward;
-  smoothSide= LP*smoothSide+ (1-LP)*linSide;
-
-  // Dead zone
-  const DEAD=DEAD_BASE/SENSITIVITY;
-  const GAIN=GAIN_BASE*SENSITIVITY*0.25;
-  const aFwd  = Math.abs(smoothFwd) >DEAD ? smoothFwd *GAIN : 0;
-  const aSide = Math.abs(smoothSide)>DEAD ? smoothSide*GAIN : 0;
-
-  // Rotate into world XZ using compass heading
-  // heading 0°=north, 90°=east. In Three.js: north=-Z, east=+X
-  const hRad=heading*Math.PI/180;
-  const sinH=Math.sin(hRad), cosH=Math.cos(hRad);
-  // "Forward" on device = direction user faces = heading direction
-  // "Side" on device    = device's right = heading + 90°
-  const aWorldX = -aFwd*sinH + aSide*cosH; // forward→world + side→world
-  const aWorldZ =  aFwd*cosH + aSide*sinH; // (note Three +Z=south, heading 0=north=-Z)
-
-  // Integrate acceleration → velocity
-  velX=(velX+aWorldX*dt)*VEL_DAMP;
-  velZ=(velZ+aWorldZ*dt)*VEL_DAMP;
-
-  const speed=Math.sqrt(velX*velX+velZ*velZ);
-  document.getElementById('speedFill').style.width=Math.min(speed/1.5,1)*100+'%';
-  document.getElementById('spd').textContent=speed.toFixed(2);
-
-  if(isMoving && speed>0.005){
-    const nx=avatarWX+velX*dt;
-    const nz=avatarWZ+velZ*dt;
-    const r=constrain(avatarWX,avatarWZ,nx,nz);
-    avatarWX=r.x; avatarWZ=r.z; avatarWY=r.y;
-    avatarGroup.position.set(avatarWX,avatarWY+AVATAR_Y_OFF,avatarWZ);
-    avatarGroup.rotation.y=-hRad;
-    document.getElementById('pos').textContent=avatarWX.toFixed(1)+','+avatarWZ.toFixed(1);
+function onOrientation(e) {
+  if (typeof e.webkitCompassHeading === 'number') {
+    compassHeading = e.webkitCompassHeading;
+  } else if (e.alpha !== null) {
+    compassHeading = (360 - e.alpha) % 360;
   }
 }
 
-let smoothFwd=0, smoothSide=0;
+function onMotion(e) {
+  if (!started) return;
 
-// ═══════════════════════════════════════════
-//  GPS
-// ═══════════════════════════════════════════
-let gpsEnabled=true, originLat=null, originLng=null;
-let gpsX=null, gpsZ=null, gpsAcc=Infinity, lastGpsCorr=0;
+  const now = Date.now();
+  if (!lastMotionT) { lastMotionT = now; return; }
+  const dt = Math.min((now - lastMotionT) / 1000, 0.1);
+  lastMotionT = now;
 
-function latLngToM(lat,lng,oLat,oLng){
-  const R=6371000, dLat=(lat-oLat)*Math.PI/180, dLng=(lng-oLng)*Math.PI/180;
-  const mid=((lat+oLat)/2)*Math.PI/180;
-  return{x:dLng*R*Math.cos(mid), z:-dLat*R};
+  // Kalman heading
+  const rr  = e.rotationRate;
+  const gyroYaw = (rr && rr.alpha != null) ? rr.alpha : 0;
+  const heading = kalman(compassHeading, gyroYaw, dt);
+  document.getElementById('hdg').textContent = Math.round(heading);
+  document.getElementById('compass').style.transform = `rotate(${-heading}deg)`;
+
+  // Magnitude-based step detection
+  const aig = e.accelerationIncludingGravity;
+  if (!aig || aig.x === null) return;
+
+  const mag = Math.sqrt(aig.x*aig.x + aig.y*aig.y + aig.z*aig.z);
+  // Very slow LP — tracks gravity baseline without swallowing footfall spikes
+  magLP = 0.93 * magLP + 0.07 * mag;
+  const dev = mag - magLP;
+
+  if (stepPhase === 'seek_peak') {
+    if (dev > STEP_THRESH) {
+      if (now - lastStepMs > STEP_MIN_MS) {
+        // ✅ Valid step
+        stepCount++;
+        lastStepMs = now;
+        document.getElementById('stepCount').textContent = stepCount;
+        flashStep();
+
+        if (isMoving) {
+          const hRad = heading * Math.PI / 180;
+          // Three.js: north = -Z, east = +X
+          const dx =  Math.sin(hRad) * STEP_LENGTH;
+          const dz = -Math.cos(hRad) * STEP_LENGTH;
+          const r  = constrain(aX, aZ, aX + dx, aZ + dz);
+          placeAvatar(r.x, r.y, r.z);
+          avatarRoot.rotation.y = -hRad;
+          document.getElementById('pos').textContent =
+            aX.toFixed(1) + ', ' + aZ.toFixed(1);
+        }
+      }
+      stepPhase = 'seek_valley';
+    }
+  } else {
+    if (dev < -STEP_THRESH * 0.5) stepPhase = 'seek_peak';
+  }
 }
-function onGPS(pos){
-  const{latitude,longitude,accuracy}=pos.coords; gpsAcc=accuracy;
-  if(originLat===null){originLat=latitude;originLng=longitude;gpsX=avatarWX;gpsZ=avatarWZ;}
-  else{const m=latLngToM(latitude,longitude,originLat,originLng);gpsX=avatarWX+m.x;gpsZ=avatarWZ+m.z;}
-  const pill=document.getElementById('gpsPill'),lbl=document.getElementById('gpsLabel');
-  if(!gpsEnabled){pill.className='pill off2';lbl.textContent='GPS: off';return;}
-  pill.className=accuracy<GPS_TRUST?'pill good':'pill poor';
-  lbl.textContent=`GPS ±${Math.round(accuracy)}m${accuracy<GPS_TRUST?' ✓':' (noisy)'}`;
-  const now=Date.now();
-  if(gpsEnabled&&accuracy<GPS_TRUST&&now-lastGpsCorr>GPS_GAP_MS){
-    const dx=gpsX-avatarWX,dz=gpsZ-avatarWZ,jump=Math.hypot(dx,dz);
-    if(jump<GPS_JUMP_MAX){
-      const tx=avatarWX+GPS_BLEND*dx,tz=avatarWZ+GPS_BLEND*dz;
-      const tri=findTri(tx,tz);
-      if(tri){avatarWX=tx;avatarWZ=tz;avatarWY=triY(tx,tz,tri.a,tri.b,tri.c);
-        avatarGroup.position.set(avatarWX,avatarWY+AVATAR_Y_OFF,avatarWZ);lastGpsCorr=now;}
+
+// ─── GPS ───────────────────────────────────────────────────────────────────
+let gpsEnabled = true;
+let originLat  = null, originLng = null;
+let gpsWX = null, gpsWZ = null, gpsAcc = Infinity, lastGpsCorr = 0;
+
+function latLngToM(lat, lng, oLat, oLng) {
+  const R    = 6371000;
+  const dLat = (lat - oLat) * Math.PI / 180;
+  const dLng = (lng - oLng) * Math.PI / 180;
+  const mid  = ((lat + oLat) / 2) * Math.PI / 180;
+  return { x: dLng * R * Math.cos(mid), z: -dLat * R };
+}
+
+function onGPS(pos) {
+  const { latitude, longitude, accuracy } = pos.coords;
+  gpsAcc = accuracy;
+  if (originLat === null) {
+    originLat = latitude; originLng = longitude;
+    gpsWX = aX; gpsWZ = aZ;
+  } else {
+    const m = latLngToM(latitude, longitude, originLat, originLng);
+    gpsWX = aX + m.x; gpsWZ = aZ + m.z;
+  }
+
+  const pill = document.getElementById('gpsPill');
+  const lbl  = document.getElementById('gpsLabel');
+  if (!gpsEnabled) { pill.className='pill off2'; lbl.textContent='GPS: off'; return; }
+  pill.className = accuracy < GPS_TRUST ? 'pill good' : 'pill poor';
+  lbl.textContent = `GPS ±${Math.round(accuracy)}m${accuracy < GPS_TRUST ? ' ✓' : ' (noisy)'}`;
+
+  const now = Date.now();
+  if (gpsEnabled && accuracy < GPS_TRUST && now - lastGpsCorr > GPS_GAP_MS) {
+    const dx = gpsWX - aX, dz = gpsWZ - aZ;
+    const jump = Math.hypot(dx, dz);
+    if (jump < GPS_JUMP_MAX) {
+      const tx = aX + GPS_BLEND * dx, tz = aZ + GPS_BLEND * dz;
+      const tri = findTri(tx, tz);
+      if (tri) {
+        placeAvatar(tx, triY(tx, tz, tri.a, tri.b, tri.c), tz);
+        lastGpsCorr = now;
+      }
     }
   }
 }
-function onGPSError(e){
-  document.getElementById('gpsPill').className='pill poor';
-  document.getElementById('gpsLabel').textContent={1:'Location denied',2:'GPS unavailable',3:'GPS timeout'}[e.code]||'GPS error';
-}
-function startGPS(){
-  if(!navigator.geolocation){document.getElementById('gpsLabel').textContent='GPS unsupported';return;}
-  document.getElementById('gpsLabel').textContent='GPS: acquiring…';
-  const o={enableHighAccuracy:true,maximumAge:2000,timeout:15000};
-  navigator.geolocation.getCurrentPosition(p=>{onGPS(p);navigator.geolocation.watchPosition(onGPS,onGPSError,o);},
-    e=>{onGPSError(e);navigator.geolocation.watchPosition(onGPS,onGPSError,{...o,timeout:20000});},
-    {enableHighAccuracy:true,timeout:15000,maximumAge:0});
-}
-function toggleGPS(){
-  gpsEnabled=!gpsEnabled;
-  document.getElementById('gpsBtn').textContent='GPS: '+(gpsEnabled?'ON':'OFF');
-  document.getElementById('gpsBtn').className=gpsEnabled?'btn btn-primary':'btn btn-off';
-  if(!gpsEnabled){document.getElementById('gpsPill').className='pill off2';document.getElementById('gpsLabel').textContent='GPS: off';}
+
+function onGPSError(e) {
+  document.getElementById('gpsPill').className = 'pill poor';
+  document.getElementById('gpsLabel').textContent =
+    ({ 1:'Location denied', 2:'GPS unavailable', 3:'GPS timeout' })[e.code] || 'GPS error';
 }
 
-// ═══════════════════════════════════════════
-//  CAMERA
-// ═══════════════════════════════════════════
-const camTarget=new THREE.Vector3();
-function recenterCamera(){camFollowing=true;}
-function updateCamera(){
-  if(!camFollowing)return;
-  camTarget.set(avatarWX,avatarWY,avatarWZ);
-  camera.position.lerp(camTarget.clone().add(camOffset),0.08);
+function startGPS() {
+  if (!navigator.geolocation) {
+    document.getElementById('gpsLabel').textContent = 'GPS unsupported'; return;
+  }
+  document.getElementById('gpsLabel').textContent = 'GPS: acquiring…';
+  const opt = { enableHighAccuracy:true, maximumAge:2000, timeout:15000 };
+  navigator.geolocation.getCurrentPosition(
+    p => { onGPS(p); navigator.geolocation.watchPosition(onGPS, onGPSError, opt); },
+    e => { onGPSError(e); navigator.geolocation.watchPosition(onGPS, onGPSError, { ...opt, timeout:20000 }); },
+    { enableHighAccuracy:true, timeout:15000, maximumAge:0 }
+  );
+}
+
+function toggleGPS() {
+  gpsEnabled = !gpsEnabled;
+  document.getElementById('gpsBtn').textContent  = 'GPS: ' + (gpsEnabled ? 'ON' : 'OFF');
+  document.getElementById('gpsBtn').className    = gpsEnabled ? 'btn btn-primary' : 'btn btn-off';
+  if (!gpsEnabled) {
+    document.getElementById('gpsPill').className   = 'pill off2';
+    document.getElementById('gpsLabel').textContent = 'GPS: off';
+  }
+}
+
+// ─── Camera ────────────────────────────────────────────────────────────────
+const camTarget = new THREE.Vector3();
+
+function recenterCamera() { camFollowing = true; }
+
+function updateCamera() {
+  if (!camFollowing) return;
+  camTarget.set(aX, aY, aZ);
+  camera.position.lerp(camTarget.clone().add(camOffset), 0.08);
   camera.lookAt(camTarget);
 }
 
-let orbitActive=false,orbitSX=0,orbitSY=0;
-const c3=document.getElementById('three-canvas');
-c3.addEventListener('mousedown',e=>{if(e.target===c3){orbitActive=true;camFollowing=false;orbitSX=e.clientX;orbitSY=e.clientY;}});
-window.addEventListener('mouseup',()=>orbitActive=false);
-window.addEventListener('mousemove',e=>{
-  if(!orbitActive)return;
-  const dx=(e.clientX-orbitSX)*0.01,dy=(e.clientY-orbitSY)*0.01;
-  orbitSX=e.clientX;orbitSY=e.clientY;
-  const len=Math.sqrt(camOffset.x**2+camOffset.z**2);
-  const angle=Math.atan2(camOffset.x,camOffset.z)+dx;
-  camOffset.x=Math.sin(angle)*len; camOffset.z=Math.cos(angle)*len;
-  camOffset.y=Math.max(3,Math.min(40,camOffset.y-dy*3));
+// Mouse orbit
+let orbitActive = false, orbitSX = 0, orbitSY = 0;
+const c3 = document.getElementById('three-canvas');
+c3.addEventListener('mousedown', e => {
+  if (e.target !== c3) return;
+  orbitActive = true; camFollowing = false;
+  orbitSX = e.clientX; orbitSY = e.clientY;
 });
-c3.addEventListener('wheel',e=>{
+window.addEventListener('mouseup',   () => orbitActive = false);
+window.addEventListener('mousemove', e => {
+  if (!orbitActive) return;
+  const dx = (e.clientX - orbitSX) * 0.01;
+  const dy = (e.clientY - orbitSY) * 0.01;
+  orbitSX = e.clientX; orbitSY = e.clientY;
+  const len   = Math.sqrt(camOffset.x**2 + camOffset.z**2);
+  const angle = Math.atan2(camOffset.x, camOffset.z) + dx;
+  camOffset.x = Math.sin(angle) * len;
+  camOffset.z = Math.cos(angle) * len;
+  camOffset.y = Math.max(3, Math.min(40, camOffset.y - dy * 3));
+});
+c3.addEventListener('wheel', e => {
   e.preventDefault();
-  camOffset.multiplyScalar(e.deltaY<0?0.85:1.18);
-  if(camOffset.length()<3)camOffset.setLength(3);
-  if(camOffset.length()>70)camOffset.setLength(70);
-},{passive:false});
+  camOffset.multiplyScalar(e.deltaY < 0 ? 0.85 : 1.18);
+  if (camOffset.length() < 3)  camOffset.setLength(3);
+  if (camOffset.length() > 70) camOffset.setLength(70);
+}, { passive: false });
 
 // Touch orbit
-let touchOrbit=false,touchOSX=0,touchOSY=0;
-c3.addEventListener('touchstart',e=>{
-  if(e.touches.length===1){touchOrbit=true;camFollowing=false;touchOSX=e.touches[0].clientX;touchOSY=e.touches[0].clientY;}
-},{passive:true});
-c3.addEventListener('touchmove',e=>{
-  if(!touchOrbit||e.touches.length!==1)return;
-  const dx=(e.touches[0].clientX-touchOSX)*0.008,dy=(e.touches[0].clientY-touchOSY)*0.008;
-  touchOSX=e.touches[0].clientX;touchOSY=e.touches[0].clientY;
-  const len=Math.sqrt(camOffset.x**2+camOffset.z**2);
-  const angle=Math.atan2(camOffset.x,camOffset.z)+dx;
-  camOffset.x=Math.sin(angle)*len;camOffset.z=Math.cos(angle)*len;
-  camOffset.y=Math.max(3,Math.min(40,camOffset.y-dy*3));
-},{passive:true});
-c3.addEventListener('touchend',()=>touchOrbit=false,{passive:true});
+let tOrbit = false, tOX = 0, tOY = 0;
+c3.addEventListener('touchstart', e => {
+  if (e.touches.length !== 1) return;
+  tOrbit = true; camFollowing = false;
+  tOX = e.touches[0].clientX; tOY = e.touches[0].clientY;
+}, { passive: true });
+c3.addEventListener('touchmove', e => {
+  if (!tOrbit || e.touches.length !== 1) return;
+  const dx = (e.touches[0].clientX - tOX) * 0.008;
+  const dy = (e.touches[0].clientY - tOY) * 0.008;
+  tOX = e.touches[0].clientX; tOY = e.touches[0].clientY;
+  const len   = Math.sqrt(camOffset.x**2 + camOffset.z**2);
+  const angle = Math.atan2(camOffset.x, camOffset.z) + dx;
+  camOffset.x = Math.sin(angle) * len;
+  camOffset.z = Math.cos(angle) * len;
+  camOffset.y = Math.max(3, Math.min(40, camOffset.y - dy * 3));
+}, { passive: true });
+c3.addEventListener('touchend', () => tOrbit = false, { passive: true });
 
-// ═══════════════════════════════════════════
-//  RENDER LOOP
-// ═══════════════════════════════════════════
-let pulse=0;
-function animate(){
+// ─── Render loop ───────────────────────────────────────────────────────────
+let pulse = 0;
+function animate() {
   requestAnimationFrame(animate);
-  pulse+=0.04;
-  ring.material.opacity=0.35+0.25*Math.sin(pulse);
-  ring.scale.setScalar(1+0.1*Math.sin(pulse*0.7));
-  avatarMat.color.setHex(isMoving?0x1D9E75:0x378ADD);
-  avatarMat.emissive.setHex(isMoving?0x0a4030:0x0a1830);
+  pulse += 0.04;
+  ring.material.opacity = 0.35 + 0.25 * Math.sin(pulse);
+  ring.scale.setScalar(1 + 0.1 * Math.sin(pulse * 0.7));
+  avatarMat.color.setHex(isMoving ? 0x1D9E75 : 0x378ADD);
+  avatarMat.emissive.setHex(isMoving ? 0x0a4030 : 0x0a1830);
   updateCamera();
-  renderer.render(scene,camera);
+  renderer.render(scene, camera);
 }
 animate();
 
-// ═══════════════════════════════════════════
-//  CONTROLS
-// ═══════════════════════════════════════════
-async function requestAndStart(){
-  document.getElementById('status').textContent='requesting permissions…';
-  try{
-    if(typeof DeviceOrientationEvent?.requestPermission==='function'){
-      if((await DeviceOrientationEvent.requestPermission())!=='granted'){
-        showErr('Orientation denied — Settings → Safari → Motion & Orientation Access');return;
+// ─── UI controls ───────────────────────────────────────────────────────────
+async function requestAndStart() {
+  document.getElementById('status').textContent = 'requesting permissions…';
+  try {
+    if (typeof DeviceOrientationEvent?.requestPermission === 'function') {
+      if (await DeviceOrientationEvent.requestPermission() !== 'granted') {
+        showErr('Orientation denied — Settings → Safari → Motion & Orientation Access'); return;
       }
     }
-    if(typeof DeviceMotionEvent?.requestPermission==='function'){
-      if((await DeviceMotionEvent.requestPermission())!=='granted'){
-        showErr('Motion denied — Settings → Safari → Motion & Orientation Access');return;
+    if (typeof DeviceMotionEvent?.requestPermission === 'function') {
+      if (await DeviceMotionEvent.requestPermission() !== 'granted') {
+        showErr('Motion denied — Settings → Safari → Motion & Orientation Access'); return;
       }
     }
-    window.addEventListener('deviceorientation',onOrientation,true);
-    window.addEventListener('devicemotion',onMotion,true);
+    window.addEventListener('deviceorientation', onOrientation, true);
+    window.addEventListener('devicemotion',      onMotion,      true);
     startGPS();
-    started=true; kAngle=0; kBias=0;
-    document.getElementById('startBtn').style.display='none';
-    document.getElementById('moveBtn').style.display='';
-    document.getElementById('gpsBtn').style.display='';
-    document.getElementById('resetBtn').style.display='';
-    document.getElementById('status').textContent='ready — tap Walking when moving';
-  }catch(err){showErr('Error: '+err.message);}
+    started = true; kAngle = 0; kBias = 0;
+    document.getElementById('startBtn').style.display = 'none';
+    document.getElementById('moveBtn').style.display  = '';
+    document.getElementById('gpsBtn').style.display   = '';
+    document.getElementById('resetBtn').style.display = '';
+    document.getElementById('status').textContent = 'ready — tap Walking when moving';
+  } catch (err) { showErr('Error: ' + err.message); }
 }
-function toggleMove(){
-  isMoving=!isMoving;
-  if(isMoving){velX=0;velZ=0;smoothFwd=0;smoothSide=0;}
-  document.getElementById('moveBtn').textContent='Walking: '+(isMoving?'ON':'OFF');
-  document.getElementById('moveBtn').className=isMoving?'btn btn-active':'btn btn-primary';
-  document.getElementById('status').textContent=isMoving?'tracking movement':'stationary';
+
+function toggleMove() {
+  isMoving = !isMoving;
+  document.getElementById('moveBtn').textContent = 'Walking: ' + (isMoving ? 'ON' : 'OFF');
+  document.getElementById('moveBtn').className   = isMoving ? 'btn btn-active' : 'btn btn-primary';
+  document.getElementById('status').textContent  = isMoving ? 'tracking steps' : 'stationary';
 }
-function reset(){
-  velX=0;velZ=0;smoothFwd=0;smoothSide=0;isMoving=false;lastT=null;
-  kAngle=0;kBias=0;kP00=1;kP01=0;kP10=0;kP11=1;
-  originLat=null;originLng=null;gpsX=null;gpsZ=null;gpsAcc=Infinity;lastGpsCorr=0;
-  if(navTriangles.length){
-    const t=navTriangles[Math.floor(navTriangles.length/2)];
-    avatarWX=(t.a.x+t.b.x+t.c.x)/3; avatarWZ=(t.a.z+t.b.z+t.c.z)/3;
-    const ft=findTri(avatarWX,avatarWZ)||t;
-    avatarWY=triY(avatarWX,avatarWZ,ft.a,ft.b,ft.c);
-    avatarGroup.position.set(avatarWX,avatarWY+AVATAR_Y_OFF,avatarWZ);
+
+function reset() {
+  isMoving = false; lastMotionT = null;
+  stepCount = 0; stepPhase = 'seek_peak'; magLP = 9.81;
+  kAngle=0; kBias=0; kP00=1; kP01=0; kP10=0; kP11=1;
+  originLat=null; originLng=null; gpsWX=null; gpsWZ=null;
+  gpsAcc=Infinity; lastGpsCorr=0;
+
+  if (navTriangles.length) {
+    const mid = navTriangles[Math.floor(navTriangles.length / 2)];
+    const sx  = (mid.a.x + mid.b.x + mid.c.x) / 3;
+    const sz  = (mid.a.z + mid.b.z + mid.c.z) / 3;
+    const tri = findTri(sx, sz) || mid;
+    placeAvatar(sx, triY(sx, sz, tri.a, tri.b, tri.c), sz);
   }
-  camFollowing=true;
-  document.getElementById('moveBtn').textContent='Walking: OFF';
-  document.getElementById('moveBtn').className='btn btn-primary';
-  document.getElementById('status').textContent='reset — ready';
-  document.getElementById('pos').textContent='0, 0';
-  document.getElementById('spd').textContent='0.00';
-  document.getElementById('speedFill').style.width='0%';
-  document.getElementById('gpsPill').className='pill';
-  document.getElementById('gpsLabel').textContent='GPS: re-acquiring…';
+  camFollowing = true;
+  document.getElementById('moveBtn').textContent   = 'Walking: OFF';
+  document.getElementById('moveBtn').className     = 'btn btn-primary';
+  document.getElementById('status').textContent    = 'reset — ready';
+  document.getElementById('pos').textContent       = '0, 0';
+  document.getElementById('stepCount').textContent = '0';
+  document.getElementById('gpsPill').className     = 'pill';
+  document.getElementById('gpsLabel').textContent  = 'GPS: re-acquiring…';
 }
-function showErr(msg){
-  const el=document.getElementById('errBox');
-  el.textContent=msg;el.style.display='block';
-  document.getElementById('status').textContent='error';
-  setTimeout(()=>el.style.display='none',8000);
+
+function showErr(msg) {
+  const el = document.getElementById('errBox');
+  el.textContent = msg; el.style.display = 'block';
+  document.getElementById('status').textContent = 'error';
+  setTimeout(() => el.style.display = 'none', 8000);
 }
 </script>
 </body>
