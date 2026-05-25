@@ -391,7 +391,7 @@ let magLP=9.81, stepPhase='seek_peak', stepCount=0, lastStepMs=0;
 // Instead of teleporting on each step, we accumulate a velocity vector
 // that decays over time — gives continuous gliding between steps.
 let velX=0, velZ=0;
-const VEL_STEP_DECAY = 0.88; // per-frame decay (applied each rAF ~60fps)
+const VEL_STEP_DECAY = 0.82; // per-frame decay — higher = slides longer, lower = stops faster
 
 // ─── Sensor state ──────────────────────────────────────────────────────────
 let lastMotionT=null, isMoving=false, started=false;
@@ -548,8 +548,8 @@ function animate(){
   // ── Continuous smooth movement ──────────────────────────────────────
   // Decay velocity each frame and move target along it
   if(Math.abs(velX)>0.0001||Math.abs(velZ)>0.0001){
-    const nx=tX+velX*0.016; // 16ms equivalent step
-    const nz=tZ+velZ*0.016;
+    const nx=tX+velX;
+    const nz=tZ+velZ;
     const r=constrain(tX,tZ,nx,nz);
     tX=r.x; tZ=r.z; tY=r.y;
     velX*=VEL_STEP_DECAY;
@@ -577,7 +577,8 @@ function animate(){
 
   // Update target heading from sensor
   // negate because Three +Y rotation is counter-clockwise, compass is clockwise
-  tHeading=-currentHeadingRad;
+  // +PI because beak geometry points +Z, but heading 0=north maps to -Z in Three.js
+  tHeading = Math.PI - currentHeadingRad;
 
   // Pulse ring
   pulse+=0.045;
@@ -637,7 +638,7 @@ function reset(){
   isMoving=false; lastMotionT=null; velX=0; velZ=0;
   stepCount=0; stepPhase='seek_peak'; magLP=9.81;
   kAngle=0;kBias=0;kP00=1;kP01=0;kP10=0;kP11=1;
-  currentHeadingRad=0; aHeading=0; tHeading=0;
+  currentHeadingRad=0; aHeading=Math.PI; tHeading=Math.PI;
   originLat=null;originLng=null;gpsWX=null;gpsWZ=null;gpsAcc=Infinity;lastGpsCorr=0;
   if(navTriangles.length){
     const mid=navTriangles[Math.floor(navTriangles.length/2)];
