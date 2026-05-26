@@ -87,10 +87,10 @@
 
   <div class="slider-row">
     <span>Step length</span>
-    <input type="range" id="slSlider" min="0.3" max="1.5" step="0.05" value="0.72"
+    <input type="range" id="slSlider" min="0.05" max="0.50" step="0.02" value="0.18"
       oninput="STEP_LENGTH=parseFloat(this.value);
-               document.getElementById('slVal').textContent=this.value+'m'">
-    <span id="slVal">0.72m</span>
+               STEP_LENGTH=parseFloat(this.value);document.getElementById('slVal').textContent=parseFloat(this.value).toFixed(2)+'m'">
+    <span id="slVal">0.18m</span>
   </div>
   <div class="slider-row">
     <span>Step threshold</span>
@@ -116,17 +116,18 @@
 'use strict';
 
 // ─── Tuning ────────────────────────────────────────────────────────────────
-let STEP_LENGTH = 0.72;
+let STEP_LENGTH = 0.18;
 let STEP_THRESH = 1.2;
 const STEP_MIN_MS  = 220;
 const GPS_TRUST    = 25;
 const GPS_BLEND    = 0.25;
+const GPS_WORLD_SCALE = 0.19; // real metres → GLB world units (tune if GPS drift feels wrong)
 const GPS_GAP_MS   = 4000;
-const GPS_JUMP_MAX = 8;
+const GPS_JUMP_MAX = 1.0; // map is only 4.4x6.2 units — cap corrections at 1 unit
 
 // Smooth movement: each step pushes a target position,
 // avatar glides toward it every animation frame.
-const MOVE_SMOOTH = 0.12; // lerp factor per frame toward target (higher = snappier)
+const MOVE_SMOOTH = 0.18; // lerp factor per frame toward target (higher = snappier)
 
 // ─── Renderer ──────────────────────────────────────────────────────────────
 const canvas   = document.getElementById('three-canvas');
@@ -175,8 +176,8 @@ const avatarRoot = new THREE.Object3D();
 scene.add(avatarRoot);
 
 // Body — bigger radius, taller
-const BODY_R = 0.055;
-const BODY_H = 0.13;
+const BODY_R = 0.028;
+const BODY_H = 0.065;
 const avatarMat = new THREE.MeshStandardMaterial({
   color: 0x1D9E75, emissive: 0x0d3d2a, roughness: 0.35, metalness: 0.15
 });
@@ -203,13 +204,13 @@ const beakMat = new THREE.MeshStandardMaterial({
 const beakGeo = new THREE.BufferGeometry();
 const beakVerts = new Float32Array([
   // front tip
-   0,    0,    BODY_R + 0.20,
+   0,    0,    BODY_R * 3.5,
   // back left
-  -0.10, 0,    BODY_R * 0.2,
+  -BODY_R * 1.2, 0, BODY_R * 0.3,
   // back right
-   0.10, 0,    BODY_R * 0.2,
+   BODY_R * 1.2, 0, BODY_R * 0.3,
   // top center back
-   0,    0.07, BODY_R * 0.2,
+   0, BODY_R * 0.8, BODY_R * 0.3,
 ]);
 const beakIdx = new Uint16Array([
   0,1,2,  // bottom face
@@ -229,9 +230,9 @@ avatarRoot.add(beak);
 const ringMat = new THREE.MeshBasicMaterial({
   color: 0x1D9E75, side: THREE.DoubleSide, transparent: true, opacity: 0.55
 });
-const ring = new THREE.Mesh(new THREE.RingGeometry(BODY_R + 0.08, BODY_R + 0.22, 40), ringMat);
+const ring = new THREE.Mesh(new THREE.RingGeometry(BODY_R * 1.3, BODY_R * 2.2, 40), ringMat);
 ring.rotation.x = -Math.PI / 2;
-ring.position.y = -BODY_H / 2 + 0.02;
+ring.position.y = -BODY_H / 2 + 0.005;
 avatarRoot.add(ring);
 
 // Direction arrow on ground — a flat triangle pointing forward
@@ -240,16 +241,16 @@ const arrowGndMat = new THREE.MeshBasicMaterial({
 });
 const arrowGndGeo = new THREE.BufferGeometry();
 const agv = new Float32Array([
-   0,    0,  BODY_R + 0.20,   // tip (forward = +Z)
-  -0.07, 0,  BODY_R + 0.03,
-   0.07, 0,  BODY_R + 0.03,
+   0,    0,  BODY_R * 3.5,   // tip (forward = +Z)
+  -BODY_R * 0.8, 0,  BODY_R * 1.2,
+   BODY_R * 0.8, 0,  BODY_R * 1.2,
 ]);
 arrowGndGeo.setAttribute('position', new THREE.BufferAttribute(agv, 3));
 arrowGndGeo.setIndex(new THREE.BufferAttribute(new Uint16Array([0,2,1]), 1));
 arrowGndGeo.computeVertexNormals();
 const arrowGnd = new THREE.Mesh(arrowGndGeo, arrowGndMat);
 arrowGnd.rotation.x = -Math.PI / 2;
-arrowGnd.position.y = -BODY_H / 2 + 0.03;
+arrowGnd.position.y = -BODY_H / 2 + 0.006;
 avatarRoot.add(arrowGnd);
 
 // Bright forward stripe on the body surface
@@ -267,7 +268,7 @@ avatarRoot.add(stripe);
 let aX = 0, aY = 0, aZ = 0;       // current rendered position
 let tX = 0, tY = 0, tZ = 0;       // target position (set on each step)
 let aHeading = 0, tHeading = 0;    // current / target heading (degrees)
-const AVATAR_HOVER = 0.08;         // float height above navmesh (= half body height + cap)
+const AVATAR_HOVER = 0.04;         // float height above navmesh (= half body height + cap)
 
 function placeAvatarImmediate(x, y, z) {
   aX=x; aY=y; aZ=z; tX=x; tY=y; tZ=z;
@@ -402,7 +403,7 @@ let magLP=9.81, stepPhase='seek_peak', stepCount=0, lastStepMs=0;
 // Instead of teleporting on each step, we accumulate a velocity vector
 // that decays over time — gives continuous gliding between steps.
 let velX=0, velZ=0;
-const VEL_STEP_DECAY = 0.82; // per-frame decay — higher = slides longer, lower = stops faster
+const VEL_STEP_DECAY = 0.70; // per-frame decay — higher = slides longer, lower = stops faster
 
 // ─── Sensor state ──────────────────────────────────────────────────────────
 let lastMotionT=null, isMoving=false, started=false;
@@ -463,7 +464,7 @@ let gpsWX=null,gpsWZ=null,gpsAcc=Infinity,lastGpsCorr=0;
 function latLngToM(lat,lng,oLat,oLng){
   const R=6371000,dLat=(lat-oLat)*Math.PI/180,dLng=(lng-oLng)*Math.PI/180;
   const mid=((lat+oLat)/2)*Math.PI/180;
-  return{x:dLng*R*Math.cos(mid),z:-dLat*R};
+  return{x:dLng*R*Math.cos(mid)*GPS_WORLD_SCALE, z:-dLat*R*GPS_WORLD_SCALE};
 }
 function onGPS(pos){
   const{latitude,longitude,accuracy}=pos.coords; gpsAcc=accuracy;
