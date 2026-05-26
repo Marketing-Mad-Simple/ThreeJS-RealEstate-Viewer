@@ -100,6 +100,14 @@
     <span id="thVal">1.2</span>
     <span style="color:#555;font-size:11px">— lower if steps not detected</span>
   </div>
+  <div class="slider-row">
+    <span>Still filter</span>
+    <input type="range" id="horizSlider" min="0.05" max="1.5" step="0.05" value="0.30"
+      oninput="HORIZ_MIN=parseFloat(this.value);
+               document.getElementById('horizVal').textContent=this.value">
+    <span id="horizVal">0.30</span>
+    <span style="color:#555;font-size:11px">— raise to ignore marching in place</span>
+  </div>
 
   <div class="hud-row">
     <button class="btn btn-primary" id="startBtn" onclick="requestAndStart()">Start tracking</button>
@@ -399,6 +407,19 @@ function kalman(newC,gyroRate,dt){
 // ─── Step detection ────────────────────────────────────────────────────────
 let magLP=9.81, stepPhase='seek_peak', stepCount=0, lastStepMs=0;
 
+// Anti-marching-in-place:
+// Track gravity estimate (low-pass) and horizontal residual (high-pass).
+// Real walking = horizontal accel burst aligns with heading direction.
+// Marching in place = mostly vertical bounce, tiny horizontal component.
+let gravXlp=0, gravYlp=0, gravZlp=9.81;  // low-pass gravity estimate
+let horizMagLP=0;                          // smoothed horizontal accel magnitude
+const HORIZ_MIN = 0.30; // m/s² — minimum horizontal movement to count a step
+                        // lower = more sensitive to slow walks, raise to filter marching
+
+// Heading history for consistency check
+let lastStepHeadings = []; // last 3 step headings (radians)
+const MAX_HEADING_VARIANCE_DEG = 45; // if last steps vary more than this, likely marching
+
 // Smooth step velocity:
 // Instead of teleporting on each step, we accumulate a velocity vector
 // that decays over time — gives continuous gliding between steps.
@@ -429,25 +450,63 @@ function onMotion(e){
   document.getElementById('hdg').textContent=Math.round(heading);
   document.getElementById('compass').style.transform=`rotate(${-heading}deg)`;
 
-  // Step detection from |aig| magnitude
+  // Step detection from |aig| magnitude + horizontal movement filter
   const aig=e.accelerationIncludingGravity;
   if(!aig||aig.x===null) return;
+
+  // Total magnitude (orientation-independent bounce detection)
   const mag=Math.sqrt(aig.x*aig.x+aig.y*aig.y+aig.z*aig.z);
   magLP=0.93*magLP+0.07*mag;
   const dev=mag-magLP;
 
+  // Gravity estimation via low-pass (tracks slow tilt changes)
+  const GLPa=0.85;
+  gravXlp=GLPa*gravXlp+(1-GLPa)*aig.x;
+  gravYlp=GLPa*gravYlp+(1-GLPa)*aig.y;
+  gravZlp=GLPa*gravZlp+(1-GLPa)*aig.z;
+
+  // Linear (gravity-removed) acceleration
+  const linX=aig.x-gravXlp, linY=aig.y-gravYlp;
+  // Horizontal magnitude (XY sensor plane — captures forward/side movement)
+  const horizMag=Math.sqrt(linX*linX+linY*linY);
+  horizMagLP=0.7*horizMagLP+0.3*horizMag; // smooth it slightly
+
   if(stepPhase==='seek_peak'){
     if(dev>STEP_THRESH){
       if(now-lastStepMs>STEP_MIN_MS){
-        stepCount++;
-        lastStepMs=now;
-        document.getElementById('stepCount').textContent=stepCount;
 
-        if(isMoving){
-          // Inject velocity impulse in heading direction
-          // This gets added to the smooth position each frame
-          velX += Math.sin(currentHeadingRad)*STEP_LENGTH;
-          velZ += -Math.cos(currentHeadingRad)*STEP_LENGTH;
+        // ── Anti-marching-in-place guard ───────────────────────────────────
+        // Require meaningful horizontal movement at this moment
+        const hasHorizMotion = horizMagLP > HORIZ_MIN;
+
+        // Heading consistency: reject if last 2 steps had wildly different headings
+        // (marching in place while holding phone still has consistent heading, so
+        //  this alone isn't enough — it's the combination that catches most cases)
+        let headingOk = true;
+        if(lastStepHeadings.length >= 2){
+          const h0=lastStepHeadings[lastStepHeadings.length-1];
+          const h1=lastStepHeadings[lastStepHeadings.length-2];
+          // Angular difference between this step's heading and last two
+          const diff0=Math.abs(((currentHeadingRad-h0)*180/Math.PI+540)%360-180);
+          const diff1=Math.abs(((currentHeadingRad-h1)*180/Math.PI+540)%360-180);
+          // If heading is flipping back and forth by large amounts, likely stationary rocking
+          if(diff0>MAX_HEADING_VARIANCE_DEG && diff1>MAX_HEADING_VARIANCE_DEG) headingOk=false;
+        }
+
+        if(hasHorizMotion || !isMoving){ // always count when walking mode is off (for debug)
+          stepCount++;
+          lastStepMs=now;
+          document.getElementById('stepCount').textContent=stepCount;
+
+          // Update heading history (keep last 3)
+          lastStepHeadings.push(currentHeadingRad);
+          if(lastStepHeadings.length>3) lastStepHeadings.shift();
+
+          if(isMoving && hasHorizMotion){
+            // Only actually move if horizontal motion confirmed
+            velX += Math.sin(currentHeadingRad)*STEP_LENGTH;
+            velZ += -Math.cos(currentHeadingRad)*STEP_LENGTH;
+          }
         }
       }
       stepPhase='seek_valley';
@@ -649,7 +708,7 @@ function toggleMove(){
 
 function reset(){
   isMoving=false; lastMotionT=null; velX=0; velZ=0;
-  stepCount=0; stepPhase='seek_peak'; magLP=9.81;
+  stepCount=0; stepPhase='seek_peak'; magLP=9.81; horizMagLP=0; gravXlp=0; gravYlp=0; gravZlp=9.81; lastStepHeadings=[];
   kAngle=0;kBias=0;kP00=1;kP01=0;kP10=0;kP11=1;
   currentHeadingRad=0; aHeading=Math.PI; tHeading=Math.PI;
   originLat=null;originLng=null;gpsWX=null;gpsWZ=null;gpsAcc=Infinity;lastGpsCorr=0;
