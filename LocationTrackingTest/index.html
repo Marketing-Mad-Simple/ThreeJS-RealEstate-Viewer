@@ -34,14 +34,11 @@
 <div id="searchResults"></div>
 
 <!-- ── Destination bar ────────────────────────────────────────── -->
-<div id="destBar" style="display:none;position:fixed;top:60px;left:10px;right:10px;z-index:91;
-  background:rgba(29,158,117,.2);border:1px solid rgba(29,158,117,.4);border-radius:10px;
-  padding:8px 12px;font-size:13px;color:#fff;flex-direction:row;
-  justify-content:space-between;align-items:center;gap:8px;">
-  <span style="font-size:16px">🧭</span>
-  <span class="dest-name" id="destName" style="flex:1;font-weight:600;font-size:13px"></span>
-  <span class="dest-dist" id="destDist" style="color:#5eefc0;font-size:12px;white-space:nowrap"></span>
-  <button id="destClear" style="background:none;border:none;color:#E24B4A;font-size:20px;cursor:pointer;padding:0 4px">✕</button>
+<div id="destBar">
+  <span class="dest-icon">🧭</span>
+  <span class="dest-name" id="destName"></span>
+  <span class="dest-dist" id="destDist"></span>
+  <button class="dest-clear" id="destClear">✕</button>
 </div>
 
 <!-- ── Stall list panel ────────────────────────────────────────── -->
@@ -104,10 +101,12 @@
 
 <!-- ── App scripts (order matters) ───────────────────────────── -->
 <script src="js/stalls.js"></script>
+<script src="js/navgrid.js"></script>
 <script src="js/scene.js"></script>
 <script src="js/labels.js"></script>
 <script src="js/nav.js"></script>
 <script src="js/sensors.js"></script>
+<script src="js/pathfinder.js"></script>
 
 <!-- ── GLB Loader + CSS2D bootstrap ──────────────────────────── -->
 <script>

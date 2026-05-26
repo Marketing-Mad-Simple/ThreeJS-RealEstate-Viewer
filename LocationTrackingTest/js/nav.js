@@ -64,11 +64,15 @@ function setDestination(stall){
 
   // Show dest bar
   destBar.style.display='flex';
+  document.body.classList.add('has-dest');
   document.getElementById('destName').textContent=`${stall.id} — ${stall.company||''}`;
   updateDestDist();
 
   // Force-show label for destination
   if(window.highlightStall) window.highlightStall(stall.id);
+
+  // Compute and draw path
+  if(window.computePath) window.computePath(stall);
 
   // Close nav panel if open
   document.getElementById('navPanel').classList.remove('open');
@@ -77,7 +81,9 @@ function setDestination(stall){
 function clearDestination(){
   window.destStall=null;
   destBar.style.display='none';
+  document.body.classList.remove('has-dest');
   if(window.highlightStall) window.highlightStall(null);
+  if(window.clearPath) window.clearPath();
 }
 
 document.getElementById('destClear').addEventListener('click', clearDestination);
