@@ -97,7 +97,8 @@ scene.add(destMarker);
 // ── Avatar world position ─────────────────────────────────────────────────
 let aX=0, aY=0, aZ=0;
 let tX=0, tY=0, tZ=0;
-let aHeading=Math.PI, tHeading=Math.PI;
+let aHeading=0, tHeading=0;
+function resetHeading(){ aHeading=0; tHeading=0; }
 
 function placeAvatarImmediate(x,y,z){
   aX=x; aY=y; aZ=z; tX=x; tY=y; tZ=z;
@@ -212,17 +213,29 @@ function animate(){
   document.getElementById('speedFill').style.width=Math.min(distToTarget/(window.STEP_LENGTH||0.025),1)*100+'%';
   aX+=(tX-aX)*0.18; aY+=(tY-aY)*0.18; aZ+=(tZ-aZ)*0.18;
   avatarRoot.position.set(aX,aY+AVATAR_HOVER,aZ);
-  let dH=tHeading-aHeading;
-  if(dH>Math.PI)dH-=Math.PI*2; if(dH<-Math.PI)dH+=Math.PI*2;
-  aHeading+=dH*0.15;
-  avatarRoot.rotation.y=aHeading;
-  const _hr = window.currentHeadingRad||0; tHeading=Math.PI-_hr;
+  // Compass heading (0=north, clockwise). Beak points +Z local.
+  // Three.js rotation.y: positive = CCW from above. North = -Z.
+  // To face north: rotate beak (+Z) to -Z = π. Each degree CW = +rad.
+  // So: rotation.y = π + headingRad
+  const _hr = window.currentHeadingRad || 0;
+  tHeading = Math.PI + _hr;
+
+  // Shortest-path lerp — normalize both angles first to avoid unbounded accumulation
+  aHeading = ((aHeading % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
+  tHeading = ((tHeading % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
+  let dH = tHeading - aHeading;
+  if (dH >  Math.PI) dH -= Math.PI*2;
+  if (dH < -Math.PI) dH += Math.PI*2;
+  aHeading += dH * 0.15;
+  avatarRoot.rotation.y = aHeading;
   const moving=window.isMoving&&distToTarget>0.002;
   avatarMat.color.setHex(moving?0x1D9E75:0x378ADD);
   avatarMat.emissive.setHex(moving?0x0d3d2a:0x0a1830);
   capMat.color.setHex(moving?0x17c485:0x4a9edd);
   // Update labels proximity
   if(window.updateLabels) window.updateLabels(aX,aZ);
+  // Update path dots
+  if(window.updatePathDots) window.updatePathDots(aX,aZ);
   // Update destination marker
   if(window.destStall){
     destMarker.position.set(window.destStall.x, window.destStall.y+0.05, window.destStall.z);
