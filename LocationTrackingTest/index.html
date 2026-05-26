@@ -100,14 +100,7 @@
     <span id="thVal">1.2</span>
     <span style="color:#555;font-size:11px">— lower if steps not detected</span>
   </div>
-  <div class="slider-row">
-    <span>Still filter</span>
-    <input type="range" id="horizSlider" min="0.05" max="1.5" step="0.05" value="0.30"
-      oninput="HORIZ_MIN=parseFloat(this.value);
-               document.getElementById('horizVal').textContent=this.value">
-    <span id="horizVal">0.30</span>
-    <span style="color:#555;font-size:11px">— raise = need more consecutive steps before moving</span>
-  </div>
+
 
   <div class="hud-row">
     <button class="btn btn-primary" id="startBtn" onclick="requestAndStart()">Start tracking</button>
@@ -405,30 +398,14 @@ function kalman(newC,gyroRate,dt){
 }
 
 // ─── Step detection ────────────────────────────────────────────────────────
-let magLP=9.81, stepPhase='seek_peak', stepCount=0, lastStepMs=0;
-
-// Anti-marching-in-place:
-// Track gravity estimate (low-pass) and horizontal residual (high-pass).
-// Real walking = horizontal accel burst aligns with heading direction.
-// Marching in place = mostly vertical bounce, tiny horizontal component.
-let gravXlp=0, gravYlp=0, gravZlp=9.81;  // low-pass gravity estimate
-let horizMagLP=0;                          // smoothed horizontal accel magnitude
-let HORIZ_MIN = 0.30; // m/s² — minimum horizontal movement to count a step
-                        // lower = more sensitive to slow walks, raise to filter marching
-
-// Heading history for consistency check
-let lastStepHeadings = []; // last 3 step headings (radians)
-const MAX_HEADING_VARIANCE_DEG = 45; // if last steps vary more than this, likely marching
-
-// Smooth step velocity:
-// Instead of teleporting on each step, we accumulate a velocity vector
-// that decays over time — gives continuous gliding between steps.
-let velX=0, velZ=0;
-const VEL_STEP_DECAY = 0.70; // per-frame decay — higher = slides longer, lower = stops faster
+let magLP = 9.81;
+let stepPhase = 'seek_peak';
+let stepCount = 0;
+let lastStepMs = 0;
 
 // ─── Sensor state ──────────────────────────────────────────────────────────
-let lastMotionT=null, isMoving=false, started=false;
-let currentHeadingRad=0; // always updated from Kalman, even when not walking
+let lastMotionT = null, isMoving = false, started = false;
+let currentHeadingRad = 0;
 
 function onOrientation(e){
   if(typeof e.webkitCompassHeading==='number') compassHeading=e.webkitCompassHeading;
@@ -450,40 +427,29 @@ function onMotion(e){
   document.getElementById('hdg').textContent=Math.round(heading);
   document.getElementById('compass').style.transform=`rotate(${-heading}deg)`;
 
-  // Step detection from |aig| magnitude + horizontal movement filter
+  // Step detection — peak/valley on total magnitude (orientation-independent)
   const aig=e.accelerationIncludingGravity;
   if(!aig||aig.x===null) return;
-
-  // Total magnitude (orientation-independent bounce detection)
   const mag=Math.sqrt(aig.x*aig.x+aig.y*aig.y+aig.z*aig.z);
   magLP=0.93*magLP+0.07*mag;
   const dev=mag-magLP;
 
   if(stepPhase==='seek_peak'){
-    if(dev > STEP_THRESH){
+    if(dev>STEP_THRESH && now-lastStepMs>STEP_MIN_MS){
+      stepCount++;
+      lastStepMs=now;
+      document.getElementById('stepCount').textContent=stepCount;
 
-      // Dynamic minimum gap between steps — controlled by still-filter slider
-      // slider 0.05→220ms, 0.30→420ms, 1.5→1200ms
-      const minGap = 220 + HORIZ_MIN * 650;
-
-      if(now - lastStepMs > minGap){
-        stepCount++;
-        lastStepMs = now;
-        lastStepTs = now;
-        document.getElementById('stepCount').textContent = stepCount;
-
-        if(isMoving){
-          // Set a new target position one step ahead, constrained to navmesh
-          const dx = Math.sin(currentHeadingRad) * STEP_LENGTH;
-          const dz = -Math.cos(currentHeadingRad) * STEP_LENGTH;
-          const r  = constrain(aX, aZ, aX + dx, aZ + dz);
-          tX = r.x; tZ = r.z; tY = r.y;
-        }
+      if(isMoving){
+        const dx=Math.sin(currentHeadingRad)*STEP_LENGTH;
+        const dz=-Math.cos(currentHeadingRad)*STEP_LENGTH;
+        const r=constrain(aX,aZ,aX+dx,aZ+dz);
+        tX=r.x; tZ=r.z; tY=r.y;
       }
       stepPhase='seek_valley';
     }
   } else {
-    if(dev < -STEP_THRESH * 0.5) stepPhase = 'seek_peak';
+    if(dev < -STEP_THRESH*0.5) stepPhase='seek_peak';
   }
 }
 
@@ -660,15 +626,15 @@ async function requestAndStart(){
 
 function toggleMove(){
   isMoving=!isMoving;
-  if(!isMoving){velX=0;velZ=0;} // stop gliding when user turns off walking
+  if(!isMoving){ tX=aX; tZ=aZ; tY=aY; } // snap target to current pos when stopping
   document.getElementById('moveBtn').textContent='Walking: '+(isMoving?'ON':'OFF');
   document.getElementById('moveBtn').className=isMoving?'btn btn-active':'btn btn-primary';
   document.getElementById('status').textContent=isMoving?'tracking steps':'stationary';
 }
 
 function reset(){
-  isMoving=false; lastMotionT=null; velX=0; velZ=0; lastStepTs=0;
-  stepCount=0; stepPhase='seek_peak'; magLP=9.81; lastStepTs=0;
+  isMoving=false; lastMotionT=null;
+  stepCount=0; stepPhase='seek_peak'; magLP=9.81; tX=aX; tZ=aZ; tY=aY;
   kAngle=0;kBias=0;kP00=1;kP01=0;kP10=0;kP11=1;
   currentHeadingRad=0; aHeading=Math.PI; tHeading=Math.PI;
   originLat=null;originLng=null;gpsWX=null;gpsWZ=null;gpsAcc=Infinity;lastGpsCorr=0;
