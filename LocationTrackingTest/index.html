@@ -461,43 +461,23 @@ function onMotion(e){
 
   if(stepPhase==='seek_peak'){
     if(dev > STEP_THRESH){
-      if(now - lastStepMs > STEP_MIN_MS){
 
-        // Count step for visual feedback
+      // Dynamic minimum gap between steps — controlled by still-filter slider
+      // slider 0.05→220ms, 0.30→420ms, 1.5→1200ms
+      const minGap = 220 + HORIZ_MIN * 650;
+
+      if(now - lastStepMs > minGap){
         stepCount++;
         lastStepMs = now;
+        lastStepTs = now;
         document.getElementById('stepCount').textContent = stepCount;
 
-        // Track interval history
-        const interval = lastStepTs > 0 ? now - lastStepTs : 9999;
-        lastStepTs = now;
-        recentIntervals.push(interval);
-        if(recentIntervals.length > STEP_HISTORY) recentIntervals.shift();
-
-        // Track heading history
-        lastStepHeadings.push(currentHeadingRad);
-        if(lastStepHeadings.length > 3) lastStepHeadings.shift();
-
         if(isMoving){
-          // Guard 1 — rhythm: what fraction of recent intervals are in walking range (280–1500ms)?
-          // slider 0.05 → need 0% (always move), 1.5 → need 75% (very strict)
-          const walkingCount  = recentIntervals.filter(t => t >= 280 && t <= 1500).length;
-          const fractionNeeded = HORIZ_MIN * 0.5; // default 0.30 → 15% needed = 1 of last 4
-          const rhythmOk = recentIntervals.length < 2
-                        || (walkingCount / recentIntervals.length) >= fractionNeeded;
-
-          // Guard 2 — heading: only reject if all 3 consecutive steps show wild swings
-          let headingOk = true;
-          if(lastStepHeadings.length >= 3){
-            const d01 = Math.abs(((lastStepHeadings[1]-lastStepHeadings[0])*180/Math.PI+540)%360-180);
-            const d12 = Math.abs(((lastStepHeadings[2]-lastStepHeadings[1])*180/Math.PI+540)%360-180);
-            if(d01 > MAX_HEADING_VARIANCE_DEG && d12 > MAX_HEADING_VARIANCE_DEG) headingOk = false;
-          }
-
-          if(rhythmOk && headingOk){
-            velX += Math.sin(currentHeadingRad) * STEP_LENGTH;
-            velZ += -Math.cos(currentHeadingRad) * STEP_LENGTH;
-          }
+          // Set a new target position one step ahead, constrained to navmesh
+          const dx = Math.sin(currentHeadingRad) * STEP_LENGTH;
+          const dz = -Math.cos(currentHeadingRad) * STEP_LENGTH;
+          const r  = constrain(aX, aZ, aX + dx, aZ + dz);
+          tX = r.x; tZ = r.z; tY = r.y;
         }
       }
       stepPhase='seek_valley';
@@ -610,20 +590,9 @@ function animate(){
 
   // ── Continuous smooth movement ──────────────────────────────────────
   // Decay velocity each frame and move target along it
-  if(Math.abs(velX)>0.0001||Math.abs(velZ)>0.0001){
-    const nx=tX+velX;
-    const nz=tZ+velZ;
-    const r=constrain(tX,tZ,nx,nz);
-    tX=r.x; tZ=r.z; tY=r.y;
-    velX*=VEL_STEP_DECAY;
-    velZ*=VEL_STEP_DECAY;
-
-    // Speed bar
-    const spd=Math.sqrt(velX*velX+velZ*velZ);
-    document.getElementById('speedFill').style.width=Math.min(spd/1.2,1)*100+'%';
-  } else {
-    document.getElementById('speedFill').style.width='0%';
-  }
+  // Speed bar: show distance from current pos to target
+  const distToTarget = Math.sqrt((tX-aX)**2+(tZ-aZ)**2);
+  document.getElementById('speedFill').style.width=Math.min(distToTarget/STEP_LENGTH,1)*100+'%';
 
   // Lerp actual position → target (smooth glide)
   aX+=(tX-aX)*MOVE_SMOOTH;
@@ -650,7 +619,7 @@ function animate(){
   ring.material.opacity=0.4+0.2*Math.sin(pulse);
 
   // Avatar color by state
-  const moving=isMoving&&(Math.abs(velX)>0.05||Math.abs(velZ)>0.05);
+  const moving=isMoving&&distToTarget>0.002;
   avatarMat.color.setHex(moving?0x1D9E75:0x378ADD);
   avatarMat.emissive.setHex(moving?0x0d3d2a:0x0a1830);
   capMat.color.setHex(moving?0x17c485:0x4a9edd);
@@ -698,8 +667,8 @@ function toggleMove(){
 }
 
 function reset(){
-  isMoving=false; lastMotionT=null; velX=0; velZ=0;
-  stepCount=0; stepPhase='seek_peak'; magLP=9.81; recentIntervals=[]; lastStepTs=0; lastStepHeadings=[];
+  isMoving=false; lastMotionT=null; velX=0; velZ=0; lastStepTs=0;
+  stepCount=0; stepPhase='seek_peak'; magLP=9.81; lastStepTs=0;
   kAngle=0;kBias=0;kP00=1;kP01=0;kP10=0;kP11=1;
   currentHeadingRad=0; aHeading=Math.PI; tHeading=Math.PI;
   originLat=null;originLng=null;gpsWX=null;gpsWZ=null;gpsAcc=Infinity;lastGpsCorr=0;
