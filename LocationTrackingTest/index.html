@@ -64,7 +64,7 @@
 </div>
 
 <canvas id="three-canvas"></canvas>
-<button id="recenterBtn" onclick="recenterCamera()">⊙ Follow</button>
+<button id="recenterBtn" onclick="recenterCamera()">⊙ Reset zoom</button>
 <div id="compass">⬆</div>
 <div id="errBox"></div>
 
@@ -87,10 +87,10 @@
 
   <div class="slider-row">
     <span>Step length</span>
-    <input type="range" id="slSlider" min="0.05" max="0.50" step="0.02" value="0.18"
+    <input type="range" id="slSlider" min="0.005" max="0.12" step="0.005" value="0.025"
       oninput="STEP_LENGTH=parseFloat(this.value);
                STEP_LENGTH=parseFloat(this.value);document.getElementById('slVal').textContent=parseFloat(this.value).toFixed(2)+'m'">
-    <span id="slVal">0.18m</span>
+    <span id="slVal">0.025m</span>
   </div>
   <div class="slider-row">
     <span>Step threshold</span>
@@ -116,7 +116,7 @@
 'use strict';
 
 // ─── Tuning ────────────────────────────────────────────────────────────────
-let STEP_LENGTH = 0.18;
+let STEP_LENGTH = 0.025;
 let STEP_THRESH = 1.2;
 const STEP_MIN_MS  = 220;
 const GPS_TRUST    = 25;
@@ -144,8 +144,8 @@ scene.background = new THREE.Color(0x18181f);
 scene.fog = new THREE.Fog(0x18181f, 6, 20);
 
 const camera = new THREE.PerspectiveCamera(60, 1, 0.005, 100);
-let camFollowing = true;
-const camOffset  = new THREE.Vector3(0, 1.8, 1.4);
+let camFollowing = true; // always true in top-down mode
+const camOffset  = new THREE.Vector3(0, 2.2, 0.6); // isometric: mostly up, slight tilt
 
 // ─── Lighting ──────────────────────────────────────────────────────────────
 scene.add(new THREE.AmbientLight(0xfff5e0, 0.9));
@@ -511,11 +511,12 @@ function toggleGPS(){
 
 // ─── Camera ────────────────────────────────────────────────────────────────
 const camTarget=new THREE.Vector3();
-function recenterCamera(){camFollowing=true;}
+function recenterCamera(){ camOffset.y=2.2; camOffset.z=0.6; } // reset zoom
 function updateCamera(){
-  if(!camFollowing)return;
-  camTarget.set(aX,aY,aZ);
-  camera.position.lerp(camTarget.clone().add(camOffset),0.12);
+  // Always follow avatar — isometric top-down, no orbit drift
+  camTarget.set(aX, aY, aZ);
+  const desired = new THREE.Vector3(aX + camOffset.x, aY + camOffset.y, aZ + camOffset.z);
+  camera.position.lerp(desired, 0.12);
   camera.lookAt(camTarget);
 }
 
