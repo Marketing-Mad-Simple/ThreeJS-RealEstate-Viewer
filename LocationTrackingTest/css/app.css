@@ -1,0 +1,194 @@
+/* ── Reset & base ─────────────────────────────────────── */
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;background:#0f0f14;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#fff}
+#three-canvas{position:fixed;inset:0;width:100%!important;height:100%!important}
+
+/* ── Loading screen ──────────────────────────────────── */
+#loading{position:fixed;inset:0;background:#0f0f14;z-index:999;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+#loading h1{font-size:22px;font-weight:700;color:#fff;letter-spacing:.5px}
+#loading p{font-size:13px;color:#888}
+#loadBar{width:220px;height:4px;border-radius:2px;background:#222;overflow:hidden}
+#loadFill{height:100%;width:0%;background:#FF6B2B;border-radius:2px;transition:width .3s}
+
+/* ── Top bar ─────────────────────────────────────────── */
+#topBar{
+  position:fixed;top:0;left:0;right:0;
+  height:52px;
+  background:rgba(15,15,20,.92);
+  backdrop-filter:blur(12px);
+  border-bottom:1px solid rgba(255,255,255,.08);
+  display:flex;align-items:center;
+  padding:0 14px;gap:10px;z-index:100;
+}
+#topBar .logo{font-size:17px;font-weight:700;color:#FF6B2B;letter-spacing:.3px;white-space:nowrap}
+#searchWrap{flex:1;position:relative}
+#searchInput{
+  width:100%;height:34px;padding:0 12px 0 34px;
+  border-radius:8px;border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.08);color:#fff;font-size:14px;outline:none;
+}
+#searchInput::placeholder{color:#666}
+#searchInput:focus{border-color:#FF6B2B;background:rgba(255,107,43,.08)}
+#searchIcon{position:absolute;left:10px;top:50%;transform:translateY(-50%);
+  font-size:14px;color:#666;pointer-events:none}
+#clearSearch{position:absolute;right:8px;top:50%;transform:translateY(-50%);
+  background:none;border:none;color:#888;font-size:16px;cursor:pointer;display:none;padding:4px}
+
+/* ── Search results panel ────────────────────────────── */
+#searchResults{
+  position:fixed;top:52px;left:0;right:0;
+  background:rgba(15,15,20,.97);backdrop-filter:blur(12px);
+  border-bottom:1px solid rgba(255,255,255,.08);
+  max-height:50vh;overflow-y:auto;z-index:99;
+  display:none;
+}
+.search-item{
+  padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.05);
+  cursor:pointer;display:flex;align-items:center;gap:10px;
+}
+.search-item:active{background:rgba(255,107,43,.15)}
+.si-id{font-size:12px;font-weight:700;color:#FF6B2B;min-width:36px}
+.si-name{font-size:14px;color:#fff}
+.si-dist{font-size:11px;color:#666;margin-left:auto}
+
+/* ── Bottom HUD ──────────────────────────────────────── */
+#hud{
+  position:fixed;bottom:0;left:0;right:0;
+  padding:10px 14px 22px;
+  background:linear-gradient(to top,rgba(0,0,0,.9) 0%,rgba(0,0,0,0) 100%);
+  display:flex;flex-direction:column;gap:8px;pointer-events:none;z-index:50;
+}
+#hud>*{pointer-events:auto}
+.hud-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+/* ── Buttons ─────────────────────────────────────────── */
+.btn{padding:10px 16px;border-radius:10px;border:none;
+  font-size:14px;font-weight:500;cursor:pointer;color:#fff;}
+.btn-primary{background:rgba(255,255,255,.15)}
+.btn-active {background:#1D9E75}
+.btn-danger {background:#E24B4A}
+.btn-off    {background:rgba(255,255,255,.08);color:#666}
+.btn-nav    {background:#FF6B2B;font-weight:600}
+
+/* ── Pills ───────────────────────────────────────────── */
+.pills{display:flex;gap:6px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;
+  padding:3px 9px;border-radius:20px;background:rgba(255,255,255,.1);color:#ccc}
+.pill .dot{width:7px;height:7px;border-radius:50%;background:#555;flex-shrink:0}
+.pill.good .dot{background:#1D9E75}
+.pill.good{background:rgba(29,158,117,.25);color:#5eefc0}
+.pill.poor .dot{background:#fa8c16}
+.pill.poor{background:rgba(250,140,22,.2);color:#ffc069}
+.pill.off2{background:rgba(255,255,255,.06);color:#555}
+.pill.off2 .dot{background:#333}
+
+/* ── Stats row ───────────────────────────────────────── */
+.stats{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:#aaa}
+.stats span{color:#fff;font-weight:500}
+
+/* ── Slider row ──────────────────────────────────────── */
+.slider-row{display:flex;align-items:center;gap:8px;font-size:12px;color:#aaa;flex-wrap:wrap}
+.slider-row input{flex:1;max-width:130px;accent-color:#FF6B2B}
+
+/* ── Speed bar ───────────────────────────────────────── */
+#speedBar{height:3px;border-radius:2px;background:rgba(255,255,255,.1);width:100%;max-width:280px}
+#speedFill{height:100%;width:0%;background:#1D9E75;border-radius:2px;transition:width .1s}
+
+/* ── Compass ─────────────────────────────────────────── */
+#compass{
+  position:fixed;top:62px;right:14px;width:40px;height:40px;
+  background:rgba(0,0,0,.6);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;pointer-events:none;backdrop-filter:blur(6px);z-index:90;
+}
+
+/* ── Recenter button ─────────────────────────────────── */
+#recenterBtn{
+  position:fixed;top:62px;left:14px;
+  padding:7px 11px;border-radius:8px;border:none;
+  background:rgba(0,0,0,.6);color:#fff;font-size:12px;cursor:pointer;
+  backdrop-filter:blur(6px);z-index:90;
+}
+
+/* ── Stall label (CSS2D) ─────────────────────────────── */
+.stall-label{
+  background:rgba(10,10,15,.88);
+  border:1px solid rgba(255,255,255,.15);
+  border-radius:6px;
+  padding:3px 7px;
+  pointer-events:none;
+  white-space:nowrap;
+  transform:translateY(-120%);
+}
+.stall-label .lbl-id{font-size:10px;font-weight:700;color:#FF6B2B;line-height:1.2}
+.stall-label .lbl-name{font-size:11px;color:#fff;line-height:1.3;max-width:90px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stall-label.highlighted{
+  background:rgba(255,107,43,.25);
+  border-color:#FF6B2B;
+  box-shadow:0 0 8px rgba(255,107,43,.5);
+}
+.stall-label.targeted{
+  background:rgba(29,158,117,.3);
+  border-color:#1D9E75;
+  box-shadow:0 0 10px rgba(29,158,117,.6);
+}
+
+/* ── Navigation panel ────────────────────────────────── */
+#navPanel{
+  position:fixed;top:52px;right:0;width:min(300px,100vw);
+  background:rgba(15,15,20,.97);backdrop-filter:blur(12px);
+  border-left:1px solid rgba(255,255,255,.08);
+  height:calc(100vh - 52px);
+  transform:translateX(100%);transition:transform .3s ease;
+  z-index:95;display:flex;flex-direction:column;
+}
+#navPanel.open{transform:translateX(0)}
+#navPanel h3{padding:14px 16px 10px;font-size:15px;font-weight:600;
+  border-bottom:1px solid rgba(255,255,255,.07)}
+#navPanelClose{position:absolute;top:10px;right:12px;background:none;border:none;
+  color:#888;font-size:20px;cursor:pointer;padding:4px 8px}
+#navContent{flex:1;overflow-y:auto;padding:12px}
+.nav-stall-btn{
+  display:flex;align-items:center;gap:10px;width:100%;
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);
+  border-radius:8px;padding:10px 12px;margin-bottom:8px;
+  cursor:pointer;color:#fff;text-align:left;
+}
+.nav-stall-btn:active{background:rgba(255,107,43,.2)}
+.nav-stall-btn .ns-id{font-size:12px;font-weight:700;color:#FF6B2B;min-width:36px}
+.nav-stall-btn .ns-name{font-size:13px}
+.nav-stall-btn .ns-dist{font-size:11px;color:#888;margin-left:auto}
+
+/* ── Nav toggle button ───────────────────────────────── */
+#navToggleBtn{
+  position:fixed;top:62px;right:62px;
+  padding:7px 11px;border-radius:8px;border:none;
+  background:rgba(255,107,43,.85);color:#fff;font-size:12px;font-weight:600;
+  cursor:pointer;backdrop-filter:blur(6px);z-index:90;
+}
+
+/* ── Destination info bar ─────────────────────────────── */
+#destBar{
+  display:none;
+  background:rgba(29,158,117,.2);
+  border:1px solid rgba(29,158,117,.4);
+  border-radius:10px;padding:8px 12px;
+  font-size:13px;color:#fff;
+  justify-content:space-between;align-items:center;gap:8px;
+}
+#destBar .dest-name{font-weight:600;flex:1}
+#destBar .dest-dist{color:#5eefc0;white-space:nowrap;font-size:12px}
+#destBar .dest-clear{background:none;border:none;color:#E24B4A;font-size:18px;cursor:pointer;padding:0 4px}
+
+/* ── Error box ───────────────────────────────────────── */
+#errBox{display:none;position:fixed;top:62px;left:50%;transform:translateX(-50%);
+  background:#5a0000;color:#ffaaaa;padding:10px 16px;border-radius:8px;
+  font-size:13px;z-index:200;max-width:90vw;text-align:center}
+
+/* ── Scrollbar ───────────────────────────────────────── */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#333;border-radius:2px}
