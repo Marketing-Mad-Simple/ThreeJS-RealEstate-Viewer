@@ -459,62 +459,45 @@ function onMotion(e){
   magLP=0.93*magLP+0.07*mag;
   const dev=mag-magLP;
 
-  // Rolling magnitude buffer for variance check
-  magBuf[magBufIdx % MAG_BUF_SIZE] = mag;
-  magBufIdx++;
-
   if(stepPhase==='seek_peak'){
     if(dev > STEP_THRESH){
       if(now - lastStepMs > STEP_MIN_MS){
 
-        // ── Guard A: cadence check ────────────────────────────────────────
-        // Is this step arriving at a realistic walking pace?
-        const interval = now - lastStepMs;
-        const cadenceOk = (interval >= CADENCE_MIN_MS && interval <= CADENCE_MAX_MS);
-
-        if(cadenceOk){
-          consecutiveValidSteps++;
-        } else {
-          // Step outside cadence window — reset confidence counter
-          consecutiveValidSteps = 1; // count this one but start fresh
-        }
-        lastStepInterval = interval;
-
-        // ── Guard B: magnitude smoothness ────────────────────────────────
-        // Real walking oscillates smoothly between ~9.0 and ~11.5 m/s².
-        // Rocking is spikier — high variance in the short buffer.
-        // We check that the current peak is in the plausible walking range.
-        const absOk = mag > (9.81 + STEP_THRESH * 0.8) && mag < 16.0;
-
-        // ── Guard C: HORIZ_MIN as "cadence confidence" threshold ──────────
-        // Repurpose HORIZ_MIN as the minimum consecutive-step count needed.
-        // Mapped: slider 0.05–1.5 → 1–3 confirmed steps required.
-        // Low slider = 1 step needed (sensitive), high = 3 steps (strict).
-        const stepsRequired = Math.max(1, Math.round(HORIZ_MIN * 2));
-        const confidenceOk  = consecutiveValidSteps >= stepsRequired;
-
-        // ── Guard D: heading consistency ──────────────────────────────────
-        let headingOk = true;
-        if(lastStepHeadings.length >= 2){
-          const h0 = lastStepHeadings[lastStepHeadings.length-1];
-          const h1 = lastStepHeadings[lastStepHeadings.length-2];
-          const diff0 = Math.abs(((currentHeadingRad-h0)*180/Math.PI+540)%360-180);
-          const diff1 = Math.abs(((currentHeadingRad-h1)*180/Math.PI+540)%360-180);
-          if(diff0 > MAX_HEADING_VARIANCE_DEG && diff1 > MAX_HEADING_VARIANCE_DEG) headingOk = false;
-        }
-
-        // Always count the step visually for feedback
+        // Count step for visual feedback
         stepCount++;
         lastStepMs = now;
         document.getElementById('stepCount').textContent = stepCount;
 
+        // Track interval history
+        const interval = lastStepTs > 0 ? now - lastStepTs : 9999;
+        lastStepTs = now;
+        recentIntervals.push(interval);
+        if(recentIntervals.length > STEP_HISTORY) recentIntervals.shift();
+
+        // Track heading history
         lastStepHeadings.push(currentHeadingRad);
         if(lastStepHeadings.length > 3) lastStepHeadings.shift();
 
-        // Only move avatar if all guards pass
-        if(isMoving && absOk && confidenceOk && headingOk){
-          velX += Math.sin(currentHeadingRad) * STEP_LENGTH;
-          velZ += -Math.cos(currentHeadingRad) * STEP_LENGTH;
+        if(isMoving){
+          // Guard 1 — rhythm: what fraction of recent intervals are in walking range (280–1500ms)?
+          // slider 0.05 → need 0% (always move), 1.5 → need 75% (very strict)
+          const walkingCount  = recentIntervals.filter(t => t >= 280 && t <= 1500).length;
+          const fractionNeeded = HORIZ_MIN * 0.5; // default 0.30 → 15% needed = 1 of last 4
+          const rhythmOk = recentIntervals.length < 2
+                        || (walkingCount / recentIntervals.length) >= fractionNeeded;
+
+          // Guard 2 — heading: only reject if all 3 consecutive steps show wild swings
+          let headingOk = true;
+          if(lastStepHeadings.length >= 3){
+            const d01 = Math.abs(((lastStepHeadings[1]-lastStepHeadings[0])*180/Math.PI+540)%360-180);
+            const d12 = Math.abs(((lastStepHeadings[2]-lastStepHeadings[1])*180/Math.PI+540)%360-180);
+            if(d01 > MAX_HEADING_VARIANCE_DEG && d12 > MAX_HEADING_VARIANCE_DEG) headingOk = false;
+          }
+
+          if(rhythmOk && headingOk){
+            velX += Math.sin(currentHeadingRad) * STEP_LENGTH;
+            velZ += -Math.cos(currentHeadingRad) * STEP_LENGTH;
+          }
         }
       }
       stepPhase='seek_valley';
@@ -716,7 +699,7 @@ function toggleMove(){
 
 function reset(){
   isMoving=false; lastMotionT=null; velX=0; velZ=0;
-  stepCount=0; stepPhase='seek_peak'; magLP=9.81; consecutiveValidSteps=0; lastStepInterval=0; magBuf=new Array(MAG_BUF_SIZE).fill(9.81); magBufIdx=0; lastStepHeadings=[];
+  stepCount=0; stepPhase='seek_peak'; magLP=9.81; recentIntervals=[]; lastStepTs=0; lastStepHeadings=[];
   kAngle=0;kBias=0;kP00=1;kP01=0;kP10=0;kP11=1;
   currentHeadingRad=0; aHeading=Math.PI; tHeading=Math.PI;
   originLat=null;originLng=null;gpsWX=null;gpsWZ=null;gpsAcc=Infinity;lastGpsCorr=0;
