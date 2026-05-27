@@ -218,7 +218,7 @@ function animate(){
   // To face north: rotate beak (+Z) to -Z = π. Each degree CW = +rad.
   // So: rotation.y = π + headingRad
   const _hr = window.currentHeadingRad || 0;
-  tHeading = Math.PI + _hr;
+  tHeading = Math.PI - _hr;
 
   // Shortest-path lerp — normalize both angles first to avoid unbounded accumulation
   aHeading = ((aHeading % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
@@ -236,6 +236,8 @@ function animate(){
   if(window.updateLabels) window.updateLabels(aX,aZ);
   // Update path dots
   if(window.updatePathDots) window.updatePathDots(aX,aZ);
+  // Update nav distance
+  if(window.updateNavActiveDist) window.updateNavActiveDist();
   // Update destination marker
   if(window.destStall){
     destMarker.position.set(window.destStall.x, window.destStall.y+0.05, window.destStall.z);

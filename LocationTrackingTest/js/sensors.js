@@ -63,8 +63,8 @@ function onMotion(e){
       document.getElementById('stepCount').textContent=stepCount;
 
       if(window.isMoving){
-        // Match visual rotation: beak points to (-sin(h), -cos(h)) in world XZ
-        const dx=-Math.sin(window.currentHeadingRad)*window.STEP_LENGTH;
+        // beak direction: (sin(h), -cos(h)) — matches tHeading = PI - h
+        const dx= Math.sin(window.currentHeadingRad)*window.STEP_LENGTH;
         const dz=-Math.cos(window.currentHeadingRad)*window.STEP_LENGTH;
         const r=constrain(aX,aZ,aX+dx,aZ+dz);
         tX=r.x; tZ=r.z; tY=r.y;
