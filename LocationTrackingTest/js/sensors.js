@@ -62,17 +62,14 @@ function onMotion(e){
       lastStepMs=now;
       document.getElementById('stepCount').textContent=stepCount;
 
-      if(window.isMoving){
-        // beak direction: (sin(h), -cos(h)) — matches tHeading = PI - h
-        const dx= Math.sin(window.currentHeadingRad)*window.STEP_LENGTH;
-        const dz=-Math.cos(window.currentHeadingRad)*window.STEP_LENGTH;
-        const r=window.constrain(window.aX,window.aZ,window.aX+dx,window.aZ+dz);
-        window.tX=r.x; window.tZ=r.z; window.tY=r.y;
-        document.getElementById('pos').textContent=window.aX.toFixed(2)+', '+window.aZ.toFixed(2);
-        // Recompute path every ~10 steps so it stays accurate as you move
-        if(window.destStall && window.computePath && stepCount%10===0){
-          window.computePath(window.destStall);
-        }
+      // Move whenever tracking is active (isMoving flag removed — auto-move on steps)
+      const dx= Math.sin(window.currentHeadingRad)*window.STEP_LENGTH;
+      const dz=-Math.cos(window.currentHeadingRad)*window.STEP_LENGTH;
+      const r=window.constrain(window.aX,window.aZ,window.aX+dx,window.aZ+dz);
+      window.tX=r.x; window.tZ=r.z; window.tY=r.y;
+      document.getElementById('pos').textContent=window.aX.toFixed(2)+', '+window.aZ.toFixed(2);
+      if(window.destStall && window.computePath && stepCount%10===0){
+        window.computePath(window.destStall);
       }
       stepPhase='seek_valley';
     }
@@ -150,21 +147,21 @@ window.requestAndStart=async function(){
     window.addEventListener('deviceorientation',onOrientation,true);
     window.addEventListener('devicemotion',onMotion,true);
     startGPS();
-    started=true; kAngle=0; kBias=0; window._sensorsStarted=true;
+    started=true; kAngle=0; kBias=0; window._sensorsStarted=true; window.isMoving=true;
     document.getElementById('startBtn').style.display='none';
     document.getElementById('moveBtn').style.display='';
     document.getElementById('gpsBtn').style.display='';
     document.getElementById('resetBtn').style.display='';
-    document.getElementById('status').textContent='tap Walking to track';
+    document.getElementById('status').textContent='tracking — walk to move';
   }catch(err){showErr('Error: '+err.message);}
 };
 
 window.toggleMove=function(){
   window.isMoving=!window.isMoving;
   if(!window.isMoving){window.tX=window.aX;window.tZ=window.aZ;window.tY=window.aY;}
-  document.getElementById('moveBtn').textContent='Walking: '+(window.isMoving?'ON':'OFF');
+  document.getElementById('moveBtn').textContent=window.isMoving?'⏸ Pause':'▶ Resume';
   document.getElementById('moveBtn').className=window.isMoving?'btn btn-active':'btn btn-primary';
-  document.getElementById('status').textContent=window.isMoving?'tracking steps':'stationary';
+  document.getElementById('status').textContent=window.isMoving?'tracking':'paused';
 };
 
 window.resetTracking=function(){
@@ -186,7 +183,7 @@ window.resetTracking=function(){
       window.placeAvatarImmediate((mid.a.x+mid.b.x+mid.c.x)/3,mid.a.y,(mid.a.z+mid.b.z+mid.c.z)/3);
     }
   }
-  document.getElementById('moveBtn').textContent='Walking: OFF';
+  document.getElementById('moveBtn').textContent='⏸ Pause';
   document.getElementById('moveBtn').className='btn btn-primary';
   document.getElementById('status').textContent='reset — ready';
   document.getElementById('pos').textContent='0, 0';

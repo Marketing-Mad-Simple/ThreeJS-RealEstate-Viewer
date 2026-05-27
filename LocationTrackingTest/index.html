@@ -120,7 +120,7 @@
 <div id="hud">
   <div class="hud-row">
     <button class="btn btn-primary" id="startBtn" onclick="requestAndStart()">▶ Start tracking</button>
-    <button class="btn btn-active"  id="moveBtn"  onclick="toggleMove()" style="display:none">Walking: ON</button>
+    <button class="btn btn-primary" id="moveBtn"  onclick="toggleMove()" style="display:none">⏸ Pause</button>
     <button class="btn btn-danger"  id="resetBtn" onclick="resetTracking()" style="display:none">Reset</button>
     <button class="btn btn-off"     id="devBtn"   onclick="toggleDevPanel()">⚙</button>
   </div>
@@ -197,76 +197,21 @@
 <script src="js/nav.js"></script>
 <script src="js/sensors.js"></script>
 <script src="js/pathfinder.js"></script>
+<script src="js/bootstrap.js"></script>
 
-<!-- ── GLB Loader + CSS2D bootstrap ──────────────────────────── -->
+<!-- ── Utility functions (UI only) ──────────────────────────────── -->
 <script>
-// CSS2D renderer — overlays DOM labels on Three.js canvas
-const css2d = new THREE.CSS2DRenderer();
-css2d.setSize(window.innerWidth, window.innerHeight);
-css2d.domElement.style.cssText='position:fixed;top:0;left:0;pointer-events:none;z-index:10';
-document.body.appendChild(css2d.domElement);
-window.addEventListener('resize',()=>css2d.setSize(window.innerWidth,window.innerHeight));
-
-// Patch animate to also render CSS2D
-// renderer is exposed on window by scene.js
-const _origRender=window.renderer.render.bind(window.renderer);
-window.renderer.render=function(s,c){ _origRender(s,c); css2d.render(s,c); };
-
-// Init labels after stall data available
-initLabels();
-
-// Load GLB
-function setLoad(p,m){
-  document.getElementById('loadFill').style.width=p+'%';
-  document.getElementById('loadMsg').textContent=m;
-}
-
-new THREE.GLTFLoader().load('models/site.glb', gltf=>{
-  setLoad(90,'Building navmesh…');
-  gltf.scene.traverse(obj=>{
-    if(!obj.isMesh)return;
-    obj.castShadow=obj.receiveShadow=true;
-    if(obj.name==='NAV_MESH') obj.visible=false;
-  });
-  window.scene.add(gltf.scene);
-  gltf.scene.traverse(obj=>{
-    if(!obj.isMesh||obj.name!=='NAV_MESH')return;
-    obj.updateWorldMatrix(true,false);
-    window.buildNavmesh(obj);
-    document.getElementById('navmeshLabel').textContent=`Navmesh: ${window.navTriangles.length} tris`;
-    document.getElementById('navmeshPill').querySelector('.dot').style.background='#1D9E75';
-    // Place avatar at aisle center
-    const candidates=[[1.86,0.009],[1.5,0.0],[2.0,0.5],[1.8,-0.5],[1.0,0.0]];
-    for(const[cx,cz] of candidates){
-      const tri=window.findTri(cx,cz);
-      if(tri){window.placeAvatarImmediate(cx,window.triY(cx,cz,tri.a,tri.b,tri.c),cz);break;}
-    }
-  });
-  setLoad(100,'Ready!');
-  setTimeout(()=>{
-    document.getElementById('loading').style.display='none';
-    document.getElementById('status').textContent='tap Start tracking';
-  },300);
-},
-xhr=>{if(xhr.total)setLoad(Math.round(xhr.loaded/xhr.total*85),`Loading… ${(xhr.loaded/1024/1024).toFixed(1)}MB`);},
-err=>{
-  document.getElementById('loading').style.display='none';
-  showErr('Could not load models/site.glb — place it in models/ folder. '+err.message);
-});
-
-animate(); // start render loop after all scripts and patches are ready
-
 function toggleDevPanel(){
   document.getElementById('devPanel').classList.toggle('open');
 }
-
 function showErr(msg){
   const el=document.getElementById('errBox');
-  el.textContent=msg;el.style.display='block';
+  el.textContent=msg; el.style.display='block';
   document.getElementById('status').textContent='error';
   setTimeout(()=>el.style.display='none',8000);
 }
 </script>
+
 
 <!-- ── Diagnostic overlay ─────────────────────────────────────── -->
 <div id="diagOverlay" style="

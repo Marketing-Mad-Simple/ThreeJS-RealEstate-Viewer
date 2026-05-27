@@ -260,29 +260,26 @@ function animate(){
   renderer.render(scene,camera);
 }
 // ── Expose ALL shared globals on window ──────────────────────────────────
-// Required because 'use strict' const/let are NOT on window automatically.
-// Every other module accesses scene state through window.*
-window.renderer            = renderer;
-window.scene               = scene;
-window.camera              = camera;
-window.camOffset           = camOffset;
-window.buildNavmesh        = buildNavmesh;
-window.findTri             = findTri;
-window.triY                = triY;
-window.constrain           = constrain;
+window.renderer             = renderer;
+window.scene                = scene;
+window.camera               = camera;
+window.camOffset            = camOffset;
+window.buildNavmesh         = buildNavmesh;
+window.findTri              = findTri;
+window.triY                 = triY;
+window.constrain            = constrain;
 window.placeAvatarImmediate = placeAvatarImmediate;
-window.navTriangles        = navTriangles;   // array ref — stays live
-window.resetHeading        = resetHeading;
-window.avatarMat           = avatarMat;
-window.capMat              = capMat;
-window.ring                = ring;
-window.destMarker          = destMarker;
-window.destMarkerMat       = destMarkerMat;
+window.navTriangles         = navTriangles;  // initial ref; buildNavmesh repopulates this array
+window._navTrianglesRef     = navTriangles;  // same ref — bootstrap.js uses this
+window.resetHeading         = resetHeading;
+window.avatarMat            = avatarMat;
+window.capMat               = capMat;
+window.ring                 = ring;
+window.destMarker           = destMarker;
+window.destMarkerMat        = destMarkerMat;
+window.animate              = animate;       // bootstrap.js calls window.animate()
 
-// Position state — simple window properties, no proxies
-// sensors.js WRITES window.tX/tY/tZ
-// animate() READS window.tX/tY/tZ each frame and lerps aX/aY/aZ toward them
-// animate() WRITES window.aX/aY/aZ so other modules can read current position
+// Position state
 window.tX = 0; window.tY = 0; window.tZ = 0;
 window.aX = 0; window.aY = 0; window.aZ = 0;
 
