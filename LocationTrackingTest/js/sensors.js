@@ -63,11 +63,16 @@ function onMotion(e){
       document.getElementById('stepCount').textContent=stepCount;
 
       if(window.isMoving){
-        const dx=Math.sin(window.currentHeadingRad)*window.STEP_LENGTH;
+        // Match visual rotation: beak points to (-sin(h), -cos(h)) in world XZ
+        const dx=-Math.sin(window.currentHeadingRad)*window.STEP_LENGTH;
         const dz=-Math.cos(window.currentHeadingRad)*window.STEP_LENGTH;
         const r=constrain(aX,aZ,aX+dx,aZ+dz);
         tX=r.x; tZ=r.z; tY=r.y;
         document.getElementById('pos').textContent=aX.toFixed(2)+', '+aZ.toFixed(2);
+        // Recompute path every ~10 steps so it stays accurate as you move
+        if(window.destStall && window.computePath && stepCount%10===0){
+          window.computePath(window.destStall);
+        }
       }
       stepPhase='seek_valley';
     }
@@ -145,7 +150,7 @@ window.requestAndStart=async function(){
     window.addEventListener('deviceorientation',onOrientation,true);
     window.addEventListener('devicemotion',onMotion,true);
     startGPS();
-    started=true; kAngle=0; kBias=0;
+    started=true; kAngle=0; kBias=0; window._sensorsStarted=true;
     document.getElementById('startBtn').style.display='none';
     document.getElementById('moveBtn').style.display='';
     document.getElementById('gpsBtn').style.display='';
@@ -167,6 +172,7 @@ window.resetTracking=function(){
   stepCount=0; stepPhase='seek_peak'; magLP=9.81;
   kAngle=0;kBias=0;kP00=1;kP01=0;kP10=0;kP11=1;
   window.currentHeadingRad=0;
+  if(typeof resetHeading!=="undefined") resetHeading();
   originLat=null;originLng=null;gpsWX=null;gpsWZ=null;gpsAcc=Infinity;lastGpsCorr=0;
   if(navTriangles.length){
     const candidates=[[1.86,0.009],[1.5,0.0],[2.0,0.5],[1.8,-0.5],[1.0,0.0]];
