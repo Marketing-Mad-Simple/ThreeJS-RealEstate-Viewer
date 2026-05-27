@@ -114,26 +114,32 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0f0f14;
 
 /* ── Stall label (CSS2D) ─────────────────────────────── */
 .stall-label{
-  background:rgba(10,10,15,.88);
-  border:1px solid rgba(255,255,255,.15);
+  background:rgba(10,10,15,.82);
+  border:1px solid rgba(255,255,255,.18);
   border-radius:6px;
   padding:3px 7px;
   pointer-events:none;
   white-space:nowrap;
   transform:translateY(-120%);
+  will-change:opacity;
+  /* opacity controlled by JS — CSS transition set inline */
 }
-.stall-label .lbl-id{font-size:10px;font-weight:700;color:#FF6B2B;line-height:1.2}
-.stall-label .lbl-name{font-size:11px;color:#fff;line-height:1.3;max-width:90px;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stall-label .lbl-id{
+  font-size:10px;font-weight:700;color:#FF6B2B;line-height:1.3;
+}
+.stall-label .lbl-name{
+  font-size:11px;color:#ddd;line-height:1.3;
+  max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
 .stall-label.highlighted{
-  background:rgba(255,107,43,.25);
+  background:rgba(255,107,43,.28);
   border-color:#FF6B2B;
   box-shadow:0 0 8px rgba(255,107,43,.5);
 }
 .stall-label.targeted{
-  background:rgba(29,158,117,.3);
+  background:rgba(29,158,117,.32);
   border-color:#1D9E75;
-  box-shadow:0 0 10px rgba(29,158,117,.6);
+  box-shadow:0 0 10px rgba(29,158,117,.7);
 }
 
 /* ── Navigation panel ────────────────────────────────── */
@@ -193,10 +199,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0f0f14;
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:#333;border-radius:2px}
 
-/* When destBar is open, shift floating buttons down */
-body.has-dest #recenterBtn,
-body.has-dest #compass,
-body.has-dest #navToggleBtn{ top: 96px; }
+
 
 /* Nav panel full screen on very small phones */
 @media(max-width:380px){
@@ -404,33 +407,208 @@ body.has-dest #navToggleBtn{ top: 96px; }
 }
 
 /* ── Body state classes ────────────────────────────────────────── */
-/* When route planner is open (default), push floating buttons down */
-body:not(.planner-collapsed):not(.navigating) #recenterBtn,
-body:not(.planner-collapsed):not(.navigating) #compass{ top: 185px; }
-
-/* When navigating, planner is hidden, navActiveBar shown */
-body.navigating #recenterBtn,
-body.navigating #compass{ top: 105px; }
-
 body.navigating #routePlanner{ display:none; }
 body.navigating #navActiveBar{ display:flex; }
-
-/* Collapsed state */
 body.planner-collapsed #routePlanner{ transform:translateY(-110%); opacity:0; pointer-events:none; }
-body.planner-collapsed #recenterBtn,
-body.planner-collapsed #compass{ top: 62px; }
-body.planner-collapsed #topCollapseBtn::before{ content:'▼'; }
-
-/* Nav panel toggle button — repurposed as stall list */
-#navToggleBtn{
-  position:fixed;bottom:auto;
-  top:185px;right:14px;
-  padding:7px 11px;border-radius:8px;border:none;
-  background:rgba(0,0,0,.6);color:#fff;font-size:12px;font-weight:600;
-  cursor:pointer;backdrop-filter:blur(6px);z-index:90;
-  display:none; /* hidden — stall list accessed via route picker */
-}
 
 /* Scrollbar */
 #routePickerList::-webkit-scrollbar{ width:4px; }
 #routePickerList::-webkit-scrollbar-thumb{ background:#333;border-radius:2px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   DEV PANEL  — slides up from bottom
+   ══════════════════════════════════════════════════════════════ */
+
+#devPanel {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 150;
+  background: rgba(16, 16, 22, 0.98);
+  backdrop-filter: blur(16px);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px 18px 0 0;
+  padding: 0 18px 32px;
+  /* Start off-screen */
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  /* Don't block touches when hidden */
+  pointer-events: none;
+}
+#devPanel.open {
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+/* Drag handle */
+#devPanelHandle {
+  display: flex;
+  justify-content: center;
+  padding: 12px 0 4px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+#devPanelPill {
+  width: 36px; height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Title row */
+#devPanelTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0 14px;
+}
+#devPanelTitle span {
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: 0.2px;
+}
+#devPanelTitle button {
+  background: rgba(255,255,255,0.1);
+  border: none;
+  color: #aaa;
+  font-size: 16px;
+  cursor: pointer;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+}
+#devPanelTitle button:active { background: rgba(255,255,255,0.2); }
+
+/* Live stats row */
+#devStats {
+  display: flex;
+  gap: 0;
+  margin-bottom: 14px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.dev-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 9px 6px;
+  border-right: 1px solid rgba(255,255,255,0.07);
+}
+.dev-stat:last-child { border-right: none; }
+.dev-stat-label {
+  font-size: 10px;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 3px;
+}
+.dev-stat-val {
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+}
+
+/* Divider */
+.dev-divider {
+  height: 1px;
+  background: rgba(255,255,255,0.07);
+  margin: 14px 0;
+}
+
+/* Slider block */
+.dev-slider-block {
+  margin-bottom: 18px;
+}
+.dev-slider-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+.dev-slider-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #ddd;
+}
+.dev-slider-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: #FF6B2B;
+  font-variant-numeric: tabular-nums;
+  min-width: 52px;
+  text-align: right;
+}
+.dev-slider {
+  width: 100%;
+  height: 4px;
+  accent-color: #FF6B2B;
+  cursor: pointer;
+  /* Larger touch target on mobile */
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255,255,255,0.15);
+  border-radius: 2px;
+  outline: none;
+}
+.dev-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #FF6B2B;
+  cursor: pointer;
+  box-shadow: 0 0 0 3px rgba(255,107,43,0.25);
+}
+.dev-slider::-moz-range-thumb {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #FF6B2B;
+  border: none;
+  cursor: pointer;
+}
+.dev-slider-hint {
+  font-size: 11px;
+  color: #555;
+  margin-top: 5px;
+}
+
+/* Bottom row — pills + GPS button */
+.dev-bottom-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.dev-bottom-row .btn {
+  font-size: 12px;
+  padding: 8px 14px;
+  flex-shrink: 0;
+}
+
+/* ── HUD — keep it minimal now ─────────────────────────────────── */
+#hud {
+  padding-bottom: 16px;
+}
+#hud .hud-row {
+  flex-wrap: nowrap;
+}
+#devBtn {
+  margin-left: auto;
+  flex-shrink: 0;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.15);
+  font-size: 16px;
+  padding: 10px 14px;
+}
+#devBtn:active { background: rgba(255,255,255,0.2); }
+
+/* Dim background when dev panel is open */
+#devPanel.open::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  bottom: 100%;  /* above the panel */
+  background: rgba(0,0,0,0.4);
+  pointer-events: none;
+}

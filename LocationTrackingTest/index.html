@@ -103,8 +103,6 @@
 </div>
 
 <!-- ── Floating buttons ───────────────────────────────────────── -->
-<button id="recenterBtn" onclick="camFollowing=true">⊙ Follow</button>
-<div id="compass">⬆</div>
 
 <!-- ── Arrival overlay ────────────────────────────────────────── -->
 <div id="arrivalOverlay">
@@ -120,41 +118,69 @@
 
 <!-- ── Bottom HUD ─────────────────────────────────────────────── -->
 <div id="hud">
-  <div class="pills">
-    <div class="pill good"><span class="dot"></span>Kalman heading</div>
-    <div class="pill" id="gpsPill"><span class="dot"></span><span id="gpsLabel">GPS: —</span></div>
-    <div class="pill" id="navmeshPill"><span class="dot" style="background:#555"></span>
-      <span id="navmeshLabel">Navmesh: loading</span></div>
-  </div>
-
-  <div id="speedBar"><div id="speedFill"></div></div>
-
-  <div class="stats">
-    <div>Heading: <span id="hdg">—</span>°</div>
-    <div>Steps: <span id="stepCount">0</span></div>
-    <div>Pos: <span id="pos">0, 0</span></div>
-    <div>Status: <span id="status">loading…</span></div>
-  </div>
-
-  <div class="slider-row">
-    <span>Step length</span>
-    <input type="range" min="0.005" max="0.12" step="0.005" value="0.025"
-      oninput="window.STEP_LENGTH=parseFloat(this.value);document.getElementById('slVal').textContent=parseFloat(this.value).toFixed(3)+'m'">
-    <span id="slVal">0.025m</span>
-  </div>
-  <div class="slider-row">
-    <span>Threshold</span>
-    <input type="range" min="0.3" max="4.0" step="0.1" value="1.2"
-      oninput="window.STEP_THRESH=parseFloat(this.value);document.getElementById('thVal').textContent=this.value">
-    <span id="thVal">1.2</span>
-    <span style="color:#555;font-size:11px">raise to filter in-place</span>
-  </div>
-
   <div class="hud-row">
-    <button class="btn btn-primary" id="startBtn" onclick="requestAndStart()">Start tracking</button>
-    <button class="btn btn-primary" id="moveBtn"  onclick="toggleMove()"   style="display:none">Walking: OFF</button>
-    <button class="btn btn-primary" id="gpsBtn"   onclick="toggleGPS()"   style="display:none">GPS: ON</button>
+    <button class="btn btn-primary" id="startBtn" onclick="requestAndStart()">▶ Start tracking</button>
+    <button class="btn btn-active"  id="moveBtn"  onclick="toggleMove()" style="display:none">Walking: ON</button>
     <button class="btn btn-danger"  id="resetBtn" onclick="resetTracking()" style="display:none">Reset</button>
+    <button class="btn btn-off"     id="devBtn"   onclick="toggleDevPanel()">⚙</button>
+  </div>
+  <div id="speedBar"><div id="speedFill"></div></div>
+</div>
+
+<!-- ── Dev panel — slides up from bottom ─────────────────────── -->
+<div id="devPanel">
+  <div id="devPanelHandle" onclick="toggleDevPanel()">
+    <div id="devPanelPill"></div>
+  </div>
+  <div id="devPanelTitle">
+    <span>Dev Options</span>
+    <button onclick="toggleDevPanel()">✕</button>
+  </div>
+
+  <!-- Live stats row -->
+  <div id="devStats">
+    <div class="dev-stat"><span class="dev-stat-label">Heading</span><span class="dev-stat-val" id="hdg">—</span>°</div>
+    <div class="dev-stat"><span class="dev-stat-label">Steps</span><span class="dev-stat-val" id="stepCount">0</span></div>
+    <div class="dev-stat"><span class="dev-stat-label">Status</span><span class="dev-stat-val" id="status">—</span></div>
+  </div>
+
+  <div class="dev-divider"></div>
+
+  <!-- Step length slider -->
+  <div class="dev-slider-block">
+    <div class="dev-slider-header">
+      <span class="dev-slider-label">Step length</span>
+      <span class="dev-slider-value" id="slVal">0.025 m</span>
+    </div>
+    <input class="dev-slider" type="range" min="0.005" max="0.12" step="0.005" value="0.025"
+      oninput="window.STEP_LENGTH=parseFloat(this.value);
+               document.getElementById('slVal').textContent=parseFloat(this.value).toFixed(3)+' m'">
+    <div class="dev-slider-hint">Larger = more distance per step detected</div>
+  </div>
+
+  <!-- Step threshold slider -->
+  <div class="dev-slider-block">
+    <div class="dev-slider-header">
+      <span class="dev-slider-label">Step threshold</span>
+      <span class="dev-slider-value" id="thVal">1.2</span>
+    </div>
+    <input class="dev-slider" type="range" min="0.3" max="4.0" step="0.1" value="1.2"
+      oninput="window.STEP_THRESH=parseFloat(this.value);
+               document.getElementById('thVal').textContent=this.value">
+    <div class="dev-slider-hint">Raise to ignore marching in place</div>
+  </div>
+
+  <div class="dev-divider"></div>
+
+  <!-- Status pills + GPS toggle -->
+  <div class="dev-bottom-row">
+    <div class="pills" style="flex:1">
+      <div class="pill good"><span class="dot"></span>Kalman</div>
+      <div class="pill" id="gpsPill"><span class="dot"></span><span id="gpsLabel">GPS: —</span></div>
+      <div class="pill" id="navmeshPill"><span class="dot" style="background:#555"></span>
+        <span id="navmeshLabel">Navmesh: —</span></div>
+    </div>
+    <button class="btn btn-primary" id="gpsBtn" onclick="toggleGPS()">GPS: ON</button>
   </div>
 </div>
 
@@ -186,7 +212,7 @@ const _origRender=renderer.render.bind(renderer);
 renderer.render=function(s,c){ _origRender(s,c); css2d.render(s,c); };
 
 // Init labels after stall data available
-initLabels(css2d);
+initLabels();
 
 // Load GLB
 function setLoad(p,m){
@@ -228,6 +254,10 @@ err=>{
 });
 
 animate(); // start render loop after all scripts and patches are ready
+
+function toggleDevPanel(){
+  document.getElementById('devPanel').classList.toggle('open');
+}
 
 function showErr(msg){
   const el=document.getElementById('errBox');
