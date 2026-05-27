@@ -11,7 +11,7 @@ window.destStall = null;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function distTo(stall) {
-  return Math.sqrt((stall.x - aX) ** 2 + (stall.z - aZ) ** 2);
+  return Math.sqrt((stall.x - window.aX) ** 2 + (stall.z - window.aZ) ** 2);
 }
 function etaText(stall) {
   const d = distTo(stall);
@@ -79,7 +79,7 @@ function pickStall(stall) {
 }
 
 window.pickMyLocation = function() {
-  setFrom({ id: 'MY_LOCATION', company: 'My current position', x: aX, y: aY, z: aZ });
+  setFrom({ id: 'MY_LOCATION', company: 'My current position', x: window.aX, y: window.aY, z: window.aZ });
   window.closeRoutePicker();
 };
 
@@ -154,7 +154,7 @@ window.startNavigation = async function() {
     if (typeof resetHeading !== 'undefined') resetHeading();
   } else {
     // Use current live position
-    routeFrom.x = aX; routeFrom.y = aY; routeFrom.z = aZ;
+    routeFrom.x = window.aX; routeFrom.y = window.aY; routeFrom.z = window.aZ;
     // Update the From input label to reflect actual position
     document.getElementById('fromInput').value = '📍 My position';
   }
@@ -186,7 +186,6 @@ window.startNavigation = async function() {
   document.getElementById('gpsBtn').style.display   = '';
   document.getElementById('resetBtn').style.display = '';
 
-  camFollowing = true;
 };
 
 window.stopNavigation = function() {
@@ -207,8 +206,8 @@ function snapToNavmesh(wx, wz) {
     const { gx, gz } = snapToWalkable(wx, wz);
     const w = gridToWorld(gx, gz);
     // Get Y from navmesh
-    const tri = findTri(w.x, w.z);
-    const y   = tri ? triY(w.x, w.z, tri.a, tri.b, tri.c) : 0.02;
+    const tri = window.findTri ? window.findTri(w.x, w.z) : null;
+    const y   = tri ? window.triY(w.x, w.z, tri.a, tri.b, tri.c) : 0.02;
     return { x: w.x, y, z: w.z };
   }
   return { x: wx, y: 0.02, z: wz };

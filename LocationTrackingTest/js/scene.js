@@ -95,6 +95,7 @@ destMarker.position.y = 0.08;
 scene.add(destMarker);
 
 // ── Avatar world position ─────────────────────────────────────────────────
+// Position state — on window so sensors.js can read/write
 let aX=0, aY=0, aZ=0;
 let tX=0, tY=0, tZ=0;
 let aHeading=0, tHeading=0;
@@ -102,6 +103,9 @@ function resetHeading(){ aHeading=0; tHeading=0; }
 
 function placeAvatarImmediate(x,y,z){
   aX=x; aY=y; aZ=z; tX=x; tY=y; tZ=z;
+  // Sync to window so sensors.js can read current position
+  window.aX=aX; window.aY=aY; window.aZ=aZ;
+  window.tX=tX; window.tY=tY; window.tZ=tZ;
   avatarRoot.position.set(x,y+AVATAR_HOVER,z);
 }
 
@@ -157,7 +161,7 @@ function constrain(ox,oz,nx,nz){
 
 // ── Camera ────────────────────────────────────────────────────────────────
 const camTarget=new THREE.Vector3();
-function recenterCamera(){camFollowing=true; document.getElementById('recenterBtn').style.opacity='0.5';}
+function recenterCamera(){ /* recenter button removed */ }
 function updateCamera(){
   if(!camFollowing)return;
   camTarget.set(aX,aY,aZ);
@@ -249,4 +253,17 @@ function animate(){
   updateCamera();
   renderer.render(scene,camera);
 }
+// ── Expose scene globals for sensors.js ──────────────────────────────────
+window.constrain = constrain;
+window.findTri   = findTri;
+window.triY      = triY;
+
+// Proxy getters/setters so sensors.js reads/writes aX,tX etc via window
+Object.defineProperty(window,'aX',{get:()=>aX, set:(v)=>{aX=v;}});
+Object.defineProperty(window,'aY',{get:()=>aY, set:(v)=>{aY=v;}});
+Object.defineProperty(window,'aZ',{get:()=>aZ, set:(v)=>{aZ=v;}});
+Object.defineProperty(window,'tX',{get:()=>tX, set:(v)=>{tX=v;}});
+Object.defineProperty(window,'tY',{get:()=>tY, set:(v)=>{tY=v;}});
+Object.defineProperty(window,'tZ',{get:()=>tZ, set:(v)=>{tZ=v;}});
+
 // animate() called from index.html after all scripts load

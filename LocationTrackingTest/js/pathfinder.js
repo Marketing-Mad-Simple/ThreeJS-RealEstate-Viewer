@@ -241,7 +241,7 @@ function clearPath() {
 window.computePath = function(destStall) {
   if (!window.NAV_GRID) return;
   clearPath();
-  const waypoints = astar(aX, aZ, destStall.x, destStall.z);
+  const waypoints = astar(window.aX, window.aZ, destStall.x, destStall.z);
   if (waypoints) {
     pathWaypoints = waypoints;
     buildPathDots(waypoints);

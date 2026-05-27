@@ -66,9 +66,9 @@ function onMotion(e){
         // beak direction: (sin(h), -cos(h)) — matches tHeading = PI - h
         const dx= Math.sin(window.currentHeadingRad)*window.STEP_LENGTH;
         const dz=-Math.cos(window.currentHeadingRad)*window.STEP_LENGTH;
-        const r=constrain(aX,aZ,aX+dx,aZ+dz);
-        tX=r.x; tZ=r.z; tY=r.y;
-        document.getElementById('pos').textContent=aX.toFixed(2)+', '+aZ.toFixed(2);
+        const r=window.constrain(window.aX,window.aZ,window.aX+dx,window.aZ+dz);
+        window.tX=r.x; window.tZ=r.z; window.tY=r.y;
+        document.getElementById('pos').textContent=window.aX.toFixed(2)+', '+window.aZ.toFixed(2);
         // Recompute path every ~10 steps so it stays accurate as you move
         if(window.destStall && window.computePath && stepCount%10===0){
           window.computePath(window.destStall);
@@ -93,7 +93,7 @@ function latLngToM(lat,lng,oLat,oLng){
 
 function onGPS(pos){
   const{latitude,longitude,accuracy}=pos.coords; gpsAcc=accuracy;
-  if(originLat===null){originLat=latitude;originLng=longitude;gpsWX=aX;gpsWZ=aZ;}
+  if(originLat===null){originLat=latitude;originLng=longitude;gpsWX=window.aX;gpsWZ=window.aZ;}
   else{const m=latLngToM(latitude,longitude,originLat,originLng);gpsWX=aX+m.x;gpsWZ=aZ+m.z;}
   const pill=document.getElementById('gpsPill'),lbl=document.getElementById('gpsLabel');
   if(!gpsEnabled){pill.className='pill off2';lbl.textContent='GPS: off';return;}
@@ -101,11 +101,11 @@ function onGPS(pos){
   lbl.textContent=`GPS ±${Math.round(accuracy)}m${accuracy<GPS_TRUST?' ✓':' (noisy)'}`;
   const now=Date.now();
   if(gpsEnabled&&accuracy<GPS_TRUST&&now-lastGpsCorr>GPS_GAP_MS){
-    const dx=gpsWX-aX,dz=gpsWZ-aZ,jump=Math.hypot(dx,dz);
+    const dx=gpsWX-window.aX,dz=gpsWZ-window.aZ,jump=Math.hypot(dx,dz);
     if(jump<GPS_JUMP_MAX){
-      const tx=aX+GPS_BLEND*dx,tz=aZ+GPS_BLEND*dz;
-      const tri=findTri(tx,tz);
-      if(tri){tX=tx;tZ=tz;tY=triY(tx,tz,tri.a,tri.b,tri.c);lastGpsCorr=now;}
+      const tx=window.aX+GPS_BLEND*dx,tz=window.aZ+GPS_BLEND*dz;
+      const tri=window.findTri(tx,tz);
+      if(tri){window.tX=tx;window.tZ=tz;window.tY=window.triY(tx,tz,tri.a,tri.b,tri.c);lastGpsCorr=now;}
     }
   }
 }
@@ -161,7 +161,7 @@ window.requestAndStart=async function(){
 
 window.toggleMove=function(){
   window.isMoving=!window.isMoving;
-  if(!window.isMoving){tX=aX;tZ=aZ;tY=aY;}
+  if(!window.isMoving){window.tX=window.aX;window.tZ=window.aZ;window.tY=window.aY;}
   document.getElementById('moveBtn').textContent='Walking: '+(window.isMoving?'ON':'OFF');
   document.getElementById('moveBtn').className=window.isMoving?'btn btn-active':'btn btn-primary';
   document.getElementById('status').textContent=window.isMoving?'tracking steps':'stationary';
@@ -178,8 +178,8 @@ window.resetTracking=function(){
     const candidates=[[1.86,0.009],[1.5,0.0],[2.0,0.5],[1.8,-0.5],[1.0,0.0]];
     let placed=false;
     for(const[cx,cz] of candidates){
-      const tri=findTri(cx,cz);
-      if(tri){placeAvatarImmediate(cx,triY(cx,cz,tri.a,tri.b,tri.c),cz);placed=true;break;}
+      const tri=window.findTri(cx,cz);
+      if(tri){placeAvatarImmediate(cx,window.triY(cx,cz,tri.a,tri.b,tri.c),cz);placed=true;break;}
     }
     if(!placed){
       const mid=navTriangles[Math.floor(navTriangles.length/2)];
