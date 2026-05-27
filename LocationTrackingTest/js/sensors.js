@@ -48,7 +48,7 @@ function onMotion(e){
   const heading=kalman(compassHeading,gyroYaw,dt);
   window.currentHeadingRad=heading*Math.PI/180;
   document.getElementById('hdg').textContent=Math.round(heading);
-  document.getElementById('compass').style.transform=`rotate(${-heading}deg)`;
+  const _cmp=document.getElementById('compass'); if(_cmp) _cmp.style.transform=`rotate(${-heading}deg)`;
 
   const aig=e.accelerationIncludingGravity;
   if(!aig||aig.x===null) return;
