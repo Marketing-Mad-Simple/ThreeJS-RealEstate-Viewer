@@ -103,9 +103,8 @@ function resetHeading(){ aHeading=0; tHeading=0; }
 
 function placeAvatarImmediate(x,y,z){
   aX=x; aY=y; aZ=z; tX=x; tY=y; tZ=z;
-  // Sync to window so sensors.js can read current position
-  window.aX=aX; window.aY=aY; window.aZ=aZ;
-  window.tX=tX; window.tY=tY; window.tZ=tZ;
+  window.tX=x; window.tY=y; window.tZ=z;
+  window.aX=x; window.aY=y; window.aZ=z;
   avatarRoot.position.set(x,y+AVATAR_HOVER,z);
 }
 
@@ -213,9 +212,13 @@ function animate(){
   pulse+=0.045;
   ring.material.opacity=0.4+0.2*Math.sin(pulse);
   ring.scale.setScalar(1+0.1*Math.sin(pulse*0.7));
+  // Read targets written by sensors.js
+  tX=window.tX; tY=window.tY; tZ=window.tZ;
   const distToTarget=Math.sqrt((tX-aX)**2+(tZ-aZ)**2);
   document.getElementById('speedFill').style.width=Math.min(distToTarget/(window.STEP_LENGTH||0.025),1)*100+'%';
   aX+=(tX-aX)*0.18; aY+=(tY-aY)*0.18; aZ+=(tZ-aZ)*0.18;
+  // Export current position for other modules
+  window.aX=aX; window.aY=aY; window.aZ=aZ;
   avatarRoot.position.set(aX,aY+AVATAR_HOVER,aZ);
   // Compass heading (0=north, clockwise). Beak points +Z local.
   // Three.js rotation.y: positive = CCW from above. North = -Z.
@@ -253,17 +256,14 @@ function animate(){
   updateCamera();
   renderer.render(scene,camera);
 }
-// ── Expose scene globals for sensors.js ──────────────────────────────────
+// ── Expose navmesh functions for other modules ────────────────────────────
 window.constrain = constrain;
 window.findTri   = findTri;
 window.triY      = triY;
 
-// Proxy getters/setters so sensors.js reads/writes aX,tX etc via window
-Object.defineProperty(window,'aX',{get:()=>aX, set:(v)=>{aX=v;}});
-Object.defineProperty(window,'aY',{get:()=>aY, set:(v)=>{aY=v;}});
-Object.defineProperty(window,'aZ',{get:()=>aZ, set:(v)=>{aZ=v;}});
-Object.defineProperty(window,'tX',{get:()=>tX, set:(v)=>{tX=v;}});
-Object.defineProperty(window,'tY',{get:()=>tY, set:(v)=>{tY=v;}});
-Object.defineProperty(window,'tZ',{get:()=>tZ, set:(v)=>{tZ=v;}});
+// tX/tY/tZ: sensors.js writes window.tX etc, animate loop reads window.tX etc
+// aX/aY/aZ: scene.js owns these as local lets, exports read-only snapshots via window
+window.tX=0; window.tY=0; window.tZ=0;
+window.aX=0; window.aY=0; window.aZ=0;
 
 // animate() called from index.html after all scripts load
