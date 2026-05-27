@@ -208,8 +208,9 @@ document.body.appendChild(css2d.domElement);
 window.addEventListener('resize',()=>css2d.setSize(window.innerWidth,window.innerHeight));
 
 // Patch animate to also render CSS2D
-const _origRender=renderer.render.bind(renderer);
-renderer.render=function(s,c){ _origRender(s,c); css2d.render(s,c); };
+// renderer is exposed on window by scene.js
+const _origRender=window.renderer.render.bind(window.renderer);
+window.renderer.render=function(s,c){ _origRender(s,c); css2d.render(s,c); };
 
 // Init labels after stall data available
 initLabels();
@@ -227,18 +228,18 @@ new THREE.GLTFLoader().load('models/site.glb', gltf=>{
     obj.castShadow=obj.receiveShadow=true;
     if(obj.name==='NAV_MESH') obj.visible=false;
   });
-  scene.add(gltf.scene);
+  window.scene.add(gltf.scene);
   gltf.scene.traverse(obj=>{
     if(!obj.isMesh||obj.name!=='NAV_MESH')return;
     obj.updateWorldMatrix(true,false);
-    buildNavmesh(obj);
-    document.getElementById('navmeshLabel').textContent=`Navmesh: ${navTriangles.length} tris`;
+    window.buildNavmesh(obj);
+    document.getElementById('navmeshLabel').textContent=`Navmesh: ${window.navTriangles.length} tris`;
     document.getElementById('navmeshPill').querySelector('.dot').style.background='#1D9E75';
     // Place avatar at aisle center
     const candidates=[[1.86,0.009],[1.5,0.0],[2.0,0.5],[1.8,-0.5],[1.0,0.0]];
     for(const[cx,cz] of candidates){
-      const tri=findTri(cx,cz);
-      if(tri){placeAvatarImmediate(cx,triY(cx,cz,tri.a,tri.b,tri.c),cz);break;}
+      const tri=window.findTri(cx,cz);
+      if(tri){window.placeAvatarImmediate(cx,window.triY(cx,cz,tri.a,tri.b,tri.c),cz);break;}
     }
   });
   setLoad(100,'Ready!');
@@ -266,5 +267,96 @@ function showErr(msg){
   setTimeout(()=>el.style.display='none',8000);
 }
 </script>
+
+<!-- ── Diagnostic overlay ─────────────────────────────────────── -->
+<div id="diagOverlay" style="
+  display:none;
+  position:fixed;top:0;left:0;right:0;bottom:0;z-index:999;
+  background:rgba(0,0,0,0.92);overflow-y:auto;padding:14px;
+  font-family:monospace;font-size:12px;color:#0f0;
+">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <b style="color:#FF6B2B;font-size:15px">🔬 Diagnostics</b>
+    <button onclick="document.getElementById('diagOverlay').style.display='none'"
+      style="background:#333;border:none;color:#fff;padding:6px 12px;border-radius:6px;font-size:13px">Close</button>
+  </div>
+  <pre id="diagLog" style="white-space:pre-wrap;line-height:1.7;"></pre>
+</div>
+<button onclick="runDiag()" style="
+  position:fixed;bottom:80px;right:14px;z-index:500;
+  background:rgba(255,107,43,0.85);border:none;color:#fff;
+  padding:8px 12px;border-radius:8px;font-size:13px;font-weight:600;
+">🔬 Diag</button>
+
+<script>
+function runDiag(){
+  const lines = [];
+  const ok = (v) => `<span style="color:#1D9E75">✓ ${v}</span>`;
+  const err = (v) => `<span style="color:#E24B4A">✗ ${v}</span>`;
+  const warn = (v) => `<span style="color:#fa8c16">⚠ ${v}</span>`;
+  const val = (k,v) => `<span style="color:#aaa">${k}:</span> <b style="color:#fff">${v}</b>`;
+
+  lines.push('<b style="color:#FF6B2B">── Window globals ──</b>');
+  lines.push(val('window.tX', typeof window.tX !== 'undefined' ? window.tX.toFixed(4) : err('undefined')));
+  lines.push(val('window.tY', typeof window.tY !== 'undefined' ? window.tY.toFixed(4) : err('undefined')));
+  lines.push(val('window.tZ', typeof window.tZ !== 'undefined' ? window.tZ.toFixed(4) : err('undefined')));
+  lines.push(val('window.aX', typeof window.aX !== 'undefined' ? window.aX.toFixed(4) : err('undefined')));
+  lines.push(val('window.aZ', typeof window.aZ !== 'undefined' ? window.aZ.toFixed(4) : err('undefined')));
+  lines.push(val('window.constrain', typeof window.constrain === 'function' ? ok('function') : err('MISSING')));
+  lines.push(val('window.findTri', typeof window.findTri === 'function' ? ok('function') : err('MISSING')));
+  lines.push(val('window.triY', typeof window.triY === 'function' ? ok('function') : err('MISSING')));
+  lines.push(val('window.STEP_LENGTH', window.STEP_LENGTH));
+  lines.push(val('window.STEP_THRESH', window.STEP_THRESH));
+  lines.push(val('window.isMoving', window.isMoving));
+  lines.push(val('window.currentHeadingRad', typeof window.currentHeadingRad !== 'undefined' ? window.currentHeadingRad.toFixed(4) : err('undefined')));
+  lines.push(val('window.NAV_GRID', window.NAV_GRID ? ok('loaded') : err('MISSING')));
+  lines.push(val('navReady (via findTri test)', (() => {
+    try { const t = window.findTri(1.86, 0.009); return t ? ok('triangle found: '+JSON.stringify([+t.a.x.toFixed(2),+t.a.z.toFixed(2)])) : err('NO TRIANGLE at 1.86,0.009'); } catch(e){ return err('THREW: '+e.message); }
+  })()));
+
+  lines.push('');
+  lines.push('<b style="color:#FF6B2B">── Constrain test ──</b>');
+  try {
+    const r = window.constrain(window.aX||0, window.aZ||0, (window.aX||0)+0.05, (window.aZ||0));
+    lines.push(val('constrain(aX, aZ, aX+0.05, aZ)', JSON.stringify(r)));
+    const moved = r.x !== (window.aX||0) || r.z !== (window.aZ||0);
+    lines.push(moved ? ok('Position CHANGED — constrain works') : err('Position UNCHANGED — constrain returned same pos (off navmesh?)'));
+  } catch(e){ lines.push(err('constrain THREW: '+e.message)); }
+
+  lines.push('');
+  lines.push('<b style="color:#FF6B2B">── Step simulation ──</b>');
+  const oldTX = window.tX, oldTZ = window.tZ;
+  try {
+    const h = window.currentHeadingRad || 0;
+    const dx = Math.sin(h) * (window.STEP_LENGTH||0.025);
+    const dz = -Math.cos(h) * (window.STEP_LENGTH||0.025);
+    lines.push(val('heading (deg)', Math.round((h*180/Math.PI))));
+    lines.push(val('dx, dz', dx.toFixed(4)+', '+dz.toFixed(4)));
+    const r = window.constrain(window.aX||0, window.aZ||0, (window.aX||0)+dx, (window.aZ||0)+dz);
+    lines.push(val('constrain result', JSON.stringify({x:+r.x.toFixed(4),z:+r.z.toFixed(4),y:+r.y.toFixed(4)})));
+    window.tX = r.x; window.tZ = r.z; window.tY = r.y;
+    lines.push(val('window.tX after set', window.tX.toFixed(4)));
+    const tChanged = Math.abs(window.tX - oldTX) > 0.001 || Math.abs(window.tZ - oldTZ) > 0.001;
+    lines.push(tChanged ? ok('window.tX/tZ CHANGED — write works') : err('window.tX/tZ DID NOT CHANGE — write broken'));
+  } catch(e){ lines.push(err('Step sim THREW: '+e.message)); }
+
+  lines.push('');
+  lines.push('<b style="color:#FF6B2B">── Avatar position (aX/aZ) ──</b>');
+  setTimeout(()=>{
+    const moved2 = Math.abs((window.aX||0) - (window.tX||0)) < 0.01;
+    const el = document.getElementById('diagLog');
+    el.innerHTML += '\n' + val('aX after 500ms lerp', (window.aX||0).toFixed(4)) +
+      ' ' + (moved2 ? ok('aX caught up to tX') : warn('aX still catching up — normal'));
+  }, 500);
+
+  lines.push('');
+  lines.push('<b style="color:#FF6B2B">── Scene.js animate read ──</b>');
+  lines.push(warn('Check: does animate() read window.tX? See tX=window.tX line in scene.js'));
+
+  document.getElementById('diagLog').innerHTML = lines.join('\n');
+  document.getElementById('diagOverlay').style.display = 'block';
+}
+</script>
+
 </body>
 </html>

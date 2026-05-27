@@ -174,16 +174,16 @@ window.resetTracking=function(){
   window.currentHeadingRad=0;
   if(typeof resetHeading!=="undefined") resetHeading();
   originLat=null;originLng=null;gpsWX=null;gpsWZ=null;gpsAcc=Infinity;lastGpsCorr=0;
-  if(navTriangles.length){
+  if(window.navTriangles.length){
     const candidates=[[1.86,0.009],[1.5,0.0],[2.0,0.5],[1.8,-0.5],[1.0,0.0]];
     let placed=false;
     for(const[cx,cz] of candidates){
       const tri=window.findTri(cx,cz);
-      if(tri){placeAvatarImmediate(cx,window.triY(cx,cz,tri.a,tri.b,tri.c),cz);placed=true;break;}
+      if(tri){window.placeAvatarImmediate(cx,window.triY(cx,cz,tri.a,tri.b,tri.c),cz);placed=true;break;}
     }
     if(!placed){
-      const mid=navTriangles[Math.floor(navTriangles.length/2)];
-      placeAvatarImmediate((mid.a.x+mid.b.x+mid.c.x)/3,mid.a.y,(mid.a.z+mid.b.z+mid.c.z)/3);
+      const mid=window.navTriangles[Math.floor(window.navTriangles.length/2)];
+      window.placeAvatarImmediate((mid.a.x+mid.b.x+mid.c.x)/3,mid.a.y,(mid.a.z+mid.b.z+mid.c.z)/3);
     }
   }
   document.getElementById('moveBtn').textContent='Walking: OFF';

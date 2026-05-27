@@ -102,7 +102,9 @@ let aHeading=0, tHeading=0;
 function resetHeading(){ aHeading=0; tHeading=0; }
 
 function placeAvatarImmediate(x,y,z){
-  aX=x; aY=y; aZ=z; tX=x; tY=y; tZ=z;
+  // Update local vars (used by animate lerp)
+  aX=x; aY=y; aZ=z;
+  // Update window targets (sensors.js writes here, animate reads here)
   window.tX=x; window.tY=y; window.tZ=z;
   window.aX=x; window.aY=y; window.aZ=z;
   avatarRoot.position.set(x,y+AVATAR_HOVER,z);
@@ -212,12 +214,13 @@ function animate(){
   pulse+=0.045;
   ring.material.opacity=0.4+0.2*Math.sin(pulse);
   ring.scale.setScalar(1+0.1*Math.sin(pulse*0.7));
-  // Read targets written by sensors.js
-  tX=window.tX; tY=window.tY; tZ=window.tZ;
-  const distToTarget=Math.sqrt((tX-aX)**2+(tZ-aZ)**2);
+  // Read target position written by sensors.js each step
+  const _tX=window.tX, _tY=window.tY, _tZ=window.tZ;
+  const distToTarget=Math.sqrt((_tX-aX)**2+(_tZ-aZ)**2);
   document.getElementById('speedFill').style.width=Math.min(distToTarget/(window.STEP_LENGTH||0.025),1)*100+'%';
-  aX+=(tX-aX)*0.18; aY+=(tY-aY)*0.18; aZ+=(tZ-aZ)*0.18;
-  // Export current position for other modules
+  // Lerp actual position toward target
+  aX+=(_tX-aX)*0.18; aY+=(_tY-aY)*0.18; aZ+=(_tZ-aZ)*0.18;
+  // Export current rendered position for distance calcs in other modules
   window.aX=aX; window.aY=aY; window.aZ=aZ;
   avatarRoot.position.set(aX,aY+AVATAR_HOVER,aZ);
   // Compass heading (0=north, clockwise). Beak points +Z local.
@@ -256,14 +259,31 @@ function animate(){
   updateCamera();
   renderer.render(scene,camera);
 }
-// ── Expose navmesh functions for other modules ────────────────────────────
-window.constrain = constrain;
-window.findTri   = findTri;
-window.triY      = triY;
+// ── Expose ALL shared globals on window ──────────────────────────────────
+// Required because 'use strict' const/let are NOT on window automatically.
+// Every other module accesses scene state through window.*
+window.renderer            = renderer;
+window.scene               = scene;
+window.camera              = camera;
+window.camOffset           = camOffset;
+window.buildNavmesh        = buildNavmesh;
+window.findTri             = findTri;
+window.triY                = triY;
+window.constrain           = constrain;
+window.placeAvatarImmediate = placeAvatarImmediate;
+window.navTriangles        = navTriangles;   // array ref — stays live
+window.resetHeading        = resetHeading;
+window.avatarMat           = avatarMat;
+window.capMat              = capMat;
+window.ring                = ring;
+window.destMarker          = destMarker;
+window.destMarkerMat       = destMarkerMat;
 
-// tX/tY/tZ: sensors.js writes window.tX etc, animate loop reads window.tX etc
-// aX/aY/aZ: scene.js owns these as local lets, exports read-only snapshots via window
-window.tX=0; window.tY=0; window.tZ=0;
-window.aX=0; window.aY=0; window.aZ=0;
+// Position state — simple window properties, no proxies
+// sensors.js WRITES window.tX/tY/tZ
+// animate() READS window.tX/tY/tZ each frame and lerps aX/aY/aZ toward them
+// animate() WRITES window.aX/aY/aZ so other modules can read current position
+window.tX = 0; window.tY = 0; window.tZ = 0;
+window.aX = 0; window.aY = 0; window.aZ = 0;
 
 // animate() called from index.html after all scripts load

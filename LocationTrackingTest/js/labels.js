@@ -41,7 +41,7 @@ function initLabels() {
     const obj = new THREE.CSS2DObject(div);
     obj.position.set(stall.x, stall.y + 0.10, stall.z);
     obj.visible = false; // start hidden
-    scene.add(obj);
+    window.scene.add(obj);
 
     labelObjects.push({ stall, div, obj, opacity: 0 });
   });
@@ -49,7 +49,7 @@ function initLabels() {
 
 function updateLabels(avatarX, avatarZ) {
   // Rebuild frustum from current camera
-  clipMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+  clipMatrix.multiplyMatrices(window.camera.projectionMatrix, window.camera.matrixWorldInverse);
   frustum.setFromProjectionMatrix(clipMatrix);
 
   // Score each label: distance + in-frustum

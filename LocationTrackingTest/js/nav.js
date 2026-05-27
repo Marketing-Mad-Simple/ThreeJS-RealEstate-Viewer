@@ -150,7 +150,7 @@ window.startNavigation = async function() {
   // 2. Teleport avatar to from-stall aisle position (nearest navmesh point)
   if (routeFrom.id !== 'MY_LOCATION') {
     const snap = snapToNavmesh(routeFrom.x, routeFrom.z);
-    placeAvatarImmediate(snap.x, snap.y, snap.z);
+    window.placeAvatarImmediate(snap.x, snap.y, snap.z);
     if (typeof resetHeading !== 'undefined') resetHeading();
   } else {
     // Use current live position

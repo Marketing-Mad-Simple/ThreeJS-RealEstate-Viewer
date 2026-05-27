@@ -154,7 +154,7 @@ let pathWaypoints = [];   // [{x,z}] full smoothed path
 let pathProgress  = 0;    // index of next waypoint to reach
 let pathPulse     = 0;
 
-scene.add(pathGroup);
+window.scene.add(pathGroup);
 
 const dotGeo = new THREE.CircleGeometry(PATH_DOT_R, 8);
 dotGeo.rotateX(-Math.PI / 2);
