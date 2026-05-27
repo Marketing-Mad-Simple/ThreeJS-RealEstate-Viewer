@@ -202,3 +202,235 @@ body.has-dest #navToggleBtn{ top: 96px; }
 @media(max-width:380px){
   #navPanel{ width:100vw; }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   ROUTE PLANNER  (Google Maps style)
+   ══════════════════════════════════════════════════════════════ */
+
+/* Top bar — just logo + collapse button */
+#topBar{
+  height:44px;
+  padding:0 12px;
+  gap:8px;
+}
+#topBar .logo{ font-size:16px; }
+#topCollapseBtn{
+  margin-left:auto;
+  background:none;border:none;color:#aaa;font-size:13px;cursor:pointer;
+  padding:4px 8px;border-radius:6px;
+}
+#topCollapseBtn:active{background:rgba(255,255,255,.1)}
+
+/* Route planner card */
+#routePlanner{
+  position:fixed;top:44px;left:0;right:0;z-index:88;
+  background:rgba(15,15,20,.97);
+  backdrop-filter:blur(14px);
+  border-bottom:1px solid rgba(255,255,255,.08);
+  padding:10px 14px 12px;
+  transition:transform .25s ease, opacity .25s ease;
+}
+#routePlanner.collapsed{
+  transform:translateY(-110%);
+  opacity:0;
+  pointer-events:none;
+}
+
+.route-row{
+  display:flex;align-items:center;gap:10px;
+  margin-bottom:4px;
+}
+.route-dot{
+  width:12px;height:12px;border-radius:50%;flex-shrink:0;
+}
+.from-dot{ background:#4A9EDD;border:2px solid #fff; }
+.to-dot  { background:#FF6B2B;border:2px solid #fff; }
+
+.route-input-wrap{
+  flex:1;position:relative;
+}
+.route-input-wrap input{
+  width:100%;height:38px;padding:0 32px 0 12px;
+  border-radius:8px;border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.07);color:#fff;font-size:14px;
+  outline:none;cursor:pointer;
+}
+.route-input-wrap input:focus,
+.route-input-wrap input.filled{ border-color:#FF6B2B; }
+.route-input-wrap input.filled{ background:rgba(255,107,43,.08); }
+.route-clear-btn{
+  position:absolute;right:6px;top:50%;transform:translateY(-50%);
+  background:none;border:none;color:#888;font-size:14px;
+  cursor:pointer;display:none;padding:4px;
+}
+
+.route-line-divider{
+  display:flex;align-items:center;gap:10px;
+  height:18px;margin-bottom:4px;
+  padding-left:5px;
+}
+.route-vline{
+  width:2px;height:100%;background:rgba(255,255,255,.15);border-radius:1px;
+  margin-left:5px;
+}
+.route-swap-btn{
+  background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);
+  color:#aaa;font-size:15px;cursor:pointer;
+  border-radius:50%;width:26px;height:26px;
+  display:flex;align-items:center;justify-content:center;
+  margin-left:auto;flex-shrink:0;
+}
+.route-swap-btn:active{background:rgba(255,255,255,.2)}
+
+#startNavBtn{
+  margin-top:10px;width:100%;height:42px;
+  border-radius:10px;border:none;
+  background:#FF6B2B;color:#fff;
+  font-size:15px;font-weight:600;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  transition:opacity .2s;
+}
+#startNavBtn:disabled{
+  background:rgba(255,255,255,.1);color:#555;cursor:default;
+}
+#startNavBtn:not(:disabled):active{ opacity:.85; }
+#navEta{
+  font-size:12px;font-weight:400;
+  background:rgba(0,0,0,.25);border-radius:6px;padding:2px 8px;
+}
+
+/* ── Route picker dropdown ─────────────────────────────────────── */
+#routePicker{
+  position:fixed;top:0;left:0;right:0;bottom:0;z-index:200;
+  background:rgba(10,10,14,.98);
+  display:flex;flex-direction:column;
+  transform:translateY(100%);
+  transition:transform .22s ease;
+}
+#routePicker.open{ transform:translateY(0); }
+
+#routePickerHeader{
+  display:flex;align-items:center;gap:10px;
+  padding:12px 14px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+  flex-shrink:0;
+}
+#routePickerHeader input{
+  flex:1;height:38px;padding:0 12px;
+  border-radius:8px;border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.08);color:#fff;font-size:14px;outline:none;
+}
+#routePickerHeader input:focus{ border-color:#FF6B2B; }
+#routePickerHeader button{
+  background:rgba(255,255,255,.1);border:none;color:#fff;
+  font-size:16px;cursor:pointer;padding:8px 12px;border-radius:8px;
+}
+
+#routePickerList{
+  flex:1;overflow-y:auto;
+}
+.picker-item{
+  display:flex;align-items:center;gap:12px;
+  padding:13px 16px;
+  border-bottom:1px solid rgba(255,255,255,.05);
+  cursor:pointer;
+}
+.picker-item:active{ background:rgba(255,107,43,.12); }
+.picker-special{ color:#4A9EDD; }
+.picker-icon{ font-size:16px;flex-shrink:0; }
+.picker-id{
+  font-size:12px;font-weight:700;color:#FF6B2B;
+  min-width:38px;flex-shrink:0;
+}
+.picker-name{ font-size:14px;color:#fff;flex:1; }
+.picker-dist{ font-size:11px;color:#666;flex-shrink:0; }
+#myLocationRow{ background:rgba(74,158,221,.08); }
+
+/* ── Navigation active bar ─────────────────────────────────────── */
+#navActiveBar{
+  position:fixed;top:44px;left:0;right:0;z-index:87;
+  background:rgba(18,60,45,.97);
+  border-bottom:1.5px solid rgba(29,158,117,.5);
+  padding:10px 14px;
+  display:none;align-items:center;gap:10px;
+}
+#navActiveInfo{ flex:1;overflow:hidden; }
+#navActiveName{
+  font-size:14px;font-weight:600;color:#fff;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+#navActiveDist{ font-size:12px;color:#5eefc0;margin-top:2px; }
+#navActiveStop{
+  background:rgba(226,75,74,.2);border:1px solid rgba(226,75,74,.5);
+  color:#ff9090;font-size:13px;cursor:pointer;
+  border-radius:8px;padding:7px 12px;white-space:nowrap;flex-shrink:0;
+}
+
+/* ── Arrival overlay ───────────────────────────────────────────── */
+#arrivalOverlay{
+  position:fixed;inset:0;z-index:300;
+  background:rgba(0,0,0,.75);backdrop-filter:blur(8px);
+  display:none;align-items:center;justify-content:center;
+}
+#arrivalOverlay.show{ display:flex; }
+#arrivalCard{
+  background:#1a1a22;border:1px solid rgba(29,158,117,.4);
+  border-radius:18px;padding:32px 28px;
+  text-align:center;max-width:300px;width:90%;
+  animation:popIn .3s ease;
+}
+@keyframes popIn{
+  from{transform:scale(0.85);opacity:0}
+  to  {transform:scale(1);   opacity:1}
+}
+#arrivalIcon{ font-size:52px;margin-bottom:12px; }
+#arrivalTitle{ font-size:22px;font-weight:700;color:#fff;margin-bottom:8px; }
+#arrivalStall{ font-size:14px;color:#aaa;margin-bottom:24px;line-height:1.5; }
+#arrivalClose{
+  width:100%;height:44px;border-radius:10px;border:none;
+  background:#1D9E75;color:#fff;font-size:15px;font-weight:600;cursor:pointer;
+}
+#arrivalClose:active{ opacity:.85; }
+
+/* ── Nav panel header ──────────────────────────────────────────── */
+#navPanelHeader{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 16px 10px;border-bottom:1px solid rgba(255,255,255,.07);
+}
+#navPanelHeader h3{ font-size:15px;font-weight:600; }
+#navPanelClose{
+  background:none;border:none;color:#888;font-size:20px;
+  cursor:pointer;padding:4px 8px;
+}
+
+/* ── Body state classes ────────────────────────────────────────── */
+/* When route planner is open (default), push floating buttons down */
+body:not(.planner-collapsed):not(.navigating) #recenterBtn,
+body:not(.planner-collapsed):not(.navigating) #compass{ top: 185px; }
+
+/* When navigating, planner is hidden, navActiveBar shown */
+body.navigating #recenterBtn,
+body.navigating #compass{ top: 105px; }
+
+body.navigating #routePlanner{ display:none; }
+body.navigating #navActiveBar{ display:flex; }
+
+/* Collapsed state */
+body.planner-collapsed #routePlanner{ transform:translateY(-110%); opacity:0; pointer-events:none; }
+body.planner-collapsed #recenterBtn,
+body.planner-collapsed #compass{ top: 62px; }
+body.planner-collapsed #topCollapseBtn::before{ content:'▼'; }
+
+/* Nav panel toggle button — repurposed as stall list */
+#navToggleBtn{
+  position:fixed;bottom:auto;
+  top:185px;right:14px;
+  padding:7px 11px;border-radius:8px;border:none;
+  background:rgba(0,0,0,.6);color:#fff;font-size:12px;font-weight:600;
+  cursor:pointer;backdrop-filter:blur(6px);z-index:90;
+  display:none; /* hidden — stall list accessed via route picker */
+}
+
+/* Scrollbar */
+#routePickerList::-webkit-scrollbar{ width:4px; }
+#routePickerList::-webkit-scrollbar-thumb{ background:#333;border-radius:2px; }

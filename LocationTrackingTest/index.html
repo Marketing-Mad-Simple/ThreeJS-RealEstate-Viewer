@@ -23,35 +23,99 @@
 <!-- ── Top bar ────────────────────────────────────────────────── -->
 <div id="topBar">
   <div class="logo">ConvNav</div>
-  <div id="searchWrap">
-    <span id="searchIcon">🔍</span>
-    <input id="searchInput" type="text" placeholder="Search stall or company…" autocomplete="off" autocorrect="off" spellcheck="false"/>
-    <button id="clearSearch">✕</button>
+  <button id="topCollapseBtn" onclick="toggleTopBar()">▲</button>
+</div>
+
+<!-- ── Route planner (Google Maps style) ──────────────────────── -->
+<div id="routePlanner">
+
+  <!-- From row -->
+  <div class="route-row">
+    <div class="route-dot from-dot"></div>
+    <div class="route-input-wrap" id="fromWrap">
+      <input id="fromInput" type="text" placeholder="From — stall or company"
+        autocomplete="off" autocorrect="off" spellcheck="false"
+        onfocus="openRoutePicker('from')" readonly/>
+      <button class="route-clear-btn" id="fromClear" onclick="clearRoutePoint('from')">✕</button>
+    </div>
   </div>
+
+  <!-- Divider line -->
+  <div class="route-line-divider">
+    <div class="route-vline"></div>
+    <button class="route-swap-btn" onclick="swapRoutePoints()" title="Swap">⇅</button>
+  </div>
+
+  <!-- To row -->
+  <div class="route-row">
+    <div class="route-dot to-dot"></div>
+    <div class="route-input-wrap" id="toWrap">
+      <input id="toInput" type="text" placeholder="To — stall or company"
+        autocomplete="off" autocorrect="off" spellcheck="false"
+        onfocus="openRoutePicker('to')" readonly/>
+      <button class="route-clear-btn" id="toClear" onclick="clearRoutePoint('to')">✕</button>
+    </div>
+  </div>
+
+  <!-- Start navigation button -->
+  <button id="startNavBtn" onclick="startNavigation()" disabled>
+    <span>Start Navigation</span>
+    <span id="navEta"></span>
+  </button>
+
 </div>
 
-<!-- ── Search results ─────────────────────────────────────────── -->
-<div id="searchResults"></div>
-
-<!-- ── Destination bar ────────────────────────────────────────── -->
-<div id="destBar">
-  <span class="dest-icon">🧭</span>
-  <span class="dest-name" id="destName"></span>
-  <span class="dest-dist" id="destDist"></span>
-  <button class="dest-clear" id="destClear">✕</button>
+<!-- ── Route picker dropdown ──────────────────────────────────── -->
+<div id="routePicker">
+  <div id="routePickerHeader">
+    <input id="routePickerSearch" type="text" placeholder="Search stall or company…"
+      autocomplete="off" autocorrect="off" spellcheck="false"
+      oninput="filterRoutePicker(this.value)"/>
+    <button onclick="closeRoutePicker()">✕</button>
+  </div>
+  <!-- "My Location" shortcut for From -->
+  <div id="myLocationRow" class="picker-item picker-special" onclick="pickMyLocation()">
+    <span class="picker-icon">📍</span>
+    <span>My current position</span>
+  </div>
+  <div id="routePickerList"></div>
 </div>
+
+<!-- ── Navigation active bar (shown during navigation) ────────── -->
+<div id="navActiveBar">
+  <div id="navActiveInfo">
+    <div id="navActiveName"></div>
+    <div id="navActiveDist"></div>
+  </div>
+  <button id="navActiveStop" onclick="stopNavigation()">✕ Stop</button>
+</div>
+
+<!-- ── Search results (kept for stall list panel search) ──────── -->
+<div id="searchResults" style="display:none"></div>
 
 <!-- ── Stall list panel ────────────────────────────────────────── -->
 <div id="navPanel">
-  <button id="navPanelClose">✕</button>
-  <h3>All Stalls</h3>
+  <div id="navPanelHeader">
+    <h3>All Stalls</h3>
+    <button id="navPanelClose" onclick="document.getElementById('navPanel').classList.remove('open')">✕</button>
+  </div>
   <div id="navContent"></div>
 </div>
 
 <!-- ── Floating buttons ───────────────────────────────────────── -->
 <button id="recenterBtn" onclick="camFollowing=true">⊙ Follow</button>
 <div id="compass">⬆</div>
-<button id="navToggleBtn">☰ Stalls</button>
+
+<!-- ── Arrival overlay ────────────────────────────────────────── -->
+<div id="arrivalOverlay">
+  <div id="arrivalCard">
+    <div id="arrivalIcon">🎯</div>
+    <div id="arrivalTitle">You've arrived!</div>
+    <div id="arrivalStall"></div>
+    <button id="arrivalClose" onclick="dismissArrival()">Done</button>
+  </div>
+</div>
+
 <div id="errBox"></div>
 
 <!-- ── Bottom HUD ─────────────────────────────────────────────── -->
