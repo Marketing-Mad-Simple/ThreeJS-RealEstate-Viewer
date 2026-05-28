@@ -135,6 +135,7 @@ window.toggleGPS=function(){
 };
 
 // ── Start / stop / reset ──────────────────────────────────────────────────
+// Auto-start on Android (no permission prompt). iOS needs user gesture — called from startNavigation.
 window.requestAndStart=async function(){
   document.getElementById('status').textContent='requesting…';
   try{
@@ -148,24 +149,15 @@ window.requestAndStart=async function(){
     window.addEventListener('devicemotion',onMotion,true);
     startGPS();
     started=true; kAngle=0; kBias=0; window._sensorsStarted=true; window.isMoving=true;
-    document.getElementById('startBtn').style.display='none';
-    document.getElementById('moveBtn').style.display='';
     document.getElementById('gpsBtn').style.display='';
     document.getElementById('resetBtn').style.display='';
-    document.getElementById('status').textContent='tracking — walk to move';
+    document.getElementById('status').textContent='tracking';
   }catch(err){showErr('Error: '+err.message);}
 };
 
-window.toggleMove=function(){
-  window.isMoving=!window.isMoving;
-  if(!window.isMoving){window.tX=window.aX;window.tZ=window.aZ;window.tY=window.aY;}
-  document.getElementById('moveBtn').textContent=window.isMoving?'⏸ Pause':'▶ Resume';
-  document.getElementById('moveBtn').className=window.isMoving?'btn btn-active':'btn btn-primary';
-  document.getElementById('status').textContent=window.isMoving?'tracking':'paused';
-};
 
 window.resetTracking=function(){
-  window.isMoving=false; lastMotionT=null;
+  window.isMoving=true; lastMotionT=null;
   stepCount=0; stepPhase='seek_peak'; magLP=9.81;
   kAngle=0;kBias=0;kP00=1;kP01=0;kP10=0;kP11=1;
   window.currentHeadingRad=0;
@@ -183,8 +175,6 @@ window.resetTracking=function(){
       window.placeAvatarImmediate((mid.a.x+mid.b.x+mid.c.x)/3,mid.a.y,(mid.a.z+mid.b.z+mid.c.z)/3);
     }
   }
-  document.getElementById('moveBtn').textContent='⏸ Pause';
-  document.getElementById('moveBtn').className='btn btn-primary';
   document.getElementById('status').textContent='reset — ready';
   document.getElementById('pos').textContent='0, 0';
   document.getElementById('stepCount').textContent='0';
@@ -193,3 +183,15 @@ window.resetTracking=function(){
   document.getElementById('gpsLabel').textContent='GPS: —';
   window.clearDestination&&window.clearDestination();
 };
+
+// Auto-start sensors if browser doesn't need permission prompt (Android/desktop)
+window.addEventListener('load', () => {
+  const needsPermission =
+    (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') ||
+    (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function');
+  if (!needsPermission) {
+    // Android / desktop — start immediately, no gesture needed
+    window.requestAndStart();
+  }
+  // iOS: requestAndStart called from startNavigation (user gesture)
+});

@@ -79,11 +79,30 @@ function updateLabels(avatarX, avatarZ) {
     const isDestination = window.destStall && lo.stall.id === window.destStall.id;
     const isHighlighted = lo.div.classList.contains('highlighted');
 
-    // Always show destination label regardless of distance/frustum
+    // Always show destination label
     if (isDestination) {
       lo.obj.visible = true;
       lo.div.style.opacity = '1';
       lo.div.className = 'stall-label targeted';
+      lo.opacity = 1;
+      visibleCount++;
+      return;
+    }
+    // Always show preview FROM stall label (match by id)
+    if (window._previewFrom && window._previewFrom.id && lo.stall.id === window._previewFrom.id) {
+      lo.obj.visible = true;
+      lo.div.style.opacity = '1';
+      lo.div.className = 'stall-label highlighted';
+      lo.opacity = 1;
+      visibleCount++;
+      return;
+    }
+    // Always show preview TO stall label (match by id)
+    if (window._previewTo && window._previewTo.id && lo.stall.id === window._previewTo.id) {
+      lo.obj.visible = true;
+      lo.div.style.opacity = '1';
+      lo.div.className = 'stall-label targeted';
+      lo.opacity = 1;
       visibleCount++;
       return;
     }

@@ -165,8 +165,8 @@ function showRoutePreview(from, to) {
   }
 
   // Set preview endpoint markers
-  window._previewFrom = { x: fx, y: 0.02, z: fz };
-  window._previewTo   = { x: to.x, y: 0.02, z: to.z };
+  window._previewFrom = { x: fx, y: 0.02, z: fz, id: from.id };
+  window._previewTo   = { x: to.x, y: 0.02, z: to.z, id: to.id };
 
   // Draw the preview path
   const previewDest = { ...to };
@@ -246,8 +246,6 @@ window.startNavigation = async function() {
 
   window.isMoving = true;
   window._sensorsStarted = true;
-  document.getElementById('moveBtn').textContent = 'Walking: ON';
-  document.getElementById('moveBtn').className   = 'btn btn-active';
 
   // 6. Switch UI to navigating state
   navigating = true;
@@ -260,7 +258,6 @@ window.startNavigation = async function() {
 
   // Hide sensor start button if visible (sensors already started)
   document.getElementById('startBtn').style.display = 'none';
-  document.getElementById('moveBtn').style.display  = '';
   document.getElementById('gpsBtn').style.display   = '';
   document.getElementById('resetBtn').style.display = '';
 
@@ -270,11 +267,9 @@ window.stopNavigation = function() {
   navigating = false;
   window._navigating = false;
   document.body.classList.remove('navigating');
-  window.isMoving = false;
+  window.isMoving = true; // keep tracking after stop
   window.destStall = null;
   if (window.highlightStall) window.highlightStall(null);
-  document.getElementById('moveBtn').textContent = 'Walking: OFF';
-  document.getElementById('moveBtn').className   = 'btn btn-primary';
 
   // If both route points are still set, restore the preview
   if (routeFrom && routeTo) {
@@ -320,9 +315,7 @@ window.updateNavActiveDist = function() {
 
 // ── Arrival ────────────────────────────────────────────────────────────────
 function showArrival(stall) {
-  window.isMoving = false;
-  document.getElementById('moveBtn').textContent = 'Walking: OFF';
-  document.getElementById('moveBtn').className   = 'btn btn-primary';
+  window.isMoving = false; // pause on arrival
   document.body.classList.remove('navigating');
 
   document.getElementById('arrivalStall').textContent =
@@ -343,6 +336,7 @@ window.dismissArrival = function() {
   window._previewTo   = null;
   if (window.clearPath) window.clearPath();
   if (window.stopCamAnim) window.stopCamAnim();
+  window.isMoving = true; // resume tracking after dismissal
   updateStartBtn();
 };
 
