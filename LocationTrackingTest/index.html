@@ -17,6 +17,29 @@
   <p id="loadMsg">Loading scene…</p>
 </div>
 
+<!-- Permission prompt — shown after GLB loads on iOS -->
+<div id="permPrompt" style="
+  display:none;position:fixed;inset:0;z-index:998;
+  background:#0f0f14;
+  flex-direction:column;align-items:center;justify-content:center;
+  gap:20px;padding:32px;text-align:center;
+">
+  <div style="font-size:48px">📍</div>
+  <div style="font-size:22px;font-weight:700;color:#fff">Convention Navigator</div>
+  <div style="font-size:14px;color:#aaa;line-height:1.6;max-width:300px">
+    This app uses your phone's motion sensors and GPS to track your position
+    inside the convention center.
+  </div>
+  <button onclick="grantPermissions()" style="
+    width:100%;max-width:300px;height:52px;border-radius:12px;border:none;
+    background:#FF6B2B;color:#fff;font-size:16px;font-weight:600;cursor:pointer;
+    margin-top:8px;
+  ">Allow Motion & Location</button>
+  <div style="font-size:12px;color:#555">
+    Your data never leaves your device
+  </div>
+</div>
+
 <!-- ── Three canvas ───────────────────────────────────────────── -->
 <canvas id="three-canvas"></canvas>
 
@@ -119,7 +142,7 @@
 <!-- ── Bottom HUD ─────────────────────────────────────────────── -->
 <div id="hud">
   <div class="hud-row">
-    <button class="btn btn-danger"  id="resetBtn" onclick="resetTracking()" style="display:none">Reset</button>
+    <button class="btn btn-danger"  id="resetBtn" onclick="resetTracking()">Reset</button>
     <button class="btn btn-off"     id="devBtn"   onclick="toggleDevPanel()">⚙</button>
   </div>
   <div id="speedBar"><div id="speedFill"></div></div>
@@ -202,6 +225,21 @@
 function toggleDevPanel(){
   document.getElementById('devPanel').classList.toggle('open');
 }
+// Called from permission prompt button — works as a user gesture on iOS
+async function grantPermissions(){
+  const btn = document.querySelector('#permPrompt button');
+  btn.textContent = 'Requesting…';
+  btn.disabled = true;
+  try {
+    await window.requestAndStart();
+    document.getElementById('permPrompt').style.display = 'none';
+  } catch(e) {
+    btn.textContent = 'Allow Motion & Location';
+    btn.disabled = false;
+    showErr('Permission denied: ' + e.message);
+  }
+}
+
 function showErr(msg){
   const el=document.getElementById('errBox');
   el.textContent=msg; el.style.display='block';

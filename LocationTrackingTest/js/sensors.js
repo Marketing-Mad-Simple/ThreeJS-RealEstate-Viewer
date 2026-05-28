@@ -149,8 +149,6 @@ window.requestAndStart=async function(){
     window.addEventListener('devicemotion',onMotion,true);
     startGPS();
     started=true; kAngle=0; kBias=0; window._sensorsStarted=true; window.isMoving=true;
-    document.getElementById('gpsBtn').style.display='';
-    document.getElementById('resetBtn').style.display='';
     document.getElementById('status').textContent='tracking';
   }catch(err){showErr('Error: '+err.message);}
 };
@@ -184,14 +182,3 @@ window.resetTracking=function(){
   window.clearDestination&&window.clearDestination();
 };
 
-// Auto-start sensors if browser doesn't need permission prompt (Android/desktop)
-window.addEventListener('load', () => {
-  const needsPermission =
-    (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') ||
-    (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function');
-  if (!needsPermission) {
-    // Android / desktop — start immediately, no gesture needed
-    window.requestAndStart();
-  }
-  // iOS: requestAndStart called from startNavigation (user gesture)
-});
