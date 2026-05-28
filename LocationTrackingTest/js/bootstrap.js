@@ -75,8 +75,21 @@ new THREE.GLTFLoader().load(
     setLoad(100, 'Ready!');
     setTimeout(() => {
       document.getElementById('loading').style.display = 'none';
-      document.getElementById('status').textContent    = 'tap Start tracking';
-    }, 300);
+
+      // iOS Safari requires DeviceOrientation/Motion permission to come from
+      // a direct user gesture — show a prompt screen so the tap triggers it.
+      // Android and desktop don't need this, so start sensors immediately.
+      const needsGesture =
+        typeof DeviceOrientationEvent !== 'undefined' &&
+        typeof DeviceOrientationEvent.requestPermission === 'function';
+
+      if (needsGesture) {
+        document.getElementById('permPrompt').style.display = 'flex';
+      } else {
+        // Android / desktop — start immediately
+        window.requestAndStart();
+      }
+    }, 400);
   },
   xhr => {
     if (xhr.total)
