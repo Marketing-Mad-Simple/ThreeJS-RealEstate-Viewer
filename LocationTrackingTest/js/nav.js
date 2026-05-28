@@ -129,14 +129,73 @@ function updateStartBtn() {
   const ready = routeFrom && routeTo;
   btn.disabled = !ready;
   if (ready && routeTo) {
-    // Compute approximate ETA using destination
     const eta = etaText(routeTo);
     document.getElementById('navEta').textContent = eta;
     document.getElementById('navEta').style.display = 'inline';
+    // Show route preview with zoomed-out camera
+    showRoutePreview(routeFrom, routeTo);
   } else {
     document.getElementById('navEta').style.display = 'none';
+    // Clear path and preview markers
+    if (window.clearPath) window.clearPath();
+    window._previewFrom = null;
+    window._previewTo   = null;
+    // Exit preview mode and zoom back to close-up follow
+    if (window.setCamPreview) window.setCamPreview(false);
+    if (window.animateCamera) {
+      window.animateCamera(
+        { x: window.aX || 0, y: 2.2, z: (window.aZ || 0) + 0.6 },
+        { x: window.aX || 0, y: 0.02, z: window.aZ || 0 },
+        0.7
+      );
+    }
   }
 }
+
+function showRoutePreview(from, to) {
+  if (!window.computePath || !window.animateCamera) return;
+
+  // Get the from position (snap to navmesh if it's a stall)
+  let fx = from.x, fz = from.z;
+  if (from.id !== 'MY_LOCATION') {
+    const snap = snapToNavmesh(from.x, from.z);
+    fx = snap.x; fz = snap.z;
+  } else {
+    fx = window.aX; fz = window.aZ;
+  }
+
+  // Set preview endpoint markers
+  window._previewFrom = { x: fx, y: 0.02, z: fz };
+  window._previewTo   = { x: to.x, y: 0.02, z: to.z };
+
+  // Draw the preview path
+  const previewDest = { ...to };
+  const savedAX = window.aX, savedAZ = window.aZ;
+  window.aX = fx; window.aZ = fz;
+  window.computePath(previewDest);
+  window.aX = savedAX; window.aZ = savedAZ;
+
+  // Compute bounding box of from + to to frame the camera
+  const midX = (fx + to.x) / 2;
+  const midZ = (fz + to.z) / 2;
+  const spanX = Math.abs(to.x - fx);
+  const spanZ = Math.abs(to.z - fz);
+  const span  = Math.max(spanX, spanZ, 1.0);
+
+  // Camera height to frame both points with padding
+  const camH = span * 1.6 + 2.5;
+  const camZ = span * 0.5 + 1.0;
+
+  // Pass plain objects — animateCamera accepts {x,y,z} or Vector3
+  window.animateCamera(
+    { x: midX, y: camH, z: midZ + camZ },
+    { x: midX, y: 0.02, z: midZ },
+    1.0,
+    () => { if (window.setCamPreview) window.setCamPreview(true); }
+  );
+}
+
+function midH(h) { return h; } // helper — just returns h for readability
 
 // ── Start navigation ────────────────────────────────────────────────────────
 window.startNavigation = async function() {
@@ -151,7 +210,7 @@ window.startNavigation = async function() {
   if (routeFrom.id !== 'MY_LOCATION') {
     const snap = snapToNavmesh(routeFrom.x, routeFrom.z);
     window.placeAvatarImmediate(snap.x, snap.y, snap.z);
-    if (typeof resetHeading !== 'undefined') resetHeading();
+    if (window.resetHeading) window.resetHeading();
   } else {
     // Use current live position
     routeFrom.x = window.aX; routeFrom.y = window.aY; routeFrom.z = window.aZ;
@@ -165,7 +224,26 @@ window.startNavigation = async function() {
   // 4. Compute path
   if (window.computePath) window.computePath(routeTo);
 
-  // 5. Auto-start walking
+  // 5. Animate camera back to start point, then auto-start walking
+  const startX = window.aX, startZ = window.aZ;
+  const closePos    = new THREE.Vector3(startX + window.camOffset.x,
+                                         startZ + window.camOffset.y,   // intentional: Y=height
+                                         startZ + window.camOffset.z);
+  // Build proper close-up position above start
+  window.animateCamera(
+    { x: startX, y: 2.2, z: startZ + 0.6 },
+    { x: startX, y: 0.02, z: startZ },
+    1.0, () => {
+    // After zoom-in completes, resume follow mode
+    if(window.stopCamAnim) window.stopCamAnim();
+  });
+
+  // Clear preview markers, exit preview mode, set navigating flag
+  window._previewFrom = null;
+  window._previewTo   = null;
+  window._navigating  = true;
+  if (window.setCamPreview) window.setCamPreview(false); // allow zoom-in anim to run
+
   window.isMoving = true;
   window._sensorsStarted = true;
   document.getElementById('moveBtn').textContent = 'Walking: ON';
@@ -190,13 +268,23 @@ window.startNavigation = async function() {
 
 window.stopNavigation = function() {
   navigating = false;
+  window._navigating = false;
   document.body.classList.remove('navigating');
   window.isMoving = false;
   window.destStall = null;
-  if (window.clearPath) window.clearPath();
   if (window.highlightStall) window.highlightStall(null);
   document.getElementById('moveBtn').textContent = 'Walking: OFF';
   document.getElementById('moveBtn').className   = 'btn btn-primary';
+
+  // If both route points are still set, restore the preview
+  if (routeFrom && routeTo) {
+    showRoutePreview(routeFrom, routeTo);
+  } else {
+    window._previewFrom = null;
+    window._previewTo   = null;
+    if (window.clearPath) window.clearPath();
+    if (window.stopCamAnim) window.stopCamAnim();
+  }
 };
 
 // ── Snap to nearest navmesh walkable point ─────────────────────────────────
@@ -245,11 +333,16 @@ function showArrival(stall) {
 window.dismissArrival = function() {
   document.getElementById('arrivalOverlay').classList.remove('show');
   window.destStall = null;
+  window._navigating = false;
+  document.body.classList.remove('navigating');
   // Reset route inputs for next navigation
   window.clearRoutePoint('from');
   window.clearRoutePoint('to');
   routeFrom = null; routeTo = null;
-  document.body.classList.remove('navigating');
+  window._previewFrom = null;
+  window._previewTo   = null;
+  if (window.clearPath) window.clearPath();
+  if (window.stopCamAnim) window.stopCamAnim();
   updateStartBtn();
 };
 

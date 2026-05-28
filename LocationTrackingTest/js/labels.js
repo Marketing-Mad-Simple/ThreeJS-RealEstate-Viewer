@@ -52,6 +52,11 @@ function updateLabels(avatarX, avatarZ) {
   clipMatrix.multiplyMatrices(window.camera.projectionMatrix, window.camera.matrixWorldInverse);
   frustum.setFromProjectionMatrix(clipMatrix);
 
+  // During route preview, use a much wider label distance
+  const inPreview = !!(window._previewFrom || window._previewTo);
+  const showDist  = inPreview ? 99 : LABEL_SHOW_DIST;
+  const hideDist  = inPreview ? 99 : LABEL_HIDE_DIST;
+
   // Score each label: distance + in-frustum
   const scored = labelObjects.map(lo => {
     const dx = lo.stall.x - avatarX;
@@ -89,11 +94,10 @@ function updateLabels(avatarX, avatarZ) {
     if (inFrustum && (visibleCount < MAX_VISIBLE || isHighlighted)) {
       if (dist <= LABEL_NEAR_DIST) {
         targetOpacity = 1;
-      } else if (dist <= LABEL_SHOW_DIST) {
+      } else if (dist <= showDist) {
         targetOpacity = 1;
-      } else if (dist <= LABEL_HIDE_DIST) {
-        // Fade out linearly from SHOW_DIST to HIDE_DIST
-        targetOpacity = 1 - (dist - LABEL_SHOW_DIST) / (LABEL_HIDE_DIST - LABEL_SHOW_DIST);
+      } else if (dist <= hideDist) {
+        targetOpacity = 1 - (dist - showDist) / (hideDist - showDist);
       }
 
       if (targetOpacity > 0.01) visibleCount++;

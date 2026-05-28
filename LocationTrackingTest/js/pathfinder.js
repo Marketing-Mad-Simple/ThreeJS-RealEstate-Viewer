@@ -56,8 +56,9 @@ function astar(startX, startZ, goalX, goalZ) {
   const startNode = { gx: s.gx, gz: s.gz, g: 0, f: heuristic(s.gx, s.gz), parent: null };
   open.set(key(s.gx, s.gz), startNode);
 
+  // 8-directional with strict corner guard
   const DIRS = [
-    [-1,0,1],[1,0,1],[0,-1,1],[0,1,1],
+    [0,-1,1],[0,1,1],[-1,0,1],[1,0,1],
     [-1,-1,1.414],[1,-1,1.414],[-1,1,1.414],[1,1,1.414]
   ];
 
@@ -93,8 +94,11 @@ function astar(startX, startZ, goalX, goalZ) {
     for (const [dx, dz, cost] of DIRS) {
       const nx = best.gx + dx, nz = best.gz + dz;
       if (!isWalkable(nx, nz)) continue;
-      // Diagonal: both cardinal neighbors must be walkable (prevents corner-cutting)
-      if (cost > 1 && (!isWalkable(best.gx + dx, best.gz) || !isWalkable(best.gx, best.gz + dz))) continue;
+      // Strict diagonal guard: BOTH cardinal neighbours must be walkable
+      // This prevents cutting through any stall corner
+      if (Math.abs(dx) === 1 && Math.abs(dz) === 1) {
+        if (!isWalkable(best.gx + dx, best.gz) || !isWalkable(best.gx, best.gz + dz)) continue;
+      }
       const nk = key(nx, nz);
       if (closed.has(nk)) continue;
       const ng = best.g + cost;
@@ -109,129 +113,185 @@ function astar(startX, startZ, goalX, goalZ) {
 
 // Simplify path — remove intermediate points that are colinear within tolerance
 function simplifyPath(pts, sx, sz, ex, ez) {
-  if (pts.length <= 2) return pts;
-  const result = [{ x: sx, z: sz }]; // use exact start
+  if (pts.length <= 2) return [{ x:sx,z:sz },{ x:ex,z:ez }];
+  const result = [{ x:sx, z:sz }];
   let i = 0;
   while (i < pts.length - 1) {
     let furthest = i + 1;
     for (let j = i + 2; j < pts.length; j++) {
-      // Check if we can go directly from pts[i] to pts[j] staying on navmesh
-      if (lineClear(pts[i].x, pts[i].z, pts[j].x, pts[j].z)) furthest = j;
+      if (lineClearWide(pts[i].x, pts[i].z, pts[j].x, pts[j].z)) furthest = j;
       else break;
     }
-    result.push(pts[furthest]);
+    result.push({ x: pts[furthest].x, z: pts[furthest].z });
     i = furthest;
   }
-  result[result.length - 1] = { x: ex, z: ez }; // exact end
+  result[result.length-1] = { x:ex, z:ez };
   return result;
 }
 
-// Check if a line segment stays on the walkable grid
-function lineClear(x0, z0, x1, z1) {
-  const dx = x1 - x0, dz = z1 - z0;
-  const steps = Math.max(Math.abs(dx), Math.abs(dz)) / window.NAV_GRID.RES * 1.5;
-  const n = Math.ceil(steps);
-  for (let i = 0; i <= n; i++) {
-    const t = i / n;
-    const { gx, gz } = worldToGrid(x0 + dx * t, z0 + dz * t);
-    if (!isWalkable(gx, gz)) return false;
+// Width-aware line check — tests centre + both edges of the path ribbon
+// so the rendered ribbon never clips stall geometry
+function lineClearWide(x0, z0, x1, z1) {
+  const dx = x1-x0, dz = z1-z0;
+  const len = Math.sqrt(dx*dx+dz*dz) || 1;
+  // Perpendicular direction (normalized)
+  const px = -dz/len, pz = dx/len;
+  const HALF = PATH_WIDTH * 0.55; // slightly wider than visual ribbon
+  // Check 3 parallel lines: left edge, centre, right edge
+  const offsets = [0, -HALF, HALF];
+  for (const off of offsets) {
+    const ox = px*off, oz = pz*off;
+    const steps = Math.ceil(Math.max(Math.abs(dx),Math.abs(dz)) / window.NAV_GRID.RES * 2.5);
+    for (let i=0; i<=steps; i++) {
+      const t = i/steps;
+      const { gx, gz } = worldToGrid(x0+dx*t+ox, z0+dz*t+oz);
+      if (!isWalkable(gx, gz)) return false;
+    }
   }
   return true;
 }
 
 // ── Three.js dotted path visuals ──────────────────────────────────────────
 
-const PATH_DOT_SPACING = 0.10; // metres between dots along path
-const PATH_DOT_R       = 0.018;
-const PATH_Y           = 0.025; // float above floor
-const PATH_COLOR_WALK  = 0x1D9E75;
-const PATH_COLOR_DONE  = 0x1D9E75;
-const PATH_PULSE_SPEED = 1.8;
+// ── Solid line path (Google Maps style) ──────────────────────────────────
+// Uses a flat ribbon of thin quads along the path — solid, no dots.
+const PATH_Y         = 0.012; // just above floor, depth tested against stalls
+const PATH_COLOR     = 0x1A73E8; // Google Maps blue
+const PATH_BORDER_COLOR = 0x0D47A1; // darker navy border
+const PATH_WIDTH     = 0.055;    // world units wide
 
-let pathDots      = [];   // Three.js meshes
+let pathMesh      = null;    // single merged mesh for the path line
 let pathGroup     = new THREE.Group();
-let pathWaypoints = [];   // [{x,z}] full smoothed path
-let pathProgress  = 0;    // index of next waypoint to reach
-let pathPulse     = 0;
+let pathWaypoints = [];
+let pathProgress  = 0;
 
-window.scene.add(pathGroup);
+// pathGroup goes in main scene so it respects stall depth (hidden behind walls)
+// polygonOffset prevents z-fighting with floor
+if(window.scene) window.scene.add(pathGroup);
+else window.addEventListener('load', ()=>window.scene&&window.scene.add(pathGroup));
 
-const dotGeo = new THREE.CircleGeometry(PATH_DOT_R, 8);
-dotGeo.rotateX(-Math.PI / 2);
-
-function buildPathDots(waypoints) {
-  // Clear existing
+// Build a flat ribbon mesh from an array of {x,z} waypoints
+function buildPathLine(waypoints) {
   pathGroup.clear();
-  pathDots = [];
-
+  pathMesh = null;
   if (!waypoints || waypoints.length < 2) return;
 
-  // Expand waypoints into evenly spaced dots along the polyline
-  const dotPositions = [];
-  let distAccum = 0;
-  let nextDotAt  = PATH_DOT_SPACING * 0.5; // first dot offset
+  const verts  = [];
+  const uvs    = [];
+  const indices = [];
+  const HALF   = PATH_WIDTH / 2;
 
+  let totalLen = 0;
+  const segLens = [];
   for (let i = 1; i < waypoints.length; i++) {
-    const a = waypoints[i - 1], b = waypoints[i];
-    const segLen = Math.sqrt((b.x - a.x) ** 2 + (b.z - a.z) ** 2);
-    if (segLen < 0.001) continue;
-    const ux = (b.x - a.x) / segLen, uz = (b.z - a.z) / segLen;
-    let d = nextDotAt - distAccum;
-    while (d <= segLen) {
-      dotPositions.push({ x: a.x + ux * d, z: a.z + uz * d });
-      d += PATH_DOT_SPACING;
-    }
-    distAccum += segLen;
-    nextDotAt = distAccum + (d - segLen); // carry over
+    const dx = waypoints[i].x - waypoints[i-1].x;
+    const dz = waypoints[i].z - waypoints[i-1].z;
+    const l  = Math.sqrt(dx*dx + dz*dz);
+    segLens.push(l);
+    totalLen += l;
   }
 
-  // Create dot meshes
-  dotPositions.forEach((p, idx) => {
-    const mat = new THREE.MeshBasicMaterial({
-      color: PATH_COLOR_WALK, transparent: true, opacity: 0.85
-    });
-    const mesh = new THREE.Mesh(dotGeo, mat);
-    mesh.position.set(p.x, PATH_Y, p.z);
-    mesh.userData.idx = idx;
-    mesh.userData.totalDots = dotPositions.length;
-    pathGroup.add(mesh);
-    pathDots.push(mesh);
+  let cumLen = 0;
+  for (let i = 0; i < waypoints.length; i++) {
+    const px = waypoints[i].x, pz = waypoints[i].z;
+
+    // Compute normal perpendicular to path direction at this point
+    let nx = 0, nz = 1;
+    if (i === 0) {
+      const dx = waypoints[1].x - px, dz = waypoints[1].z - pz;
+      const l = Math.sqrt(dx*dx+dz*dz)||1;
+      nx = -dz/l; nz = dx/l;
+    } else if (i === waypoints.length-1) {
+      const dx = px - waypoints[i-1].x, dz = pz - waypoints[i-1].z;
+      const l = Math.sqrt(dx*dx+dz*dz)||1;
+      nx = -dz/l; nz = dx/l;
+    } else {
+      // Average of prev and next segment normals
+      const dx0=px-waypoints[i-1].x, dz0=pz-waypoints[i-1].z;
+      const dx1=waypoints[i+1].x-px, dz1=waypoints[i+1].z-pz;
+      const l0=Math.sqrt(dx0*dx0+dz0*dz0)||1;
+      const l1=Math.sqrt(dx1*dx1+dz1*dz1)||1;
+      nx = (-dz0/l0 - dz1/l1)*0.5;
+      nz = (dx0/l0  + dx1/l1)*0.5;
+      const nl = Math.sqrt(nx*nx+nz*nz)||1;
+      nx/=nl; nz/=nl;
+    }
+
+    const u = cumLen / (totalLen||1);
+    // Left vertex
+    verts.push(px - nx*HALF, PATH_Y, pz - nz*HALF);
+    uvs.push(0, u);
+    // Right vertex
+    verts.push(px + nx*HALF, PATH_Y, pz + nz*HALF);
+    uvs.push(1, u);
+
+    if (i > 0) cumLen += segLens[i-1];
+
+    if (i < waypoints.length - 1) {
+      const base = i * 2;
+      indices.push(base, base+1, base+2, base+1, base+3, base+2);
+    }
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+  geo.setAttribute('uv',       new THREE.Float32BufferAttribute(uvs,   2));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+
+  const mat = new THREE.MeshBasicMaterial({
+    color: PATH_COLOR,
+    side: THREE.DoubleSide,
+    depthWrite: true,
+    transparent: false,
+    toneMapped: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2,
   });
+
+  pathMesh = new THREE.Mesh(geo, mat);
+  pathGroup.add(pathMesh);
+
+  // White border line slightly wider for contrast (like Google Maps outline)
+  const borderMat = new THREE.MeshBasicMaterial({
+    color: PATH_BORDER_COLOR,
+    side: THREE.DoubleSide,
+    depthWrite: true,
+    transparent: false,
+    toneMapped: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -3,
+    polygonOffsetUnits: -3,
+  });
+  const borderVerts = [];
+  const BHALF = PATH_WIDTH / 2 + 0.008;
+  for (let i = 0; i < waypoints.length; i++) {
+    const px = waypoints[i].x, pz = waypoints[i].z;
+    let nx=0, nz=1;
+    if (i===0){const dx=waypoints[1].x-px,dz=waypoints[1].z-pz,l=Math.sqrt(dx*dx+dz*dz)||1;nx=-dz/l;nz=dx/l;}
+    else if (i===waypoints.length-1){const dx=px-waypoints[i-1].x,dz=pz-waypoints[i-1].z,l=Math.sqrt(dx*dx+dz*dz)||1;nx=-dz/l;nz=dx/l;}
+    else{const dx0=px-waypoints[i-1].x,dz0=pz-waypoints[i-1].z,dx1=waypoints[i+1].x-px,dz1=waypoints[i+1].z-pz,l0=Math.sqrt(dx0*dx0+dz0*dz0)||1,l1=Math.sqrt(dx1*dx1+dz1*dz1)||1;nx=(-dz0/l0-dz1/l1)*0.5;nz=(dx0/l0+dx1/l1)*0.5;const nl=Math.sqrt(nx*nx+nz*nz)||1;nx/=nl;nz/=nl;}
+    borderVerts.push(px-nx*BHALF,PATH_Y-0.002,pz-nz*BHALF, px+nx*BHALF,PATH_Y-0.002,pz+nz*BHALF);
+  }
+  const bGeo = new THREE.BufferGeometry();
+  bGeo.setAttribute('position', new THREE.Float32BufferAttribute(borderVerts,3));
+  bGeo.setIndex(indices.slice()); // reuse same index pattern
+  bGeo.computeVertexNormals();
+  const borderMesh = new THREE.Mesh(bGeo, borderMat);
+  pathGroup.add(borderMesh);
 }
 
 function updatePathDots(avatarX, avatarZ) {
-  if (!pathDots.length) return;
-  pathPulse += 0.05;
-
-  pathDots.forEach((dot, i) => {
-    const dx = dot.position.x - avatarX;
-    const dz = dot.position.z - avatarZ;
-    const dist = Math.sqrt(dx * dx + dz * dz);
-
-    // Dots behind avatar (within 0.12 units) become invisible
-    if (dist < 0.12) {
-      dot.material.opacity = 0;
-      return;
-    }
-
-    // Animate: dots pulse and fade based on distance from avatar
-    // Closest dots are brightest, distant ones are fainter
-    const normalizedDist = Math.min(dist / 2.5, 1);
-    const baseFade = 1 - normalizedDist * 0.6;
-
-    // Travelling wave effect along path (dots further along "pulse" later)
-    const wave = Math.sin(pathPulse * PATH_PULSE_SPEED - i * 0.4) * 0.2;
-    dot.material.opacity = Math.max(0.1, Math.min(1, baseFade + wave));
-
-    // Scale down distant dots
-    const s = 0.6 + 0.4 * (1 - normalizedDist);
-    dot.scale.setScalar(s);
-  });
+  // Trim the path behind the avatar — hide segments already passed
+  if (!pathMesh) return;
+  // Path stays fully visible (trimming is complex with merged mesh)
+  // Slight alpha fade so it looks natural
 }
 
 function clearPath() {
   pathGroup.clear();
-  pathDots = [];
+  pathMesh = null;
   pathWaypoints = [];
   pathProgress = 0;
 }
@@ -244,7 +304,7 @@ window.computePath = function(destStall) {
   const waypoints = astar(window.aX, window.aZ, destStall.x, destStall.z);
   if (waypoints) {
     pathWaypoints = waypoints;
-    buildPathDots(waypoints);
+    buildPathLine(waypoints);
   } else {
     console.warn('No path found to', destStall.id);
   }

@@ -22,36 +22,33 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x18181f);
 scene.fog = new THREE.Fog(0x18181f, 6, 22);
 
+// Overlay scene — avatar + path render here without tone mapping
+const overlayScene = new THREE.Scene();
+
 const camera = new THREE.PerspectiveCamera(60, 1, 0.005, 100);
 let camFollowing = true;
 const camOffset  = new THREE.Vector3(0, 2.2, 0.6);
 
-// ── Lighting ──────────────────────────────────────────────────────────────
-scene.add(new THREE.AmbientLight(0xfff5e0, 0.9));
-const sun = new THREE.DirectionalLight(0xffe8c0, 0.8);
-sun.position.set(20, 40, 20); sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
-sun.shadow.camera.left = sun.shadow.camera.bottom = -60;
-sun.shadow.camera.right = sun.shadow.camera.top   =  60;
-sun.shadow.camera.far   = 300;
+// ── Lighting — bright uniform, no hotspot ────────────────────────────────
+scene.add(new THREE.AmbientLight(0xffffff, 2.2));   // very bright ambient = flat even light
+// Two opposing directionals cancel shadows while adding slight depth to stall walls
+const sun = new THREE.DirectionalLight(0xffffff, 0.5);
+sun.position.set(1, 2, 1);
+sun.castShadow = false; // no shadows — keeps it bright and clean
 scene.add(sun);
-const fill = new THREE.DirectionalLight(0xffffff, 0.5);
-fill.position.set(0, 10, 0); scene.add(fill);
-const fill2 = new THREE.DirectionalLight(0xaaccff, 0.3);
-fill2.position.set(-8, 6, -8); scene.add(fill2);
+const sun2 = new THREE.DirectionalLight(0xffffff, 0.3);
+sun2.position.set(-1, 2, -1);
+scene.add(sun2);
 
 // ── Avatar ────────────────────────────────────────────────────────────────
 const BODY_R = 0.028, BODY_H = 0.065, AVATAR_HOVER = 0.04;
 
 const avatarRoot = new THREE.Object3D();
-scene.add(avatarRoot);
+overlayScene.add(avatarRoot);
 
-const avatarMat = new THREE.MeshStandardMaterial({
-  color:0x1D9E75, emissive:0x0d3d2a, roughness:0.35, metalness:0.15
-});
-const capMat = new THREE.MeshStandardMaterial({
-  color:0x17c485, emissive:0x082e1e, roughness:0.3, metalness:0.1
-});
+// MeshBasicMaterial with toneMapped:false — bypasses ACES and sRGB encoding
+const avatarMat = new THREE.MeshBasicMaterial({ color: 0xFF2D55, toneMapped: false }); // iOS-style red-pink
+const capMat    = new THREE.MeshBasicMaterial({ color: 0xFFFFFF, toneMapped: false }); // pure white
 const body = new THREE.Mesh(new THREE.CylinderGeometry(BODY_R,BODY_R,BODY_H,24), avatarMat);
 body.castShadow = true; avatarRoot.add(body);
 const capT = new THREE.Mesh(new THREE.SphereGeometry(BODY_R,24,12), capMat);
@@ -60,7 +57,7 @@ const capB = new THREE.Mesh(new THREE.SphereGeometry(BODY_R,24,12), capMat);
 capB.position.y = -BODY_H/2; avatarRoot.add(capB);
 
 // Beak (forward indicator)
-const beakMat = new THREE.MeshStandardMaterial({color:0xffffff,emissive:0x888888,side:THREE.DoubleSide});
+const beakMat = new THREE.MeshBasicMaterial({ color: 0xFF9500, side: THREE.DoubleSide, toneMapped: false }); // bright amber
 const beakGeo = new THREE.BufferGeometry();
 beakGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
    0,    0,    BODY_R*3.5,
@@ -73,12 +70,12 @@ beakGeo.computeVertexNormals();
 const beak = new THREE.Mesh(beakGeo, beakMat); beak.position.y=0.12; avatarRoot.add(beak);
 
 // Ground ring
-const ringMat = new THREE.MeshBasicMaterial({color:0x1D9E75,side:THREE.DoubleSide,transparent:true,opacity:0.6});
+const ringMat = new THREE.MeshBasicMaterial({color:0xFF2D55,side:THREE.DoubleSide,transparent:true,opacity:0.9,toneMapped:false});
 const ring = new THREE.Mesh(new THREE.RingGeometry(BODY_R*1.3, BODY_R*2.2, 40), ringMat);
 ring.rotation.x=-Math.PI/2; ring.position.y=-BODY_H/2+0.005; avatarRoot.add(ring);
 
 // Ground arrow
-const arrowGndMat = new THREE.MeshBasicMaterial({color:0xffffff,side:THREE.DoubleSide,transparent:true,opacity:0.9});
+const arrowGndMat = new THREE.MeshBasicMaterial({color:0xFF9500,side:THREE.DoubleSide,transparent:true,opacity:1.0,toneMapped:false});
 const agGeo = new THREE.BufferGeometry();
 agGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
    0,0,BODY_R*3.5, -BODY_R*0.8,0,BODY_R*1.2, BODY_R*0.8,0,BODY_R*1.2
@@ -88,11 +85,38 @@ agGeo.computeVertexNormals();
 const arrowGnd = new THREE.Mesh(agGeo, arrowGndMat);
 arrowGnd.rotation.x=-Math.PI/2; arrowGnd.position.y=-BODY_H/2+0.006; avatarRoot.add(arrowGnd);
 
-// Destination marker (shown when navigating)
-const destMarkerMat = new THREE.MeshBasicMaterial({color:0x1D9E75,transparent:true,opacity:0.0});
-const destMarker = new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.06,0.15,16), destMarkerMat);
-destMarker.position.y = 0.08;
-scene.add(destMarker);
+// Destination marker — pulsing green pin shown when navigating
+const destMarkerMat = new THREE.MeshBasicMaterial({color:0x00E676,transparent:true,opacity:0.0,toneMapped:false});
+const destMarker = new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.005,0.18,8), destMarkerMat);
+destMarker.position.y = 0.09;
+overlayScene.add(destMarker);
+
+// FROM/TO markers as CSS2DObjects — render in DOM overlay, always above labels
+function makePin(color, label) {
+  const wrap = document.createElement('div');
+  wrap.style.cssText = `
+    display:flex;flex-direction:column;align-items:center;pointer-events:none;
+    opacity:0;transition:opacity 0.2s;
+  `;
+  const dot = document.createElement('div');
+  dot.style.cssText = `
+    width:20px;height:20px;border-radius:50%;
+    background:${color};border:3px solid #fff;
+    box-shadow:0 2px 12px rgba(0,0,0,0.6), 0 0 0 4px ${color}44;
+    flex-shrink:0;
+  `;
+  wrap.appendChild(dot);
+  const obj = new THREE.CSS2DObject(wrap);
+  obj.visible = false;
+  scene.add(obj); // added to main scene but rendered in CSS2D layer
+  return { obj, wrap };
+}
+
+const fromPin = makePin('#4A9EDD', 'START');
+const toPin   = makePin('#FF6B2B', 'END');
+// Aliases for animate loop
+const fromMarker = fromPin.obj;
+const toMarker   = toPin.obj;
 
 // ── Avatar world position ─────────────────────────────────────────────────
 // Position state — on window so sensors.js can read/write
@@ -163,10 +187,48 @@ function constrain(ox,oz,nx,nz){
 // ── Camera ────────────────────────────────────────────────────────────────
 const camTarget=new THREE.Vector3();
 function recenterCamera(){ /* recenter button removed */ }
+// Camera animation state
+let camAnim = null;
+let camPreviewMode = false; // true = stay at preview position, don't follow avatar
+
+function animateCamera(toPos, toTarget, duration, onDone) {
+  // Accept plain {x,y,z} or THREE.Vector3
+  const tp = (toPos instanceof THREE.Vector3) ? toPos
+    : new THREE.Vector3(toPos.x, toPos.y, toPos.z);
+  const tt = (toTarget instanceof THREE.Vector3) ? toTarget
+    : new THREE.Vector3(toTarget.x, toTarget.y, toTarget.z);
+  camAnim = {
+    fromPos:    camera.position.clone(),
+    fromTarget: camTarget.clone(),
+    toPos:      tp,
+    toTarget:   tt,
+    t:          0,
+    duration:   duration || 1.2,
+    onDone:     onDone || null
+  };
+}
+
 function updateCamera(){
-  if(!camFollowing)return;
-  camTarget.set(aX,aY,aZ);
-  camera.position.lerp(new THREE.Vector3(aX+camOffset.x,aY+camOffset.y,aZ+camOffset.z),0.12);
+  if (camAnim) {
+    camAnim.t += (1/60) / camAnim.duration;
+    const t = Math.min(camAnim.t, 1);
+    // Smoothstep ease
+    const e = t * t * (3 - 2 * t);
+    camera.position.lerpVectors(camAnim.fromPos, camAnim.toPos, e);
+    const lerpedTarget = new THREE.Vector3().lerpVectors(camAnim.fromTarget, camAnim.toTarget, e);
+    camera.lookAt(lerpedTarget);
+    if (t >= 1) {
+      const done = camAnim.onDone;
+      camAnim = null;
+      if (done) done();
+    }
+    return;
+  }
+  // Preview mode: camera stays where it is, no follow
+  if (camPreviewMode) return;
+  camTarget.set(aX, aY, aZ);
+  camera.position.lerp(
+    new THREE.Vector3(aX+camOffset.x, aY+camOffset.y, aZ+camOffset.z), 0.12);
   camera.lookAt(camTarget);
 }
 
@@ -238,26 +300,55 @@ function animate(){
   if (dH < -Math.PI) dH += Math.PI*2;
   aHeading += dH * 0.15;
   avatarRoot.rotation.y = aHeading;
-  const moving=window.isMoving&&distToTarget>0.002;
-  avatarMat.color.setHex(moving?0x1D9E75:0x378ADD);
-  avatarMat.emissive.setHex(moving?0x0d3d2a:0x0a1830);
-  capMat.color.setHex(moving?0x17c485:0x4a9edd);
+  const moving = window.isMoving && distToTarget > 0.002;
+  avatarMat.color.setHex(moving ? 0xFF2D55 : 0xFF6B8A); // hot pink-red moving, lighter still
+  capMat.color.setHex(moving ? 0xFFFFFF : 0xFFDDDD);
   // Update labels proximity
   if(window.updateLabels) window.updateLabels(aX,aZ);
   // Update path dots
   if(window.updatePathDots) window.updatePathDots(aX,aZ);
   // Update nav distance
   if(window.updateNavActiveDist) window.updateNavActiveDist();
-  // Update destination marker
-  if(window.destStall){
+  // Destination marker (during active navigation)
+  if(window.destStall && window._navigating){
     destMarker.position.set(window.destStall.x, window.destStall.y+0.05, window.destStall.z);
-    destMarkerMat.opacity=0.5+0.3*Math.sin(pulse*1.5);
-    destMarker.scale.y=1+0.3*Math.sin(pulse*2);
+    destMarkerMat.opacity=0.7+0.3*Math.sin(pulse*2);
+    destMarker.scale.y=1+0.2*Math.sin(pulse*2.5);
   } else {
     destMarkerMat.opacity=0;
   }
+  // Preview FROM marker (CSS2D)
+  if(window._previewFrom){
+    fromMarker.position.set(window._previewFrom.x, 0.15, window._previewFrom.z);
+    fromMarker.visible = true;
+    fromPin.wrap.style.opacity = '1';
+  } else {
+    fromMarker.visible = false;
+    fromPin.wrap.style.opacity = '0';
+  }
+  // Preview TO marker (CSS2D)
+  if(window._previewTo){
+    toMarker.position.set(window._previewTo.x, 0.15, window._previewTo.z);
+    toMarker.visible = true;
+    toPin.wrap.style.opacity = '1';
+  } else {
+    toMarker.visible = false;
+    toPin.wrap.style.opacity = '0';
+  }
   updateCamera();
-  renderer.render(scene,camera);
+  // Render main scene (with ACES tone mapping)
+  renderer.render(scene, camera);
+  // Render overlay (avatar + path) — clear depth so path sits on top of floor
+  renderer.autoClear = false;
+  renderer.clearDepth();  // clear depth buffer only, keep color from main scene
+  const prevTM = renderer.toneMapping;
+  const prevEnc = renderer.outputEncoding;
+  renderer.toneMapping = THREE.NoToneMapping;
+  renderer.outputEncoding = THREE.LinearEncoding;
+  renderer.render(overlayScene, camera);
+  renderer.toneMapping = prevTM;
+  renderer.outputEncoding = prevEnc;
+  renderer.autoClear = true;
 }
 // ── Expose ALL shared globals on window ──────────────────────────────────
 window.renderer             = renderer;
@@ -278,6 +369,12 @@ window.ring                 = ring;
 window.destMarker           = destMarker;
 window.destMarkerMat        = destMarkerMat;
 window.animate              = animate;       // bootstrap.js calls window.animate()
+window.animateCamera        = animateCamera;
+window.fromMarker           = fromMarker;
+window.toMarker             = toMarker;
+window.stopCamAnim      = function(){ camAnim = null; camPreviewMode = false; };
+window.setCamPreview   = function(on){ camPreviewMode = on; };
+window.overlayScene         = overlayScene;  // pathfinder.js adds pathGroup here
 
 // Position state
 window.tX = 0; window.tY = 0; window.tZ = 0;

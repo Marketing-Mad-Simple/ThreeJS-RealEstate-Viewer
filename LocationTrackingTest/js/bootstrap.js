@@ -31,8 +31,19 @@ new THREE.GLTFLoader().load(
 
     gltf.scene.traverse(obj => {
       if (!obj.isMesh) return;
-      obj.castShadow = obj.receiveShadow = true;
-      if (obj.name === 'NAV_MESH') obj.visible = false;
+      obj.castShadow = false;  // disable shadows for clean flat look
+      obj.receiveShadow = false;
+      if (obj.name === 'NAV_MESH') { obj.visible = false; return; }
+
+      // Smooth shading — recompute normals so edges blend instead of facet
+      if (obj.geometry) {
+        obj.geometry.computeVertexNormals();
+      }
+      // Apply smooth shading to all materials on this mesh
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      mats.forEach(m => {
+        if (m) { m.flatShading = false; m.needsUpdate = true; }
+      });
     });
 
     window.scene.add(gltf.scene);
