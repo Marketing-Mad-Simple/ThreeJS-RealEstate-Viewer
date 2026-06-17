@@ -45,7 +45,7 @@
     </div>
   </header>
 
-  <!-- View Toggle (Exterior / Interior) -->
+  <!-- View Toggle -->
   <div id="view-toggle">
     <button class="view-btn active" data-view="exterior">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
@@ -68,102 +68,75 @@
 
     <div class="panel-body" id="panel-body">
 
-      <!-- EXTERIOR OPTIONS -->
+      <!-- ── EXTERIOR ── -->
       <div class="config-section" id="section-exterior">
-        <div class="section-label">Exterior Finish</div>
 
-        <div class="config-row">
-          <label class="config-label">Paint Color</label>
-          <div class="swatch-row" id="swatches-paint">
-            <button class="swatch active" data-group="paint" data-value="pearl_white" style="background:#F0EEE9;" title="Pearl White"></button>
-            <button class="swatch" data-group="paint" data-value="midnight_black" style="background:#1A1A1E;" title="Midnight Black"></button>
-            <button class="swatch" data-group="paint" data-value="champagne_gold" style="background:#C8A96E;" title="Champagne Gold"></button>
-            <button class="swatch" data-group="paint" data-value="navy_eclipse" style="background:#1C2B4A;" title="Navy Eclipse"></button>
-            <button class="swatch" data-group="paint" data-value="silver_mist" style="background:#A8AEBA;" title="Silver Mist"></button>
-            <button class="swatch" data-group="paint" data-value="obsidian_red" style="background:#6B1E22;" title="Obsidian Red"></button>
+        <div class="config-group">
+          <div class="group-label">
+            <span>Exterior Paint</span>
+            <span class="group-selected" id="sel-paint">Pearl White</span>
           </div>
-          <div class="swatch-label" id="label-paint">Pearl White</div>
-        </div>
-
-        <div class="config-row">
-          <label class="config-label">Accent Stripe</label>
-          <div class="swatch-row" id="swatches-stripe">
-            <button class="swatch active" data-group="stripe" data-value="none" style="background:transparent;border:1px dashed #555;" title="None"><span style="color:#888;font-size:9px;line-height:1;display:block;text-align:center;padding-top:5px;">∅</span></button>
-            <button class="swatch" data-group="stripe" data-value="gold" style="background:#C8A96E;" title="Gold"></button>
-            <button class="swatch" data-group="stripe" data-value="silver" style="background:#C0C4CC;" title="Silver"></button>
-            <button class="swatch" data-group="stripe" data-value="carbon" style="background:#2A2A2A;" title="Carbon"></button>
-          </div>
-          <div class="swatch-label" id="label-stripe">None</div>
-        </div>
-
-        <div class="config-row">
-          <label class="config-label">Finish Type</label>
-          <div class="option-pills" id="pills-finish">
-            <button class="option-pill active" data-group="finish" data-value="gloss">Gloss</button>
-            <button class="option-pill" data-group="finish" data-value="matte">Matte</button>
-            <button class="option-pill" data-group="finish" data-value="satin">Satin</button>
+          <div class="mat-list" id="list-paint">
+            <!-- injected by JS -->
           </div>
         </div>
+
+        <div class="config-group">
+          <div class="group-label">
+            <span>Accent Stripe</span>
+            <span class="group-selected" id="sel-stripe">None</span>
+          </div>
+          <div class="mat-list" id="list-stripe"></div>
+        </div>
+
+        <div class="config-group">
+          <div class="group-label">
+            <span>Surface Finish</span>
+            <span class="group-selected" id="sel-finish">Gloss</span>
+          </div>
+          <div class="mat-list" id="list-finish"></div>
+        </div>
+
       </div>
 
-      <!-- INTERIOR OPTIONS -->
+      <!-- ── INTERIOR ── -->
       <div class="config-section hidden" id="section-interior">
-        <div class="section-label">Interior Design</div>
 
-        <div class="config-row">
-          <label class="config-label">Seat Material</label>
-          <div class="option-pills" id="pills-seat-material">
-            <button class="option-pill active" data-group="seat_material" data-value="leather">Full Leather</button>
-            <button class="option-pill" data-group="seat_material" data-value="alcantara">Alcantara</button>
-            <button class="option-pill" data-group="seat_material" data-value="fabric">Fine Fabric</button>
+        <div class="config-group">
+          <div class="group-label">
+            <span>Seat Upholstery</span>
+            <span class="group-selected" id="sel-seat">Full Leather · Ivory</span>
           </div>
+          <div class="mat-list" id="list-seat"></div>
         </div>
 
-        <div class="config-row">
-          <label class="config-label">Seat Color</label>
-          <div class="swatch-row" id="swatches-seat-color">
-            <button class="swatch active" data-group="seat_color" data-value="ivory" style="background:#E8E0D0;" title="Ivory"></button>
-            <button class="swatch" data-group="seat_color" data-value="cognac" style="background:#8B5E3C;" title="Cognac"></button>
-            <button class="swatch" data-group="seat_color" data-value="charcoal" style="background:#3A3A3A;" title="Charcoal"></button>
-            <button class="swatch" data-group="seat_color" data-value="cream" style="background:#F5EDD8;" title="Warm Cream"></button>
-            <button class="swatch" data-group="seat_color" data-value="navy" style="background:#1C2B4A;" title="Deep Navy"></button>
+        <div class="config-group">
+          <div class="group-label">
+            <span>Wood Trim</span>
+            <span class="group-selected" id="sel-wood">Walnut</span>
           </div>
-          <div class="swatch-label" id="label-seat-color">Ivory</div>
+          <div class="mat-list" id="list-wood"></div>
         </div>
 
-        <div class="config-row">
-          <label class="config-label">Wood Trim</label>
-          <div class="swatch-row" id="swatches-wood">
-            <button class="swatch active" data-group="wood" data-value="walnut" style="background:#5C3D1E;" title="Walnut"></button>
-            <button class="swatch" data-group="wood" data-value="maple" style="background:#C8A882;" title="Maple Burl"></button>
-            <button class="swatch" data-group="wood" data-value="ebony" style="background:#1A1208;" title="Ebony"></button>
-            <button class="swatch" data-group="wood" data-value="carbon" style="background:#222228;" title="Carbon Fibre"></button>
+        <div class="config-group">
+          <div class="group-label">
+            <span>Ambient Lighting</span>
+            <span class="group-selected" id="sel-lighting">Warm White</span>
           </div>
-          <div class="swatch-label" id="label-wood">Walnut</div>
+          <div class="mat-list" id="list-lighting"></div>
         </div>
 
-        <div class="config-row">
-          <label class="config-label">Ambient Lighting</label>
-          <div class="swatch-row" id="swatches-lighting">
-            <button class="swatch active" data-group="lighting" data-value="warm" style="background:#F4C77A;" title="Warm White"></button>
-            <button class="swatch" data-group="lighting" data-value="cool" style="background:#D0E8FF;" title="Cool White"></button>
-            <button class="swatch" data-group="lighting" data-value="rose" style="background:#FFD0D8;" title="Rose Blush"></button>
-            <button class="swatch" data-group="lighting" data-value="blue" style="background:#A0C8FF;" title="Midnight Blue"></button>
+        <div class="config-group">
+          <div class="group-label">
+            <span>Interior Style</span>
+            <span class="group-selected" id="sel-style">Classic</span>
           </div>
-          <div class="swatch-label" id="label-lighting">Warm White</div>
+          <div class="mat-list" id="list-style"></div>
         </div>
 
-        <div class="config-row">
-          <label class="config-label">Interior Style</label>
-          <div class="option-pills" id="pills-style">
-            <button class="option-pill active" data-group="interior_style" data-value="classic">Classic</button>
-            <button class="option-pill" data-group="interior_style" data-value="modern">Modern</button>
-            <button class="option-pill" data-group="interior_style" data-value="sport">Sport</button>
-          </div>
-        </div>
       </div>
 
-      <!-- Summary footer -->
+      <!-- Footer -->
       <div class="panel-footer">
         <button class="request-btn" id="btn-request">Request a Quote</button>
       </div>
@@ -171,18 +144,15 @@
     </div>
   </div>
 
-  <!-- Hotspot hints (shown over canvas) -->
+  <!-- Hint bar -->
   <div id="hint-bar">
-    <span>
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      Drag to orbit &nbsp;·&nbsp; Scroll to zoom &nbsp;·&nbsp; Right-drag to pan
-    </span>
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <span>Drag to orbit &nbsp;·&nbsp; Scroll to zoom &nbsp;·&nbsp; Right-drag to pan</span>
   </div>
 
-  <!-- Toast notification -->
+  <!-- Toast -->
   <div id="toast"></div>
 
-  <!-- Three.js import map -->
   <script type="importmap">
   {
     "imports": {
