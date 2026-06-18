@@ -405,8 +405,8 @@ const FLARE_SHADER = {
 const GRADE_SHADER = {
   uniforms: {
     tDiffuse:  { value: null },
-    uVigStr:   { value: 0.35 },
-    uVigRad:   { value: 0.78 },
+    uVigStr:   { value: 0.25 },
+    uVigRad:   { value: 0.8 },
   },
   vertexShader: `
     varying vec2 vUv;
