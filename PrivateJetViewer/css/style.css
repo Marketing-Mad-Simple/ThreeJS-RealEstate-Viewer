@@ -294,36 +294,67 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
 
   #view-toggle { top: calc(var(--header-h) + 10px); }
 
-  /* Bottom sheet */
+  /* Bottom sheet — tall enough for full card list */
   #config-panel {
     top: auto; bottom: 0; left: 0; right: 0; width: 100%;
-    height: auto; max-height: 52vh;
+    height: 68vh; max-height: 68vh;
     border-left: none; border-top: 1px solid var(--border-hi);
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     transform: translateY(0);
   }
   #config-panel.collapsed { transform: translateY(calc(100% - 54px)); }
 
-  .panel-body { max-height: calc(52vh - 54px - 58px); }
+  /* Panel body fills the sheet minus header bar (54px) and footer (58px) */
+  .panel-body {
+    max-height: calc(68vh - 54px - 58px);
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
 
   .panel-toggle svg { transform: rotate(180deg) !important; }
   #config-panel.collapsed .panel-toggle svg { transform: rotate(0deg) !important; }
 
-  /* Horizontal scrolling cards on mobile for tighter space */
-  .mat-list { flex-direction: row; overflow-x: auto; gap: 8px; padding-bottom: 4px; }
-  .mat-list::-webkit-scrollbar { display: none; }
-  .mat-list { -ms-overflow-style: none; scrollbar-width: none; }
-
-  .mat-card {
-    flex-direction: column; align-items: flex-start;
-    min-width: 120px; max-width: 120px; padding: 8px;
+  /* Cards: vertical list, same row layout as desktop */
+  .mat-list {
+    flex-direction: column;
+    overflow-x: unset;
+    gap: 6px;
+    padding-bottom: 0;
+    -ms-overflow-style: unset;
+    scrollbar-width: unset;
   }
-  .mat-thumb { width: 100%; height: 56px; }
-  .mat-check { position: absolute; top: 6px; right: 6px; width: 18px; height: 18px; }
-  .mat-name { font-size: 11px; }
-  .mat-desc { display: none; }
 
-  #hint-bar { bottom: calc(52vh + 12px); font-size: 10px; padding: 6px 14px; }
+  /* Card: horizontal row — thumb | info | check — identical to desktop */
+  .mat-card {
+    flex-direction: row;
+    align-items: center;
+    min-width: unset;
+    max-width: unset;
+    width: 100%;
+    padding: 8px 10px;
+  }
+
+  /* Thumb: same fixed square as desktop */
+  .mat-thumb { width: 48px; height: 48px; flex-shrink: 0; }
+
+  /* Show description — two-line clamp */
+  .mat-desc {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: 10px;
+  }
+
+  /* Check badge: back in normal flow (was absolute on old mobile layout) */
+  .mat-check { position: static; width: 20px; height: 20px; flex-shrink: 0; }
+
+  .mat-name { font-size: 12px; }
+  .group-label > span:first-child { font-size: 10px; }
+  .group-selected { font-size: 10px; }
+
+  /* Hint bar sits above the sheet */
+  #hint-bar { bottom: calc(68vh + 10px); font-size: 10px; padding: 6px 14px; }
   #config-panel.collapsed ~ #hint-bar { bottom: 72px; }
 
   #toast { bottom: auto; top: 70px; }
@@ -332,7 +363,8 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
 @media (max-width: 380px) {
   .brand { font-size: 15px; }
   .config-group { padding: 0 12px 16px; }
-  .mat-card { min-width: 106px; max-width: 106px; }
+  .mat-name { font-size: 11px; }
+  .mat-thumb { width: 42px; height: 42px; }
 }
 
 /* Desktop collapsed */

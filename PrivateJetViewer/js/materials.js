@@ -1,89 +1,92 @@
 /**
  * materials.js
  *
- * Owns every THREE.js material mutation in the app.
+ * Owns every Three.js material mutation in the app.
  *
- * PUBLIC API
- * ──────────
- *   applyExteriorConfig(model, paintOpt, finishOpt)
- *   applyInteriorConfig(model, opts, currentView, interiorLight)
+ * ROOT CAUSE FIX (multi-material meshes)
+ * ────────────────────────────────────────
+ * When a Blender object has more than one material slot, Three.js loads it
+ * as node.material = MeshStandardMaterial[]  (an array, one entry per slot).
+ * The old code did  node.material = MAT.body  which silently replaced the
+ * whole array with a single material, dropping all other slots and causing
+ * partial or missing colour changes.
  *
- * HOW TEXTURE + PROGRAMMATIC VALUES INTERACT
- * ──────────────────────────────────────────
- *   map          → Three multiplies material.color × texture pixel.
- *                  If map is null, material.color is the sole colour source.
+ * The fix is mutateInPlace():
+ *   - If node.material is an array, iterate every slot and mutate each one
+ *     individually (color, roughness, map, etc.) rather than replacing the ref.
+ *   - If it is a single material, mutate it directly.
+ *   - Never replace node.material — always mutate what's already there.
  *
- *   roughnessMap → Three multiplies material.roughness × texture pixel (0–1).
- *                  Set material.roughness = 1.0 to use the map as-is,
- *                  or lower it to darken (less rough) the whole surface.
- *                  We deliberately keep material.roughness as a scalar
- *                  so the Finish selector still does something meaningful
- *                  even when a roughness map is present.
+ * This also fixes the secondary issue where assigning a shared MAT.body
+ * instance to multiple meshes meant that setting aoMap on one mesh's material
+ * would bleed through to every other mesh sharing that instance.
  *
- *   normalMap    → material.normalScale controls depth (Vector2, default 1,1).
- *                  We expose normalScale per material type so the style
- *                  selector can dial it up/down (sport = more pronounced).
- *
- *   aoMap        → requires a second UV set (UV2) on the mesh. If your GLB
- *                  doesn't have UV2 we skip aoMap silently.
+ * STRATEGY CHANGE: no more shared MAT cache instances.
+ * Instead, mutateInPlace() receives a plain "patch" object describing what
+ * to change, and applies it to every material slot already on the mesh.
+ * This is safer and handles both single and multi-material meshes correctly.
  */
 
 import * as THREE from 'three';
 import { getTexSet } from './textureRegistry.js';
 
 /* ─────────────────────────────────────────────────────────────────
-   HELPERS
+   CORE MUTATOR
+   Applies a patch to every material slot on a mesh without ever
+   replacing the node.material reference.
+   
+   patch = {
+     color?:              number (hex)
+     roughness?:         number
+     metalness?:         number
+     map?:               THREE.Texture | null
+     roughnessMap?:      THREE.Texture | null
+     normalMap?:         THREE.Texture | null
+     normalScale?:       [number, number]
+     aoMap?:             THREE.Texture | null   (only set if UV2 exists)
+     emissive?:          number (hex)
+     emissiveIntensity?: number
+     envMapIntensity?:   number
+   }
 ───────────────────────────────────────────────────────────────── */
+function mutateInPlace(node, patch) {
+  const mats = Array.isArray(node.material) ? node.material : [node.material];
+  const hasUV2 = !!(node.geometry && node.geometry.attributes.uv2);
 
-/**
- * Assign texture slots to a material, skipping nulls gracefully.
- * Clears slots that have become null (e.g. switching from textured
- * to a type that has no texture yet) so old textures don't linger.
- */
-function assignTextures(mat, { map = null, roughnessMap = null, normalMap = null, aoMap = null } = {}) {
-  mat.map          = map          ?? null;
-  mat.roughnessMap = roughnessMap ?? null;
-  mat.normalMap    = normalMap    ?? null;
+  mats.forEach(mat => {
+    if (!mat) return;
 
-  // aoMap only works if the mesh has UV2 — check on the geometry side.
-  // We set it here; applyToMesh() will guard the geometry check.
-  mat._pendingAoMap = aoMap ?? null;
+    if (patch.color               !== undefined) mat.color.setHex(patch.color);
+    if (patch.roughness           !== undefined) mat.roughness = patch.roughness;
+    if (patch.metalness           !== undefined) mat.metalness = patch.metalness;
+    if (patch.envMapIntensity     !== undefined) mat.envMapIntensity = patch.envMapIntensity;
 
-  mat.needsUpdate  = true;
+    // Texture maps — explicit null clears the slot (removes old texture)
+    if ('map'          in patch) mat.map          = patch.map          ?? null;
+    if ('roughnessMap' in patch) mat.roughnessMap = patch.roughnessMap ?? null;
+    if ('normalMap'    in patch) mat.normalMap    = patch.normalMap    ?? null;
+
+    if (patch.normalScale) {
+      if (!mat.normalScale) mat.normalScale = new THREE.Vector2(1, 1);
+      mat.normalScale.set(patch.normalScale[0], patch.normalScale[1]);
+    }
+
+    // AO map requires UV2 on the geometry
+    if ('aoMap' in patch) {
+      mat.aoMap          = (patch.aoMap && hasUV2) ? patch.aoMap : null;
+      mat.aoMapIntensity = 1.0;
+    }
+
+    // Emissive
+    if (patch.emissive !== undefined) {
+      if (!mat.emissive) mat.emissive = new THREE.Color();
+      mat.emissive.setHex(patch.emissive);
+    }
+    if (patch.emissiveIntensity !== undefined) mat.emissiveIntensity = patch.emissiveIntensity;
+
+    mat.needsUpdate = true;
+  });
 }
-
-/**
- * Apply the material to a specific mesh, handling the UV2 / aoMap guard.
- */
-function applyToMesh(mesh, mat) {
-  mesh.material = mat;
-
-  // AO maps require a second UV channel. Only assign if geometry has it.
-  if (mat._pendingAoMap && mesh.geometry.attributes.uv2) {
-    mat.aoMap          = mat._pendingAoMap;
-    mat.aoMapIntensity = 1.0;
-  } else {
-    mat.aoMap = null;
-  }
-
-  mat.envMapIntensity = 0.85;
-  mat.needsUpdate     = true;
-}
-
-/* ─────────────────────────────────────────────────────────────────
-   MATERIAL CACHE
-   We create ONE MeshStandardMaterial per logical surface type and
-   mutate it on every config change — cheaper than creating new ones.
-───────────────────────────────────────────────────────────────── */
-const MAT = {
-  body:      new THREE.MeshStandardMaterial({ name: 'body'      }),
-  engineOuter: new THREE.MeshStandardMaterial({ name: 'engineOuter' }),
-  seat:      new THREE.MeshStandardMaterial({ name: 'seat'      }),
-  trim:      new THREE.MeshStandardMaterial({ name: 'trim'      }),
-  carpet:    new THREE.MeshStandardMaterial({ name: 'carpet'    }),
-  // Light strips are emissive — kept separate
-  lightStrip: new THREE.MeshStandardMaterial({ name: 'lightStrip', roughness: 1, metalness: 0 }),
-};
 
 /* ─────────────────────────────────────────────────────────────────
    EXTERIOR
@@ -99,26 +102,36 @@ export function applyExteriorConfig(model, paintOpt, finishOpt) {
 
   const { roughnessMap, normalMap } = getTexSet('exterior', 'paint');
 
-  // ── Body + Wings ──
-  MAT.body.color.setHex(paintOpt.color);
-  MAT.body.roughness  = finishOpt.roughness;          // scalar scales the map
-  MAT.body.metalness  = paintOpt.metalness ?? 0.65;
-  assignTextures(MAT.body, { roughnessMap, normalMap });
-  // No baseColor map — colour is 100% programmatic so all paint options
-  // look correct without needing per-colour textures.
+  // Patch for Body_ and Wing_ meshes
+  const bodyPatch = {
+    color:          paintOpt.color,
+    roughness:      finishOpt.roughness,
+    metalness:      paintOpt.metalness ?? 0.65,
+    roughnessMap,
+    normalMap,
+    envMapIntensity: 0.85,
+  };
 
-  // ── Engine outer — slightly darker + a touch more rough ──
+  // Engine outer — slightly darker tint, slightly rougher
   const engColor = new THREE.Color(paintOpt.color).multiplyScalar(0.82);
-  MAT.engineOuter.color.copy(engColor);
-  MAT.engineOuter.roughness = Math.min(finishOpt.roughness + 0.1, 1.0);
-  MAT.engineOuter.metalness = paintOpt.metalness ?? 0.65;
-  assignTextures(MAT.engineOuter, { roughnessMap, normalMap });
+  const enginePatch = {
+    color:          engColor.getHex(),
+    roughness:      Math.min(finishOpt.roughness + 0.1, 1.0),
+    metalness:      paintOpt.metalness ?? 0.65,
+    roughnessMap,
+    normalMap,
+    envMapIntensity: 0.85,
+  };
 
   model.traverse(node => {
-    if (!node.isMesh || !node.material) return;
+    if (!node.isMesh) return;
     const nm = node.name || '';
-    if (nm.startsWith('Body_') || nm.startsWith('Wing_')) applyToMesh(node, MAT.body);
-    if (nm.startsWith('Engine_Outer'))                    applyToMesh(node, MAT.engineOuter);
+
+    if (nm.startsWith('Body_') || nm.startsWith('Wing_')) {
+      mutateInPlace(node, bodyPatch);
+    } else if (nm.startsWith('Engine_Outer')) {
+      mutateInPlace(node, enginePatch);
+    }
   });
 }
 
@@ -127,81 +140,83 @@ export function applyExteriorConfig(model, paintOpt, finishOpt) {
 ───────────────────────────────────────────────────────────────── */
 
 /**
- * @param {THREE.Group}  model
- * @param {{ seatOpt, woodOpt, lightOpt, styleOpt }} opts  — all resolved option objects
- * @param {string}       currentView  — 'interior' | 'exterior'
+ * @param {THREE.Group}   model
+ * @param {{ seatOpt, woodOpt, lightOpt, styleOpt }} opts
+ * @param {string}        currentView
  * @param {THREE.PointLight} interiorLight
  */
 export function applyInteriorConfig(model, { seatOpt, woodOpt, lightOpt, styleOpt }, currentView, interiorLight) {
   if (!model) return;
 
-  // ── Style multipliers ──
+  // Style-driven multipliers
   const brightnessMult = styleOpt.id === 'sport' ? 0.80 : styleOpt.id === 'modern' ? 1.05 : 1.0;
   const normalDepth    = styleOpt.id === 'sport' ? 1.4  : styleOpt.id === 'modern' ? 0.8  : 1.0;
 
-  // ── Cabin lighting ──
+  // Cabin point light
   interiorLight.color.setHex(lightOpt.color);
   interiorLight.intensity = currentView === 'interior' ? 2.5 : 0;
 
-  // ────────────── SEAT ──────────────
-  // Determine which texture set to use based on material type
-  const seatTexKey = seatOpt.material; // 'leather' | 'fabric'
+  // ── Seat patch ──
   const { map: seatMap, roughnessMap: seatRoughMap, normalMap: seatNormalMap, aoMap: seatAoMap }
-    = getTexSet('seat', seatTexKey);
+    = getTexSet('seat', seatOpt.material); // 'leather' | 'fabric'
 
-  const seatColor = new THREE.Color(seatOpt.color).multiplyScalar(brightnessMult);
-  MAT.seat.color.copy(seatColor);
+  const seatColor = new THREE.Color(seatOpt.color).multiplyScalar(brightnessMult).getHex();
+  const seatPatch = {
+    color:          seatColor,
+    roughness:      seatOpt.roughness,
+    metalness:      seatOpt.metalness ?? 0.02,
+    map:            seatMap,
+    roughnessMap:   seatRoughMap,
+    normalMap:      seatNormalMap,
+    aoMap:          seatAoMap,
+    normalScale:    [normalDepth, normalDepth],
+    envMapIntensity: 0.85,
+  };
 
-  // roughness: use opt value as the scalar multiplier on top of the map
-  MAT.seat.roughness    = seatOpt.roughness;
-  MAT.seat.metalness    = seatOpt.metalness ?? 0.02;
-  MAT.seat.normalScale  = MAT.seat.normalScale ?? new THREE.Vector2(1, 1);
-  MAT.seat.normalScale.set(normalDepth, normalDepth);
-
-  assignTextures(MAT.seat, {
-    map:          seatMap,
-    roughnessMap: seatRoughMap,
-    normalMap:    seatNormalMap,
-    aoMap:        seatAoMap,
-  });
-
-  // ────────────── TRIM (wood / carbon) ──────────────
+  // ── Trim patch ──
   const { map: trimMap, roughnessMap: trimRoughMap, normalMap: trimNormalMap }
     = getTexSet('trim', woodOpt.id);
 
-  MAT.trim.color.setHex(woodOpt.color);
-  MAT.trim.roughness   = woodOpt.roughness;
-  MAT.trim.metalness   = woodOpt.metalness ?? 0.05;
-  MAT.trim.normalScale = MAT.trim.normalScale ?? new THREE.Vector2(1, 1);
-  MAT.trim.normalScale.set(0.8, 0.8);   // wood trim normal is subtle
+  const trimPatch = {
+    color:          woodOpt.color,
+    roughness:      woodOpt.roughness,
+    metalness:      woodOpt.metalness ?? 0.05,
+    map:            trimMap,
+    roughnessMap:   trimRoughMap,
+    normalMap:      trimNormalMap,
+    normalScale:    [0.8, 0.8],
+    envMapIntensity: 0.85,
+  };
 
-  assignTextures(MAT.trim, {
-    map:          trimMap,
-    roughnessMap: trimRoughMap,
-    normalMap:    trimNormalMap,
-  });
-
-  // ────────────── CARPET ──────────────
+  // ── Carpet patch ──
   const carpetHex = styleOpt.id === 'sport' ? 0x1A1A1E
     : styleOpt.id === 'modern' ? 0x2A2520 : 0x3A2E1A;
-  MAT.carpet.color.setHex(carpetHex);
-  MAT.carpet.roughness = 0.9;
-  MAT.carpet.metalness = 0.0;
-  assignTextures(MAT.carpet);  // no textures yet — clears any old ones
+  const carpetPatch = {
+    color:     carpetHex,
+    roughness: 0.9,
+    metalness: 0.0,
+    map:       null,
+    roughnessMap: null,
+    normalMap: null,
+  };
 
-  // ────────────── LIGHT STRIPS ──────────────
-  MAT.lightStrip.color.setHex(lightOpt.color);
-  MAT.lightStrip.emissive    = MAT.lightStrip.emissive ?? new THREE.Color();
-  MAT.lightStrip.emissive.setHex(lightOpt.color);
-  MAT.lightStrip.emissiveIntensity = 1.4;
+  // ── Light strip patch ──
+  const lightPatch = {
+    color:             lightOpt.color,
+    emissive:          lightOpt.color,
+    emissiveIntensity: 1.4,
+    roughness:         1.0,
+    metalness:         0.0,
+  };
 
-  // ── Traverse and assign ──
+  // Traverse and apply
   model.traverse(node => {
-    if (!node.isMesh || !node.material) return;
+    if (!node.isMesh) return;
     const nm = node.name || '';
-    if      (nm.startsWith('Seat_'))        applyToMesh(node, MAT.seat);
-    else if (nm.startsWith('Trim_'))        applyToMesh(node, MAT.trim);
-    else if (nm.startsWith('Carpet_') || nm.startsWith('Floor_')) applyToMesh(node, MAT.carpet);
-    else if (nm.startsWith('Light_Strip_')) applyToMesh(node, MAT.lightStrip);
+
+    if      (nm.startsWith('Seat_'))                              mutateInPlace(node, seatPatch);
+    else if (nm.startsWith('Trim_'))                              mutateInPlace(node, trimPatch);
+    else if (nm.startsWith('Carpet_') || nm.startsWith('Floor_')) mutateInPlace(node, carpetPatch);
+    else if (nm.startsWith('Light_Strip_'))                       mutateInPlace(node, lightPatch);
   });
 }
