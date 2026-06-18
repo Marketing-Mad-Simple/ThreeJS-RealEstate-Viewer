@@ -266,12 +266,15 @@ export function styleThumb(style) {
 export const OPTIONS = {
 
   paint: [
-    { id:'pearl_white',     name:'Pearl White',     desc:'Timeless aviation white with luminescent depth.',           color:0xF0EEE9, metalness:0.65, thumb: solidThumb(0xF0EEE9, {roughness:0.10, metalness:0.65}) },
-    { id:'midnight_black',  name:'Midnight Black',  desc:'Deep obsidian that absorbs and refracts light.',           color:0x1A1A1E, metalness:0.80, thumb: solidThumb(0x1A1A1E, {roughness:0.08, metalness:0.80}) },
-    { id:'champagne_gold',  name:'Champagne Gold',  desc:'Warm metallic gold reminiscent of grand boulevards.',      color:0xC8A96E, metalness:0.85, thumb: solidThumb(0xC8A96E, {roughness:0.08, metalness:0.85}) },
-    { id:'navy_eclipse',    name:'Navy Eclipse',    desc:'Rich midnight blue with subtle atmospheric shimmer.',      color:0x1C2B4A, metalness:0.60, thumb: solidThumb(0x1C2B4A, {roughness:0.12, metalness:0.60}) },
-    { id:'silver_mist',     name:'Silver Mist',     desc:'Cool brushed silver with refined industrial character.',   color:0xA8AEBA, metalness:0.90, thumb: solidThumb(0xA8AEBA, {roughness:0.15, metalness:0.90}) },
-    { id:'obsidian_red',    name:'Obsidian Red',    desc:'Deep burgundy with a commanding, assertive presence.',    color:0x6B1E22, metalness:0.55, thumb: solidThumb(0x6B1E22, {roughness:0.14, metalness:0.55}) },
+    // metalness: paint/lacquer finishes are 0.0–0.10 (dielectric).
+    // Only Silver Mist mimics bare polished metal (0.85).
+    // Champagne Gold has a pearl-metallic flake effect (0.35).
+    { id:'pearl_white',     name:'Pearl White',     desc:'Timeless aviation white with luminescent depth.',           color:0xF0EEE9, metalness:0.05, thumb: solidThumb(0xF0EEE9, {roughness:0.10, metalness:0.05}) },
+    { id:'midnight_black',  name:'Midnight Black',  desc:'Deep obsidian that absorbs and refracts light.',           color:0x1A1A1E, metalness:0.08, thumb: solidThumb(0x1A1A1E, {roughness:0.08, metalness:0.08}) },
+    { id:'champagne_gold',  name:'Champagne Gold',  desc:'Warm metallic gold reminiscent of grand boulevards.',      color:0xC8A96E, metalness:0.35, thumb: solidThumb(0xC8A96E, {roughness:0.10, metalness:0.35}) },
+    { id:'navy_eclipse',    name:'Navy Eclipse',    desc:'Rich midnight blue with subtle atmospheric shimmer.',      color:0x1C2B4A, metalness:0.05, thumb: solidThumb(0x1C2B4A, {roughness:0.12, metalness:0.05}) },
+    { id:'silver_mist',     name:'Silver Mist',     desc:'Cool brushed silver with refined industrial character.',   color:0xA8AEBA, metalness:0.85, thumb: solidThumb(0xA8AEBA, {roughness:0.15, metalness:0.85}) },
+    { id:'obsidian_red',    name:'Obsidian Red',    desc:'Deep burgundy with a commanding, assertive presence.',    color:0x6B1E22, metalness:0.05, thumb: solidThumb(0x6B1E22, {roughness:0.14, metalness:0.05}) },
   ],
 
   stripe: [
