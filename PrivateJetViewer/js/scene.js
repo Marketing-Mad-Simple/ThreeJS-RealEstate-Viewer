@@ -47,6 +47,102 @@ let currentView = 'exterior';
 let isAnimating  = false;
 const models = { exterior: null, interior: null };
 
+// Materials that have height-fog injected, so we can update the fog colour
+// uniform if the sky palette ever changes (e.g. different time-of-day presets)
+const _heightFogMaterials = [];
+
+// Shared horizon colour — matches what the sky shader actually renders
+// at the horizon LINE (where dir.y ≈ 0, i.e. h ≈ 0.5 in the sky shader),
+// since that's the band the runway visually meets at typical camera angles.
+// At h=0.5 the sky shader is fully in COL_MID (0.80,0.85,0.92) blended
+// ~33% toward COL_ZENITH (0.42,0.58,0.82) — a cool pale blue, NOT the
+// warm golden-horizon tone used lower in the sky (h<0.2).
+// Kept as a single source of truth so runway fog and sky never drift
+// out of sync if the palette changes later.
+const HORIZON_FOG_COLOR = new THREE.Color(0.70, 0.78, 0.88);
+
+/* ─────────────────────────────────────────────────────────────────
+   HEIGHT FOG (via onBeforeCompile shader injection)
+   
+   THREE.FogExp2 is distance-only — it fades based on distance from the
+   camera regardless of height, which doesn't hide a flat horizon line
+   well (the runway end is roughly the same distance as the sky behind
+   it, so distance fog alone barely touches it).
+   
+   True height fog fades based on world-space Y (or, here, distance
+   along the ground combined with a height falloff) — exactly what's
+   needed to dissolve a runway into haze before the hard edge is visible.
+   
+   applyHeightFog(material) patches the material's shader to blend the
+   final colour toward a fog colour based on world-space distance AND
+   the camera's view angle toward the horizon, mimicking real atmospheric
+   haze that thickens toward the horizon.
+───────────────────────────────────────────────────────────────── */
+function applyHeightFog(material) {
+  // Disable Three's built-in distance fog on this material — we inject our
+  // own custom height fog below, and Three's <fog_pars_vertex>/<fog_pars_fragment>
+  // chunks declare 'vFogDepth' / 'fogFactor', which previously collided with
+  // identically-named variables in our custom injection and broke shader
+  // compilation entirely (causing the whole runway to vanish).
+  material.fog = false;
+
+  material.onBeforeCompile = (shader) => {
+    // uHFogDensity is calibrated so the fog stays nearly invisible within
+    // ~40 units of the camera (where the aircraft and immediate runway
+    // sit) and only becomes prominent past ~100 units, fully obscuring
+    // the runway's hard edge by ~250 units. uHFogStart pushes the onset
+    // distance out so close-range geometry isn't affected at all.
+    shader.uniforms.uHFogColor         = { value: HORIZON_FOG_COLOR.clone() };
+    shader.uniforms.uHFogDensity       = { value: 0.006 };
+    shader.uniforms.uHFogStart         = { value: 35.0 };
+    shader.uniforms.uHFogHeightFalloff = { value: 0.15 };
+    shader.uniforms.uHFogCameraPos     = { value: camera.position };
+
+    // Use uniquely-prefixed varying/variable names ('vHFogWorldPos',
+    // 'hFogFactor') so there is zero chance of colliding with any
+    // Three.js built-in shader chunk, now or in future Three versions.
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <common>',
+      `#include <common>
+       varying vec3 vHFogWorldPos;`
+    );
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <worldpos_vertex>',
+      `#include <worldpos_vertex>
+       vHFogWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;`
+    );
+
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <common>',
+      `#include <common>
+       uniform vec3  uHFogColor;
+       uniform float uHFogDensity;
+       uniform float uHFogStart;
+       uniform float uHFogHeightFalloff;
+       uniform vec3  uHFogCameraPos;
+       varying vec3  vHFogWorldPos;`
+    );
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <dithering_fragment>',
+      `#include <dithering_fragment>
+       // Height-based exponential fog: thicker near ground level (y≈0),
+       // thins out with height, and intensifies with horizontal distance
+       // BEYOND uHFogStart — close-range geometry (e.g. the aircraft and
+       // the runway directly beneath/around it) stays completely clear.
+       float hFogDistXZ    = length(vHFogWorldPos.xz - uHFogCameraPos.xz);
+       float hFogEffDist   = max(hFogDistXZ - uHFogStart, 0.0);
+       float hFogHeightAtt = exp(-max(vHFogWorldPos.y, 0.0) * uHFogHeightFalloff);
+       float hFogFactor    = 1.0 - exp(-uHFogDensity * hFogEffDist * hFogHeightAtt);
+       hFogFactor = clamp(hFogFactor, 0.0, 1.0);
+       gl_FragColor.rgb = mix(gl_FragColor.rgb, uHFogColor, hFogFactor);`
+    );
+
+    material.userData.fogShader = shader;
+  };
+  material.needsUpdate = true;
+  _heightFogMaterials.push(material);
+}
+
 const gltfLoader  = new GLTFLoader();
 const dracoLoader = new DRACOLoader();
 dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/libs/draco/');
@@ -150,11 +246,13 @@ function _buildRunway() {
   runwayGroup.name = 'runway';
 
   const tarmacMat = new THREE.MeshStandardMaterial({ color: 0x5A5648, roughness: 0.90, metalness: 0.03 });
+  applyHeightFog(tarmacMat);
   const slab = new THREE.Mesh(new THREE.PlaneGeometry(80, 300), tarmacMat);
   slab.rotation.x = -Math.PI / 2; slab.receiveShadow = true;
   runwayGroup.add(slab);
 
   const apronMat = new THREE.MeshStandardMaterial({ color: 0x484840, roughness: 0.96 });
+  applyHeightFog(apronMat);
   [-45, 45].forEach(x => {
     const a = new THREE.Mesh(new THREE.PlaneGeometry(12, 300), apronMat);
     a.rotation.x = -Math.PI / 2; a.position.set(x, -0.002, 0); a.receiveShadow = true;
@@ -162,6 +260,7 @@ function _buildRunway() {
   });
 
   const jointMat = new THREE.MeshStandardMaterial({ color: 0x252520, roughness: 0.98 });
+  applyHeightFog(jointMat);
   for (let z = -140; z <= 140; z += 14) {
     const j = new THREE.Mesh(new THREE.PlaneGeometry(80, 0.18), jointMat);
     j.rotation.x = -Math.PI / 2; j.position.set(0, 0.001, z);
@@ -169,6 +268,7 @@ function _buildRunway() {
   }
 
   const dashMat = new THREE.MeshStandardMaterial({ color: 0xE0DCCC, roughness: 0.85 });
+  applyHeightFog(dashMat);
   for (let z = -145; z <= 145; z += 12) {
     const d = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 6), dashMat);
     d.rotation.x = -Math.PI / 2; d.position.set(0, 0.002, z);
@@ -195,6 +295,7 @@ function _buildRunway() {
   }
 
   const termMat = new THREE.MeshStandardMaterial({ color: 0x1A1C22, roughness: 1 });
+  applyHeightFog(termMat);
   const term = new THREE.Mesh(new THREE.BoxGeometry(90, 8, 4), termMat);
   term.position.set(0, 4, -155); runwayGroup.add(term);
   const tower = new THREE.Mesh(new THREE.BoxGeometry(4, 22, 4), termMat);
@@ -407,7 +508,7 @@ export function initScene() {
   renderer.outputColorSpace    = THREE.SRGBColorSpace;
 
   scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0xD4C090, 0.0022);
+  scene.fog = new THREE.FogExp2(HORIZON_FOG_COLOR, 0.0030); // gentler, matches runway height fog falloff
 
   camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 800);
   camera.position.copy(CAM_PRESETS.exterior.position);
@@ -510,7 +611,7 @@ export function switchView(view) {
     interiorLight.intensity = 2.5;
   } else {
     if (runwayGroup) runwayGroup.visible = true;
-    scene.fog        = new THREE.FogExp2(0xD4C090, 0.0022);
+    scene.fog        = new THREE.FogExp2(HORIZON_FOG_COLOR, 0.0030);
     scene.background = null;
     interiorLight.intensity = 0;
   }
