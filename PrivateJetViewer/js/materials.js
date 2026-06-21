@@ -145,16 +145,16 @@ export function applyExteriorConfig(model, paintOpt, finishOpt) {
  * @param {string}        currentView
  * @param {THREE.PointLight} interiorLight
  */
-export function applyInteriorConfig(model, { seatOpt, woodOpt, lightOpt, styleOpt }, currentView, interiorLight) {
+export function applyInteriorConfig(model, { seatOpt, woodOpt, lightOpt, styleOpt }, currentView, interiorLight, cabinLights = []) {
   if (!model) return;
 
   // Style-driven multipliers
   const brightnessMult = styleOpt.id === 'sport' ? 0.80 : styleOpt.id === 'modern' ? 1.05 : 1.0;
   const normalDepth    = styleOpt.id === 'sport' ? 1.4  : styleOpt.id === 'modern' ? 0.8  : 1.0;
 
-  // Cabin point light
+  // Light color driven by lightOpt; intensity is owned by switchView in scene.js
   interiorLight.color.setHex(lightOpt.color);
-  interiorLight.intensity = currentView === 'interior' ? 2.5 : 0;
+  cabinLights.forEach(l => l.color.setHex(lightOpt.color));
 
   // ── Seat patch ──
   const { map: seatMap, roughnessMap: seatRoughMap, normalMap: seatNormalMap, aoMap: seatAoMap }

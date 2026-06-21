@@ -16,10 +16,11 @@
  * All DOM building lives in ui.js.
  */
 
+import * as THREE from 'three';
 import { loadAll }                               from './textureRegistry.js';
 import { initScene, loadModels, switchView,
          resetCamera, getModels, getInteriorLight,
-         getCurrentView }                        from './scene.js';
+         getCabinLights, getCurrentView, updateSunDirection } from './scene.js';
 import { applyExteriorConfig, applyInteriorConfig } from './materials.js';
 import { OPTIONS, DEFAULT_CONFIG, resolveOpt }   from './options.js';
 import { initUI, setViewSection, showToast }     from './ui.js';
@@ -47,6 +48,7 @@ function applyInterior() {
     },
     getCurrentView(),
     getInteriorLight(),
+    getCabinLights(),
   );
 }
 
@@ -144,5 +146,29 @@ async function boot() {
     showToast('Demo mode — drop GLBs into /models/ to load your aircraft');
   }
 }
+
+// ── Dev helpers (browser console) ──
+// setSun(10.5, 12)                     → reposition sun
+// setCabinLight(0, 0, 1.9, 6, 3.2)    → move cabin light 0 and set intensity
+// cabinInfo()                          → dump cabin bounding box + light positions
+window.setSun = updateSunDirection;
+window.setCabinLight = (i, x, y, z, intensity) => {
+  const lights = getCabinLights();
+  if (!lights[i]) { console.warn('No cabin light at index', i); return; }
+  lights[i].position.set(x, y, z);
+  if (intensity !== undefined) lights[i].intensity = intensity;
+  console.log(`Cabin light ${i} → (${x}, ${y}, ${z}) intensity=${lights[i].intensity}`);
+};
+window.cabinInfo = () => {
+  const m = getModels().interior;
+  if (m) {
+    const box = new THREE.Box3().setFromObject(m);
+    const sz  = box.getSize(new THREE.Vector3());
+    console.log('Interior bbox min:', box.min, 'max:', box.max, 'size:', sz);
+  }
+  getCabinLights().forEach((l, i) =>
+    console.log(`Light ${i}: pos=(${l.position.x.toFixed(2)}, ${l.position.y.toFixed(2)}, ${l.position.z.toFixed(2)}) intensity=${l.intensity}`)
+  );
+};
 
 boot();

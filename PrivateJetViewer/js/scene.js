@@ -36,13 +36,66 @@ export const CAM_PRESETS = {
 };
 
 /* ─────────────────────────────────────────────────────────────────
+   SUN CONTROL  — single source of truth for sun direction
+   
+   Everything that needs to know where the sun is (the sky shader's
+   glow, the directional shadow-casting light, and the lens flare's
+   screen-space projection) derives from this one object. Change the
+   values here and call updateSunDirection() to apply — no need to
+   touch the sky shader, lighting, or flare code separately.
+   
+   HOW TO THINK ABOUT THE ANGLES (clock-position framing):
+     The default exterior camera looks at the aircraft from roughly
+     its front-right, with the nose pointing toward the camera/+Z side.
+     Using a clock face centered on the aircraft as seen in that default
+     view:
+       clockHours = 12   →  sun directly in front of the aircraft (toward camera)
+       clockHours = 3    →  sun off the right side
+       clockHours = 6    →  sun directly behind the aircraft (tail side)
+       clockHours = 9    →  sun off the left side
+     elevationDeg = how high the sun sits above the horizon (0 = on the
+     horizon, 90 = straight overhead). Golden-hour looks best in the
+     5–20° range; midday in the 50–80° range.
+   
+   EXAMPLE — to put the sun at the aircraft's 10–11 o'clock as requested:
+     clockHours: 10.5, elevationDeg: 12
+───────────────────────────────────────────────────────────────── */
+export const SUN_CONTROL = {
+  clockHours:   10.5,  // 0–12, clock position relative to the aircraft's nose (see above)
+  elevationDeg: 12,    // 0–90, height above the horizon
+};
+
+/**
+ * Converts SUN_CONTROL's clock-position + elevation into a normalized
+ * THREE.Vector3 direction. Clock 12 maps to +Z (toward the default camera,
+ * roughly the aircraft's nose side), going clockwise when viewed from above
+ * — clock 3 is +X, clock 6 is -Z, clock 9 is -X — matching the intuitive
+ * "12 o'clock is in front of you" framing.
+ */
+function _sunDirFromClock(clockHours, elevationDeg) {
+  // Clock → azimuth: 12 o'clock = 0°, clockwise positive (clock 3 = 90°, etc.)
+  const azimuthRad   = (clockHours / 12) * Math.PI * 2;
+  const elevationRad = THREE.MathUtils.degToRad(elevationDeg);
+
+  const horizDist = Math.cos(elevationRad);
+  const x = Math.sin(azimuthRad) * horizDist;   // clock 3 → +X
+  const z = Math.cos(azimuthRad) * horizDist;   // clock 12 → +Z
+  const y = Math.sin(elevationRad);
+
+  return new THREE.Vector3(x, y, z).normalize();
+}
+
+/* ─────────────────────────────────────────────────────────────────
    SINGLETONS
 ───────────────────────────────────────────────────────────────── */
 let renderer, scene, camera, controls, composer;
 let flarePassRef;
 let sunWorldPos; // THREE.Vector3 — kept in sync with sky shader's uSunDir
-let interiorLight, sunLight;
+let interiorLight, sunLight, hemisphereLight, fillLight, bounceLight;
+const _cabinLights = [];
 let runwayGroup;
+let _groundLevelY = 0;
+let skyDomeMat, skyDomeMesh; // kept so updateSunDirection() and switchView() can reference them
 let currentView = 'exterior';
 let isAnimating  = false;
 const models = { exterior: null, interior: null };
@@ -143,6 +196,71 @@ function applyHeightFog(material) {
   _heightFogMaterials.push(material);
 }
 
+/**
+ * Walks every mesh in a loaded object (e.g. the artist's scene.glb) and
+ * applies height fog to each unique material found. Materials can be
+ * shared across multiple meshes in a GLB, so a Set is used to avoid
+ * patching the same material twice.
+ */
+function _applyHeightFogToObject(object) {
+  const seen = new Set();
+  object.traverse(node => {
+    if (!node.isMesh || !node.material) return;
+    const mats = Array.isArray(node.material) ? node.material : [node.material];
+    mats.forEach(mat => {
+      if (seen.has(mat)) return;
+      seen.add(mat);
+      applyHeightFog(mat);
+    });
+  });
+}
+
+/**
+ * Flattens reflectivity on every material in an object tree (e.g. an
+ * artist-supplied scene.glb). Many DCC export pipelines bake in a default
+ * metalness/specular value that looks fine in the original renderer but
+ * reads as an unwanted hard chrome highlight under this scene's strong
+ * directional sun light. This forces every material to a matte, fully
+ * dielectric (non-metal) finish — appropriate for concrete, asphalt,
+ * fencing, and architectural surfaces — while leaving glass/emissive
+ * materials alone if you exclude them via the skip predicate.
+ *
+ * @param {THREE.Object3D} object
+ * @param {(mat: THREE.Material) => boolean} [skip] - return true to leave a material untouched
+ */
+function _flattenReflectivity(object, skip = () => false) {
+  const seen = new Set();
+  object.traverse(node => {
+    if (!node.isMesh || !node.material) return;
+    const mats = Array.isArray(node.material) ? node.material : [node.material];
+    mats.forEach(mat => {
+      if (seen.has(mat) || skip(mat)) return;
+      seen.add(mat);
+      if ('metalness' in mat)  mat.metalness  = 0.0;
+      if ('roughness' in mat)  mat.roughness  = 0.92;
+      if ('envMapIntensity' in mat) mat.envMapIntensity = 0.35;
+      // Clear any baked specular/reflectivity extension values from the GLB export
+      if ('specularIntensity' in mat) mat.specularIntensity = 0.05;
+      if ('clearcoat' in mat)  mat.clearcoat  = 0.0;
+      mat.needsUpdate = true;
+    });
+  });
+}
+
+function _enforceInteriorCulling(object) {
+  const seen = new Set();
+  object.traverse(node => {
+    if (!node.isMesh || !node.material) return;
+    const mats = Array.isArray(node.material) ? node.material : [node.material];
+    mats.forEach(mat => {
+      if (seen.has(mat)) return;
+      seen.add(mat);
+      mat.side = THREE.FrontSide;
+      mat.needsUpdate = true;
+    });
+  });
+}
+
 const gltfLoader  = new GLTFLoader();
 const dracoLoader = new DRACOLoader();
 dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/libs/draco/');
@@ -220,17 +338,17 @@ function _buildSkyDome() {
     vertexShader:   SKY_VERT,
     fragmentShader: SKY_FRAG,
     uniforms: {
-      uSunDir:  { value: new THREE.Vector3(0.60, 0.12, -0.79).normalize() },
+      uSunDir:  { value: _sunDirFromClock(SUN_CONTROL.clockHours, SUN_CONTROL.elevationDeg) },
       uSunSize: { value: 0.9990 },
     },
-    // Keep a module-level reference for the flare pass to project each frame
-    
     side:       THREE.BackSide,
     depthWrite: false,
   });
   const dome = new THREE.Mesh(geo, mat);
   dome.name = 'skyDome';
   scene.add(dome);
+  skyDomeMat  = mat;
+  skyDomeMesh = dome;
 
   // Place the sun very far away along uSunDir, for screen-space projection
   // in the flare pass. Distance just needs to exceed the camera's far plane
@@ -405,8 +523,8 @@ const FLARE_SHADER = {
 const GRADE_SHADER = {
   uniforms: {
     tDiffuse:  { value: null },
-    uVigStr:   { value: 0.25 },
-    uVigRad:   { value: 0.8 },
+    uVigStr:   { value: 0.35 },
+    uVigRad:   { value: 0.78 },
   },
   vertexShader: `
     varying vec2 vUv;
@@ -451,10 +569,13 @@ function _buildComposer() {
    LIGHTING
 ───────────────────────────────────────────────────────────────── */
 function _setupLighting() {
-  scene.add(new THREE.HemisphereLight(0xD8E8F0, 0xA09060, 0.80)); // brighter sky fill so colours read
+  hemisphereLight = new THREE.HemisphereLight(0xD8E8F0, 0xA09060, 1.1);
+  scene.add(hemisphereLight);
 
   sunLight = new THREE.DirectionalLight(0xFFCC80, 2.0);
-  sunLight.position.set(60, 12, -79).normalize().multiplyScalar(60);
+  sunLight.position.copy(
+    _sunDirFromClock(SUN_CONTROL.clockHours, SUN_CONTROL.elevationDeg).multiplyScalar(60)
+  );
   sunLight.castShadow           = true;
   sunLight.shadow.mapSize.set(4096, 4096);
   sunLight.shadow.camera.near   = 1;
@@ -467,13 +588,34 @@ function _setupLighting() {
   sunLight.shadow.normalBias    = 0.02;
   scene.add(sunLight);
 
-  const fill = new THREE.DirectionalLight(0x8BAEC8, 0.45);
-  fill.position.set(-40, 12, 60);
-  scene.add(fill);
+  fillLight = new THREE.DirectionalLight(0x8BAEC8, 0.75);
+  fillLight.position.set(-40, 12, 60);
+  scene.add(fillLight);
 
-  const bounce = new THREE.DirectionalLight(0xF0A840, 0.45);
-  bounce.position.set(0, -1, 0);
-  scene.add(bounce);
+  bounceLight = new THREE.DirectionalLight(0xF0A840, 0.45);
+  bounceLight.position.set(0, -1, 0);
+  scene.add(bounceLight);
+
+  // Interior cabin ceiling lights — off by default, switched on in interior view.
+  // Three warm point lights spaced along the cabin centerline; the centre one
+  // casts shadows so seats and walls get soft directional shadows.
+  // Cabin runs along X (−7 to +7 after _autoScale). Ceiling at y≈3.27.
+  [
+    new THREE.Vector3( 4.5, 2.8, 0),
+    new THREE.Vector3( 0.0, 2.8, 0),
+    new THREE.Vector3(-4.5, 2.8, 0),
+  ].forEach(pos => {
+    const pt = new THREE.PointLight(0xFFE8CC, 0, 10, 1.8);
+    pt.position.copy(pos);
+    pt.castShadow = true;
+    pt.shadow.mapSize.set(1024, 1024);
+    pt.shadow.camera.near = 0.2;
+    pt.shadow.camera.far  = 10;
+    pt.shadow.bias        = -0.002;
+    pt.shadow.radius      = 4;
+    scene.add(pt);
+    _cabinLights.push(pt);
+  });
 
   interiorLight = new THREE.PointLight(0xF4C77A, 0, 8, 1.5);
   interiorLight.position.set(0, 2.5, 0);
@@ -519,14 +661,28 @@ export function initScene() {
   controls.dampingFactor = 0.055;
   controls.minDistance   = 3;
   controls.maxDistance   = 80;
-  controls.maxPolarAngle = Math.PI * 0.84;
+  // Vertical orbit constraint, expressed as elevation-above-horizon for clarity:
+  //   elevation = 90°  → looking straight down from directly overhead
+  //   elevation =  0°  → looking level along the horizon
+  //   elevation = -10° → looking 10° below horizontal (slightly down at the tarmac)
+  // Three.js OrbitControls uses "polar angle" instead, measured from straight
+  // up (0°) to straight down (180°), i.e. polarAngle = 90° - elevation.
+  // So elevation ∈ [-10°, 90°]  →  polarAngle ∈ [0°, 100°].
+  const MIN_ELEVATION_DEG = -3;
+  const MAX_ELEVATION_DEG = 90;
+  controls.minPolarAngle = THREE.MathUtils.degToRad(90 - MAX_ELEVATION_DEG); // 0°   (straight overhead)
+  controls.maxPolarAngle = THREE.MathUtils.degToRad(90 - MIN_ELEVATION_DEG); // 100° (10° below horizon)
   controls.update();
 
   _setupLighting();
   _buildEnvMap();
   _buildSkyDome();
-  _buildRunway();
   _buildComposer();
+  _buildHotspots();
+  _setupHotspotInteraction();
+  // NOTE: the runway/environment is now loaded asynchronously inside
+  // loadModels() — it tries scene.glb first, falling back to the
+  // procedural runway (_buildRunway) only if that file is missing.
 
   window.addEventListener('resize', () => {
     const w = window.innerWidth, h = window.innerHeight;
@@ -540,6 +696,14 @@ export function initScene() {
 
   _renderLoop();
 }
+
+/* ─────────────────────────────────────────────────────────────────
+   INTERIOR OCCLUSION FADE
+   Per-frame raycaster: cast a ray from the orbit target toward the
+   camera. Any interior mesh that sits between them gets its opacity
+   faded proportionally to how close it is to the camera. Restores
+   full opacity the next frame when the mesh is no longer occluding.
+───────────────────────────────────────────────────────────────── */
 
 /* ─────────────────────────────────────────────────────────────────
    MODEL LOADING
@@ -573,28 +737,97 @@ function _enableShadows(model) {
 
 export async function loadModels(onProgress) {
   const prog = (p, label) => onProgress && onProgress(p, label);
-  prog(0.05, 'Loading exterior…');
-  const extGLB = await _tryLoad('./models/exterior.glb', p => prog(0.05 + p * 0.35, 'Loading exterior…'));
+
+  // ── Environment / runway scene (scene.glb) — loaded FIRST so the
+  // aircraft has somewhere to sit by the time it appears. Falls back
+  // to the procedural runway if the artist's file isn't present yet. ──
+  prog(0.02, 'Loading environment…');
+  const sceneGLB = await _tryLoad('./models/scene.glb', p => prog(0.02 + p * 0.18, 'Loading environment…'));
+  if (sceneGLB) {
+    runwayGroup = sceneGLB;
+    runwayGroup.name = 'runway'; // keep the same name other code looks for
+    _enableShadows(runwayGroup);
+    _flattenReflectivity(runwayGroup); // kill the artist GLB's baked-in chrome/metallic look
+    _applyHeightFogToObject(runwayGroup); // dissolve distant parts into haze, same as procedural version
+    scene.add(runwayGroup);
+
+    // Use the environment's own ground level for the aircraft, instead
+    // of assuming y=0 — the artist's GLB may not be authored with its
+    // tarmac surface exactly at the origin.
+    //
+    // NOTE: envBox.max.y picks up the TALLEST point in the whole scene,
+    // which works if the tarmac is the highest flat surface, but will be
+    // wrong if there's a control tower / fence / building taller than the
+    // runway. If the aircraft still looks misaligned after this change,
+    // hardcode the known tarmac height here instead, e.g.:
+    //   _groundLevelY = 0;       // if scene.glb's tarmac sits at y=0
+    //   _groundLevelY = -0.3;    // if it sits slightly below origin
+    const envBox = new THREE.Box3().setFromObject(runwayGroup);
+    _groundLevelY = -0.6;
+    // _groundLevelY = 0; // ← uncomment and adjust if auto-detection is off
+  } else {
+    _buildRunway(); // procedural fallback — builds + adds its own runwayGroup
+    _groundLevelY = 0; // procedural runway's tarmac is authored at y=0
+  }
+
+  prog(0.20, 'Loading exterior…');
+  const extGLB = await _tryLoad('./models/exterior.glb', p => prog(0.20 + p * 0.30, 'Loading exterior…'));
   models.exterior = extGLB ?? _buildDemoExterior();
   _autoScale(models.exterior);
+  models.exterior.position.y += _groundLevelY; // rest the aircraft on the actual ground surface
   _enableShadows(models.exterior);
   scene.add(models.exterior);
 
-  prog(0.45, 'Loading interior…');
-  const intGLB = await _tryLoad('./models/interior.glb', p => prog(0.45 + p * 0.45, 'Loading interior…'));
+  prog(0.50, 'Loading interior…');
+  const intGLB = await _tryLoad('./models/interior.glb', p => prog(0.50 + p * 0.45, 'Loading interior…'));
   models.interior = intGLB ?? _buildDemoInterior();
   _autoScale(models.interior);
   _enableShadows(models.interior);
+  if (intGLB) _enforceInteriorCulling(models.interior);
   models.interior.visible = false;
   scene.add(models.interior);
 
   prog(1.0, 'Ready');
-  return { usedDemo: !extGLB || !intGLB };
+  return { usedDemo: !extGLB || !intGLB, usedDemoEnvironment: !sceneGLB };
 }
 
 export function getModels()        { return models; }
 export function getInteriorLight() { return interiorLight; }
+export function getCabinLights()   { return _cabinLights; }
 export function getCurrentView()   { return currentView; }
+
+/**
+ * updateSunDirection(clockHours, elevationDeg)
+ *
+ * Recomputes the sun direction and propagates it to every system that
+ * depends on it: the sky shader's glow, the shadow-casting directional
+ * light, and the lens flare's screen-space projection target.
+ *
+ * Call this any time after initScene() has run (i.e. after the sky dome
+ * and lighting exist) to retune the sun position live, e.g. from a dev
+ * UI slider or directly in the browser console:
+ *
+ *   import { updateSunDirection } from './scene.js';
+ *   updateSunDirection(10.5, 12);   // aircraft's ~10–11 o'clock, low golden-hour angle
+ *
+ * If called with no arguments, re-reads the current SUN_CONTROL values —
+ * useful if you've edited SUN_CONTROL directly and want to apply it.
+ */
+export function updateSunDirection(clockHours = SUN_CONTROL.clockHours, elevationDeg = SUN_CONTROL.elevationDeg) {
+  SUN_CONTROL.clockHours   = clockHours;
+  SUN_CONTROL.elevationDeg = elevationDeg;
+
+  const dir = _sunDirFromClock(clockHours, elevationDeg);
+
+  // Sky shader glow
+  if (skyDomeMat) skyDomeMat.uniforms.uSunDir.value.copy(dir);
+
+  // Shadow-casting directional light
+  if (sunLight) sunLight.position.copy(dir.clone().multiplyScalar(60));
+
+  // Lens flare screen-space projection target
+  sunWorldPos = dir.clone().multiplyScalar(700);
+}
 
 /* ─────────────────────────────────────────────────────────────────
    VIEW SWITCHING
@@ -606,14 +839,43 @@ export function switchView(view) {
   models.interior.visible = (view === 'interior');
   if (view === 'interior') {
     if (runwayGroup) runwayGroup.visible = false;
-    scene.fog        = null;
-    scene.background = new THREE.Color(0x0C0C0E);
-    interiorLight.intensity = 2.5;
+    if (skyDomeMesh) skyDomeMesh.visible = false;
+    if (_hotspotGroup) _hotspotGroup.visible = true;
+    scene.fog                  = null;
+    scene.background           = new THREE.Color(0x000000);
+    scene.environmentIntensity = 0.15;
+    sunLight.intensity        = 0;
+    fillLight.intensity       = 0;
+    bounceLight.intensity     = 0;
+    hemisphereLight.intensity = 0;
+    _cabinLights.forEach(l => l.intensity = 10);
+    interiorLight.intensity   = 0;
+    // Free-look controls until a spot is chosen
+    controls.enablePan   = true;
+    controls.minDistance = 0.5;
+    controls.maxDistance = 12;
+    controls.minPolarAngle = 0;
+    controls.maxPolarAngle = Math.PI;
   } else {
     if (runwayGroup) runwayGroup.visible = true;
-    scene.fog        = new THREE.FogExp2(HORIZON_FOG_COLOR, 0.0030);
-    scene.background = null;
-    interiorLight.intensity = 0;
+    if (skyDomeMesh) skyDomeMesh.visible = true;
+    if (_hotspotGroup) _hotspotGroup.visible = false;
+    renderer.domElement.style.cursor = '';
+    scene.fog                  = new THREE.FogExp2(HORIZON_FOG_COLOR, 0.0030);
+    scene.background           = null;
+    scene.environmentIntensity = 0.8;
+    sunLight.intensity        = 2.0;
+    fillLight.intensity       = 0.75;
+    bounceLight.intensity     = 0.45;
+    hemisphereLight.intensity = 1.1;
+    _cabinLights.forEach(l => l.intensity = 0);
+    interiorLight.intensity   = 0;
+    // Restore exterior orbit constraints
+    controls.enablePan   = true;
+    controls.minDistance = 3;
+    controls.maxDistance = 80;
+    controls.minPolarAngle = THREE.MathUtils.degToRad(0);
+    controls.maxPolarAngle = THREE.MathUtils.degToRad(93);
   }
   _animateCam(CAM_PRESETS[view].position, CAM_PRESETS[view].target, 1200);
   return true;
@@ -641,6 +903,113 @@ function _animateCam(toPos, toTarget, dur) {
 }
 
 /* ─────────────────────────────────────────────────────────────────
+   INTERIOR HOTSPOTS
+   Three floor-level ring markers the user clicks/taps to warp to a
+   fixed camera position. At each spot the user can rotate freely but
+   cannot pan or zoom out past a set radius.
+───────────────────────────────────────────────────────────────── */
+// Cabin runs along X (−7..+7 after _autoScale). These positions sit in
+// the centre of each of the three visible cabin sections.
+const INTERIOR_SPOTS = [
+  { camPos: new THREE.Vector3( 2.5, 2.3,  0.5), target: new THREE.Vector3( 2.5, 2.0,  0.0) },
+  { camPos: new THREE.Vector3( -0.5, 2.3,  1.0), target: new THREE.Vector3( -0.5, 2.0, -0.5) },
+  { camPos: new THREE.Vector3(-4.0, 2.3,  0.5), target: new THREE.Vector3(-5.5, 2.0,  0.0) },
+];
+
+let _hotspotGroup = null;
+const _hotspotMeshes = [];
+
+function _buildHotspots() {
+  _hotspotGroup = new THREE.Group();
+  _hotspotGroup.name    = 'interiorHotspots';
+  _hotspotGroup.visible = false;
+
+  INTERIOR_SPOTS.forEach((spot, i) => {
+    const x = spot.camPos.x;
+
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(0.22, 0.025, 8, 48),
+      new THREE.MeshStandardMaterial({
+        color: 0xFFFFFF, emissive: 0xFFFFFF, emissiveIntensity: 1.2,
+        roughness: 1, metalness: 0, transparent: true, opacity: 0.9,
+      })
+    );
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.set(x, 0.1, 0);
+    ring.userData.spotIndex = i;
+
+    const dot = new THREE.Mesh(
+      new THREE.CircleGeometry(0.07, 24),
+      new THREE.MeshStandardMaterial({
+        color: 0xFFFFFF, emissive: 0xFFFFFF, emissiveIntensity: 2.0,
+        roughness: 1, metalness: 0,
+      })
+    );
+    dot.rotation.x = -Math.PI / 2;
+    dot.position.set(x, 0.1, 0);
+    dot.userData.spotIndex = i;
+
+    _hotspotGroup.add(ring, dot);
+    _hotspotMeshes.push(ring, dot);
+  });
+
+  scene.add(_hotspotGroup);
+}
+
+function _goToSpot(index) {
+  const spot = INTERIOR_SPOTS[index];
+  _animateCam(spot.camPos, spot.target, 900);
+  setTimeout(() => {
+    controls.enablePan   = false;
+    controls.minDistance = 0.3;
+    controls.maxDistance = 2.8;
+  }, 920);
+}
+
+function _setupHotspotInteraction() {
+  const raycaster   = new THREE.Raycaster();
+  const ptr         = new THREE.Vector2();
+  let   hoveredMesh = null;
+
+  function toNDC(e) {
+    const rect    = renderer.domElement.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    ptr.x =  ((clientX - rect.left) / rect.width)  * 2 - 1;
+    ptr.y = -((clientY - rect.top)  / rect.height) * 2 + 1;
+  }
+
+  renderer.domElement.addEventListener('pointerdown', e => {
+    if (currentView !== 'interior' || !_hotspotGroup?.visible) return;
+    toNDC(e);
+    raycaster.setFromCamera(ptr, camera);
+    const hits = raycaster.intersectObjects(_hotspotMeshes, false);
+    if (hits.length > 0 && hits[0].object.userData.spotIndex !== undefined) {
+      _goToSpot(hits[0].object.userData.spotIndex);
+    }
+  });
+
+  renderer.domElement.addEventListener('pointermove', e => {
+    if (currentView !== 'interior' || !_hotspotGroup?.visible) return;
+    toNDC(e);
+    raycaster.setFromCamera(ptr, camera);
+    const hits = raycaster.intersectObjects(_hotspotMeshes, false);
+    const hit  = hits.length > 0 ? hits[0].object : null;
+
+    if (hoveredMesh && hoveredMesh !== hit) {
+      hoveredMesh.material.emissiveIntensity = hoveredMesh.userData.baseEmissive;
+      renderer.domElement.style.cursor = '';
+    }
+    if (hit && hit !== hoveredMesh) {
+      hit.userData.baseEmissive = hit.material.emissiveIntensity;
+      hit.material.emissiveIntensity = 4.0;
+      renderer.domElement.style.cursor = 'pointer';
+    }
+    hoveredMesh = hit;
+  });
+}
+
+/* ─────────────────────────────────────────────────────────────────
    RENDER LOOP — simple single composer
 ───────────────────────────────────────────────────────────────── */
 function _renderLoop() {
@@ -650,7 +1019,7 @@ function _renderLoop() {
   if (currentView === 'exterior' && sunWorldPos && flarePassRef) {
     _updateSunFlare();
   } else if (flarePassRef) {
-    flarePassRef.uniforms.uSunScreenPos.value.z = 0; // hide flare in interior view
+    flarePassRef.uniforms.uSunScreenPos.value.z = 0;
   }
 
   composer.render();
