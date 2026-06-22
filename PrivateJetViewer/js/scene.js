@@ -877,7 +877,11 @@ export function switchView(view) {
     controls.minPolarAngle = THREE.MathUtils.degToRad(0);
     controls.maxPolarAngle = THREE.MathUtils.degToRad(93);
   }
-  _animateCam(CAM_PRESETS[view].position, CAM_PRESETS[view].target, 1200);
+  if (view === 'interior') {
+    _goToSpot(1); // land on centre hotspot by default
+  } else {
+    _animateCam(CAM_PRESETS.exterior.position, CAM_PRESETS.exterior.target, 1200);
+  }
   return true;
 }
 
@@ -962,7 +966,7 @@ function _goToSpot(index) {
   setTimeout(() => {
     controls.enablePan   = false;
     controls.minDistance = 0.3;
-    controls.maxDistance = 2.8;
+    controls.maxDistance = 5.8;
   }, 920);
 }
 
