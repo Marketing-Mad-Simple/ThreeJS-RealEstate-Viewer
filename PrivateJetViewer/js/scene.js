@@ -850,10 +850,12 @@ export function initScene() {
   // Three.js OrbitControls uses "polar angle" instead, measured from straight
   // up (0°) to straight down (180°), i.e. polarAngle = 90° - elevation.
   // So elevation ∈ [-10°, 90°]  →  polarAngle ∈ [0°, 100°].
-  const MIN_ELEVATION_DEG = -3;
-  const MAX_ELEVATION_DEG = 90;
-  controls.minPolarAngle = THREE.MathUtils.degToRad(90 - MAX_ELEVATION_DEG); // 0°   (straight overhead)
-  controls.maxPolarAngle = THREE.MathUtils.degToRad(90 - MIN_ELEVATION_DEG); // 100° (10° below horizon)
+  // Polar angle is measured from straight up (0°) to straight down (180°).
+  // Cap at 85° (5° above horizontal) so the camera can never go below the
+  // model's ground plane regardless of zoom distance. At maxDistance=80 and
+  // polar=85° the camera is still ~7 units above the tarmac.
+  controls.minPolarAngle = THREE.MathUtils.degToRad(0);
+  controls.maxPolarAngle = THREE.MathUtils.degToRad(85);
   controls.update();
 
   _setupLighting();
@@ -1135,8 +1137,11 @@ export function switchView(view) {
     controls.enablePan   = true;
     controls.minDistance = 0.5;
     controls.maxDistance = 12;
-    controls.minPolarAngle = 0;
-    controls.maxPolarAngle = Math.PI;
+    // Interior: allow looking straight up (0°) but cap downward rotation at
+    // 110° so the camera cannot dip below the cabin floor at any zoom level.
+    // At maxDistance=5.8 and target y≈2.0: floor clearance = 2.0 + 5.8*cos(110°) ≈ 0.02 m.
+    controls.minPolarAngle = THREE.MathUtils.degToRad(0);
+    controls.maxPolarAngle = THREE.MathUtils.degToRad(110);
   } else {
     if (runwayGroup) runwayGroup.visible = true;
     if (skyDomeMesh) skyDomeMesh.visible = true;
@@ -1170,7 +1175,7 @@ export function switchView(view) {
     controls.minDistance = 3;
     controls.maxDistance = 80;
     controls.minPolarAngle = THREE.MathUtils.degToRad(0);
-    controls.maxPolarAngle = THREE.MathUtils.degToRad(93);
+    controls.maxPolarAngle = THREE.MathUtils.degToRad(85);
   }
   if (view === 'interior') {
     _goToSpot(1); // land on centre hotspot by default
