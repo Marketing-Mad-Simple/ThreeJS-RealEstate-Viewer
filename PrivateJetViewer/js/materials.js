@@ -97,7 +97,7 @@ function mutateInPlace(node, patch) {
  * @param {{ color: number, metalness: number }} paintOpt
  * @param {{ roughness: number }}               finishOpt
  */
-export function applyExteriorConfig(model, paintOpt, finishOpt) {
+export function applyExteriorConfig(model, paintOpt, finishOpt, stripeOpt) {
   if (!model) return;
 
   const { roughnessMap, normalMap } = getTexSet('exterior', 'paint');
@@ -123,11 +123,24 @@ export function applyExteriorConfig(model, paintOpt, finishOpt) {
     envMapIntensity: 0.85,
   };
 
+  // Stripe patch — slightly glossier than the body so the accent reads as a
+  // separate panel. When stripeColor is null (No Stripe) the mesh is hidden.
+  const hasStripe   = stripeOpt?.stripeColor != null;
+  const stripePatch = hasStripe ? {
+    color:           stripeOpt.stripeColor,
+    roughness:       Math.max(finishOpt.roughness - 0.08, 0.04),
+    metalness:       0.30,
+    envMapIntensity: 1.0,
+  } : null;
+
   model.traverse(node => {
     if (!node.isMesh) return;
     const nm = node.name || '';
 
-    if (nm.startsWith('Body_') || nm.startsWith('Wing_')) {
+    if (nm.startsWith('Stripe_')) {
+      node.visible = hasStripe;
+      if (hasStripe) mutateInPlace(node, stripePatch);
+    } else if (nm.startsWith('Body_') || nm.startsWith('Wing_')) {
       mutateInPlace(node, bodyPatch);
     } else if (nm.startsWith('Engine_Outer')) {
       mutateInPlace(node, enginePatch);
@@ -204,7 +217,7 @@ export function applyInteriorConfig(model, { seatOpt, woodOpt, lightOpt, styleOp
   const lightPatch = {
     color:             lightOpt.color,
     emissive:          lightOpt.color,
-    emissiveIntensity: 1.4,
+    emissiveIntensity: 2.0,   // higher → more bloom signal → visible screen-space halo
     roughness:         1.0,
     metalness:         0.0,
   };
@@ -214,9 +227,15 @@ export function applyInteriorConfig(model, { seatOpt, woodOpt, lightOpt, styleOp
     if (!node.isMesh) return;
     const nm = node.name || '';
 
+    const isLightStrip = nm.startsWith('Light_Strip_') || nm.startsWith('Stripe_Lights');
+    const isWindow     = nm.startsWith('Window_') || nm.startsWith('Glass_') || nm.startsWith('Porthole_') || nm.startsWith('Oval_');
     if      (nm.startsWith('Seat_'))                              mutateInPlace(node, seatPatch);
     else if (nm.startsWith('Trim_'))                              mutateInPlace(node, trimPatch);
     else if (nm.startsWith('Carpet_') || nm.startsWith('Floor_')) mutateInPlace(node, carpetPatch);
-    else if (nm.startsWith('Light_Strip_'))                       mutateInPlace(node, lightPatch);
+    else if (isLightStrip)                                        mutateInPlace(node, lightPatch);
+    else if (isWindow)                                            mutateInPlace(node, {
+      color: 0xD0E8FF, emissive: 0xD0E8FF, emissiveIntensity: 1.10,
+      roughness: 0.05, metalness: 0.0,
+    });
   });
 }

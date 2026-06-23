@@ -83,6 +83,19 @@ export const TEXTURE_MANIFEST = {
       aoMap:        './textures/seat/fabric/ao.jpg',
       repeat: [5, 5],
     },
+    leather_1: {
+      map:          './textures/seat/leather_1/Seat_Leather_Base_Color.jpg',
+      roughnessMap: './textures/seat/leather_1/Seat_Leather_Roughness.jpg',
+      normalMap:    './textures/seat/leather_1/Seat_Leather_Normal.jpg',
+      repeat: [4, 4],
+    },
+    leather_2: {
+      map:          './textures/seat/leather_2/Seat_Leather_Base_Color.jpg',
+      roughnessMap: './textures/seat/leather_2/Seat_Leather_Roughness.jpg',
+      normalMap:    './textures/seat/leather_2/Seat_Leather_Normal_OpenGL.jpg',
+      aoMap:        './textures/seat/leather_2/Seat_Leather_Mixed_AO.jpg',
+      repeat: [4, 4],
+    },
   },
 
   trim: {

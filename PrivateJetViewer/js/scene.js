@@ -16,10 +16,11 @@ import * as THREE from 'three';
 import { OrbitControls }   from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader }      from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader }     from 'three/addons/loaders/DRACOLoader.js';
-import { EffectComposer }  from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass }      from 'three/addons/postprocessing/RenderPass.js';
-import { ShaderPass }      from 'three/addons/postprocessing/ShaderPass.js';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EffectComposer }    from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass }        from 'three/addons/postprocessing/RenderPass.js';
+import { ShaderPass }        from 'three/addons/postprocessing/ShaderPass.js';
+import { UnrealBloomPass }   from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { RoomEnvironment }   from 'three/addons/environments/RoomEnvironment.js';
 
 /* ─────────────────────────────────────────────────────────────────
    CAMERA PRESETS
@@ -89,10 +90,13 @@ function _sunDirFromClock(clockHours, elevationDeg) {
    SINGLETONS
 ───────────────────────────────────────────────────────────────── */
 let renderer, scene, camera, controls, composer;
-let flarePassRef;
+let flarePassRef, _gradePass;
 let sunWorldPos; // THREE.Vector3 — kept in sync with sky shader's uSunDir
 let interiorLight, sunLight, hemisphereLight, fillLight, bounceLight;
-const _cabinLights = [];
+const _cabinLights  = [];
+const _windowLights = []; // kept separate — always daylight-cool, not recoloured by lighting option
+const _cookieSpots      = []; // SpotLights with octagon cookie texture — project window patches onto floor
+const _stripGlowMeshes  = []; // additive shader quads beside strip lights — no actual lights
 let runwayGroup;
 let _groundLevelY = 0;
 let skyDomeMat, skyDomeMesh; // kept so updateSunDirection() and switchView() can reference them
@@ -237,8 +241,8 @@ function _flattenReflectivity(object, skip = () => false) {
       if (seen.has(mat) || skip(mat)) return;
       seen.add(mat);
       if ('metalness' in mat)  mat.metalness  = 0.0;
-      if ('roughness' in mat)  mat.roughness  = 0.92;
-      if ('envMapIntensity' in mat) mat.envMapIntensity = 0.35;
+      if ('roughness' in mat)  mat.roughness  = 0.78;  // was 0.92 — less flat, buildings pick up directionality
+      if ('envMapIntensity' in mat) mat.envMapIntensity = 0.60; // was 0.35 — more IBL so lit surfaces read brighter
       // Clear any baked specular/reflectivity extension values from the GLB export
       if ('specularIntensity' in mat) mat.specularIntensity = 0.05;
       if ('clearcoat' in mat)  mat.clearcoat  = 0.0;
@@ -516,15 +520,19 @@ const FLARE_SHADER = {
 };
 
 /* ─────────────────────────────────────────────────────────────────
-   POST-PROCESSING — vignette + warm grade ONLY
-   No bloom pass. The sky shader handles sun glow internally.
-   This pass only darkens edges and warms shadows slightly.
+   POST-PROCESSING — S-curve grade + vignette + bloom
 ───────────────────────────────────────────────────────────────── */
 const GRADE_SHADER = {
   uniforms: {
     tDiffuse:  { value: null },
     uVigStr:   { value: 0.35 },
     uVigRad:   { value: 0.78 },
+    // S-curve controls: lift (shadow floor), gamma (midtone pivot), gain (highlight ceiling)
+    uLift:     { value: new THREE.Vector3(0.02,  0.015, 0.010) }, // warm shadow lift
+    uGamma:    { value: new THREE.Vector3(0.97,  0.97,  1.00)  }, // slightly cool gamma
+    uGain:     { value: new THREE.Vector3(1.00,  0.98,  0.95)  }, // warm highlight
+    uContrast: { value: 1.12 }, // midtone contrast multiplier
+    uSaturation: { value: 1.08 }, // slight saturation boost
   },
   vertexShader: `
     varying vec2 vUv;
@@ -537,19 +545,54 @@ const GRADE_SHADER = {
     uniform sampler2D tDiffuse;
     uniform float uVigStr;
     uniform float uVigRad;
+    uniform vec3  uLift;
+    uniform vec3  uGamma;
+    uniform vec3  uGain;
+    uniform float uContrast;
+    uniform float uSaturation;
     varying vec2 vUv;
+
+    // ASC-CDL colour grade: (col * gain + lift) ^ (1/gamma)
+    vec3 cdl(vec3 c) {
+      c = c * uGain + uLift;
+      c = pow(max(c, vec3(0.0)), vec3(1.0) / uGamma);
+      return c;
+    }
+
+    // Smooth S-curve contrast around 0.5 (operates in display space)
+    float sCurve(float x) {
+      x = clamp(x, 0.0, 1.0);
+      return x * x * (3.0 - 2.0 * x); // smoothstep — gentle S
+    }
+    vec3 sCurve3(vec3 c) {
+      // Blend between linear and S-curved by uContrast weight
+      vec3 curved = vec3(sCurve(c.r), sCurve(c.g), sCurve(c.b));
+      return mix(c, curved, uContrast - 1.0);
+    }
+
     void main() {
-      vec4 col  = texture2D(tDiffuse, vUv);
-      // Warm shadow lift
+      vec4 col = texture2D(tDiffuse, vUv);
+
+      // 1. CDL grade (lift / gamma / gain)
+      col.rgb = cdl(col.rgb);
+
+      // 2. S-curve contrast
+      col.rgb = sCurve3(col.rgb);
+
+      // 3. Saturation
       float lum = dot(col.rgb, vec3(0.299, 0.587, 0.114));
-      col.rgb   = mix(col.rgb, col.rgb * vec3(1.04, 1.01, 0.94), (1.0 - lum) * 0.14);
-      // Vignette
-      float dist = length(vUv - vec2(0.5));
-      col.rgb   *= smoothstep(uVigRad, uVigRad - uVigStr, dist);
+      col.rgb = mix(vec3(lum), col.rgb, uSaturation);
+
+      // 4. Vignette
+      float vd = length(vUv - vec2(0.5));
+      col.rgb *= smoothstep(uVigRad, uVigRad - uVigStr, vd);
+
       gl_FragColor = col;
     }
   `,
 };
+
+let _bloomPass; // kept so switchView can tune threshold per-view
 
 function _buildComposer() {
   composer = new EffectComposer(renderer);
@@ -560,9 +603,20 @@ function _buildComposer() {
   composer.addPass(flarePass);
   flarePassRef = flarePass;
 
-  const gradePass = new ShaderPass(GRADE_SHADER);
-  gradePass.renderToScreen = true;
-  composer.addPass(gradePass);
+  // Selective bloom — only pixels above threshold 0.85 are bloomed,
+  // so dark walls and seats are unaffected; windows and strips glow.
+  _bloomPass = new UnrealBloomPass(
+    new THREE.Vector2(window.innerWidth, window.innerHeight),
+    0.18,   // strength
+    0.55,   // radius
+    0.85,   // threshold
+  );
+  _bloomPass.enabled = false; // off by default — only active in interior view
+  composer.addPass(_bloomPass);
+
+  _gradePass = new ShaderPass(GRADE_SHADER);
+  _gradePass.renderToScreen = true;
+  composer.addPass(_gradePass);
 }
 
 /* ─────────────────────────────────────────────────────────────────
@@ -579,16 +633,16 @@ function _setupLighting() {
   sunLight.castShadow           = true;
   sunLight.shadow.mapSize.set(4096, 4096);
   sunLight.shadow.camera.near   = 1;
-  sunLight.shadow.camera.far    = 150;
-  sunLight.shadow.camera.left   = -30;
-  sunLight.shadow.camera.right  = 30;
-  sunLight.shadow.camera.top    = 30;
-  sunLight.shadow.camera.bottom = -30;
+  sunLight.shadow.camera.far    = 300;  // cover distant buildings
+  sunLight.shadow.camera.left   = -80;  // wide enough to include control tower
+  sunLight.shadow.camera.right  = 80;
+  sunLight.shadow.camera.top    = 80;
+  sunLight.shadow.camera.bottom = -80;
   sunLight.shadow.bias          = -0.0003;
   sunLight.shadow.normalBias    = 0.02;
   scene.add(sunLight);
 
-  fillLight = new THREE.DirectionalLight(0x8BAEC8, 0.75);
+  fillLight = new THREE.DirectionalLight(0x8BAEC8, 1.0);
   fillLight.position.set(-40, 12, 60);
   scene.add(fillLight);
 
@@ -596,25 +650,144 @@ function _setupLighting() {
   bounceLight.position.set(0, -1, 0);
   scene.add(bounceLight);
 
-  // Interior cabin ceiling lights — off by default, switched on in interior view.
-  // Three warm point lights spaced along the cabin centerline; the centre one
-  // casts shadows so seats and walls get soft directional shadows.
-  // Cabin runs along X (−7 to +7 after _autoScale). Ceiling at y≈3.27.
+  // ── Cabin hemisphere light ───────────────────────────────────────
+  // Primary ambient fill.  Sky (top) = warm cabin white, ground (bottom)
+  // = very dark warm so floors stay dark without being pitch-black.
+  // No physical position, so no hot-spot artefacts on the ceiling.
+  const cabinHemi = new THREE.HemisphereLight(0xFFE8CC, 0x1A0E06, 0);
+  cabinHemi.userData.interiorIntensity = 0.85;
+  scene.add(cabinHemi);
+  _cabinLights.push(cabinHemi);
+
+  // ── SpotLights pointing straight down ────────────────────────────
+  // Used only for shadow-casting.  The cone goes downward only, so the
+  // ceiling surface directly above the light is never illuminated →
+  // no bright ceiling blob.  Cabin runs X −7…+7, ceiling at y≈3.27.
   [
-    new THREE.Vector3( 4.5, 2.8, 0),
-    new THREE.Vector3( 0.0, 2.8, 0),
-    new THREE.Vector3(-4.5, 2.8, 0),
+    { x:  4.5, shadow: false },
+    { x:  0.0, shadow: true  },
+    { x: -4.5, shadow: false },
+  ].forEach(({ x, shadow }) => {
+    const spot = new THREE.SpotLight(0xFFE8CC, 0, 9,
+      THREE.MathUtils.degToRad(72), 0.50, 1.8);
+    spot.position.set(x, 3.05, 0);
+    spot.target.position.set(x, 0, 0); // aim straight down
+    spot.userData.interiorIntensity = 1.8;
+    scene.add(spot);
+    scene.add(spot.target); // target must live in the scene
+    if (shadow) {
+      spot.castShadow = true;
+      spot.shadow.mapSize.set(1024, 1024);
+      spot.shadow.camera.near = 0.3;
+      spot.shadow.camera.far  = 9;
+      spot.shadow.bias        = -0.002;
+      spot.shadow.radius      = 5;
+    }
+    _cabinLights.push(spot);
+  });
+
+  // Strip glow is handled entirely by bloom on the emissive strip mesh.
+  // emissiveIntensity=2.0 in materials.js ensures the strips far exceed
+  // the bloom threshold while seats/trim stay below it.
+  // _stripGlowMeshes is kept empty so setStripGlowColor() is a no-op.
+
+  // ── Window cookie spotlights ─────────────────────────────────────
+  // Each spot uses a canvas-generated octagon texture as its .map (cookie /
+  // gobo) to project a window-shaped light patch onto the floor and seats.
+  // Positioned just inside the cabin wall at window height, aimed inward and
+  // downward so the patch lands between the window and the aisle.
+  // No shadow maps needed — the cookie provides the shaping.
+  (function _buildWindowCookies() {
+    // ── Cookie texture — blurred octagon so projected patch is soft ─
+    const SIZE = 512;
+    const cv   = document.createElement('canvas');
+    cv.width   = cv.height = SIZE;
+    const ctx  = cv.getContext('2d');
+    const cx = SIZE / 2, cy = SIZE / 2;
+    const r   = SIZE * 0.34;
+    const cut = r   * 0.42;
+
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, SIZE, SIZE);
+
+    // Moderate blur softens the edges without hollowing out the centre.
+    // No stroke ring — it projects as a dark halo and kills the fill read.
+    ctx.filter = 'blur(6px)';
+    ctx.beginPath();
+    ctx.moveTo(cx - r + cut, cy - r);
+    ctx.lineTo(cx + r - cut, cy - r);
+    ctx.lineTo(cx + r,       cy - r + cut);
+    ctx.lineTo(cx + r,       cy + r - cut);
+    ctx.lineTo(cx + r - cut, cy + r);
+    ctx.lineTo(cx - r + cut, cy + r);
+    ctx.lineTo(cx - r,       cy + r - cut);
+    ctx.lineTo(cx - r,       cy - r + cut);
+    ctx.closePath();
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+    ctx.filter = 'none';
+
+    // Centre bloom — heart of the patch is brightest
+    const inner = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 0.9);
+    inner.addColorStop(0, 'rgba(255,255,255,0.30)');
+    inner.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = inner;
+    ctx.fillRect(0, 0, SIZE, SIZE);
+
+    const cookieTex = new THREE.CanvasTexture(cv);
+
+    [
+      { x:  5.5, z:  1.92 },
+      { x:  2.0, z:  1.92 },
+      { x: -2.0, z:  1.92 },
+      { x: -5.5, z:  1.92 },
+      { x:  5.5, z: -1.92 },
+      { x:  2.0, z: -1.92 },
+      { x: -2.0, z: -1.92 },
+      { x: -5.5, z: -1.92 },
+    ].forEach(({ x, z }) => {
+      const spot = new THREE.SpotLight(
+        0xD4EAFF,                       // cool daylight blue
+        0,                              // off by default — switchView enables
+        6.5,                            // distance
+        THREE.MathUtils.degToRad(36),  // wide cone → large floor patch
+        0.55,                           // penumbra: soft but still has solid centre
+        1.4,                            // decay
+      );
+      spot.map = cookieTex;
+      spot.position.set(x, 1.85, z);
+      // Target below floor (Y=−0.4) steepens the beam so it hits carpet;
+      // Z pulled toward centre so the patch lands at seat base / aisle edge
+      spot.target.position.set(x, -0.4, z * 0.55);
+      scene.add(spot);
+      scene.add(spot.target);
+      _cookieSpots.push(spot);
+    });
+  })();
+
+  // ── Window fill lights ───────────────────────────────────────────
+  // Simulate daylight bleeding in through the oval windows.
+  // Cool sky-blue (0xC8DFFF) so they read as exterior light, not cabin
+  // warmth.  4 per side along the cabin length, at window height y≈1.8.
+  // Z pushed just inside the wall (±2.0) so the light originates from
+  // where the windows sit.  No shadows — purely additive fill.
+  // Z pulled to ±1.3 — clearly inside the cabin so the light casts inward
+  // onto seats/floor rather than back onto the window frame and wall surround.
+  // Distance 2.2 keeps the reach local to the seat zone beside each window.
+  [
+    new THREE.Vector3( 5.5, 1.6,  1.3),
+    new THREE.Vector3( 2.0, 1.6,  1.3),
+    new THREE.Vector3(-2.0, 1.6,  1.3),
+    new THREE.Vector3(-5.5, 1.6,  1.3),
+    new THREE.Vector3( 5.5, 1.6, -1.3),
+    new THREE.Vector3( 2.0, 1.6, -1.3),
+    new THREE.Vector3(-2.0, 1.6, -1.3),
+    new THREE.Vector3(-5.5, 1.6, -1.3),
   ].forEach(pos => {
-    const pt = new THREE.PointLight(0xFFE8CC, 0, 10, 1.8);
-    pt.position.copy(pos);
-    pt.castShadow = true;
-    pt.shadow.mapSize.set(1024, 1024);
-    pt.shadow.camera.near = 0.2;
-    pt.shadow.camera.far  = 10;
-    pt.shadow.bias        = -0.002;
-    pt.shadow.radius      = 4;
-    scene.add(pt);
-    _cabinLights.push(pt);
+    const wl = new THREE.PointLight(0xC8DFFF, 0, 2.2, 2.0);
+    wl.position.copy(pos);
+    scene.add(wl);
+    _windowLights.push(wl);
   });
 
   interiorLight = new THREE.PointLight(0xF4C77A, 0, 8, 1.5);
@@ -691,6 +864,7 @@ export function initScene() {
     renderer.setSize(w, h);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     composer.setSize(w, h);
+    if (_bloomPass) _bloomPass.resolution.set(w, h);
     flarePassRef.uniforms.uAspect.value = w / h;
   });
 
@@ -796,6 +970,90 @@ export function getInteriorLight() { return interiorLight; }
 export function getCabinLights()   { return _cabinLights; }
 export function getCurrentView()   { return currentView; }
 
+// ── Strip glow shader system ──────────────────────────────────────
+// injectStripGlowShaders() walks every material on the interior model
+// and patches its GLSL via onBeforeCompile to compute per-fragment
+// distance to the two strip lines (world-space YZ plane).  The result
+// is a smooth gradient that hugs any curved surface — no planes needed.
+const _stripGlowUniforms = [];   // one entry per unique material
+
+export function injectStripGlowShaders(model) {
+  if (!model) return;
+  const seen = new Set();
+
+  model.traverse(node => {
+    if (!node.isMesh) return;
+    const mats = Array.isArray(node.material) ? node.material : [node.material];
+    mats.forEach(mat => {
+      if (!mat || !mat.isMeshStandardMaterial || seen.has(mat)) return;
+      seen.add(mat);
+
+      // Uniform block shared between onBeforeCompile invocations and
+      // the set* helpers below — stored by reference so value changes
+      // are picked up without needing to recompile the shader.
+      const uni = {
+        uSGColor:     { value: new THREE.Color(0xFFE8CC) },
+        uSGIntensity: { value: 0.0 },
+        uSGY:         { value: 2.72 },   // strip world Y
+        uSGZ:         { value: 1.88 },   // strip world |Z| (mirrored for both sides)
+        uSGRadius:    { value: 1.0  },   // falloff radius in metres
+      };
+      _stripGlowUniforms.push(uni);
+
+      const prev = mat.onBeforeCompile;   // preserve any existing hook
+      mat.onBeforeCompile = shader => {
+        if (prev) prev(shader);
+        Object.assign(shader.uniforms, uni);
+
+        // ── Vertex: pass world position to fragment ──────────────
+        shader.vertexShader = shader.vertexShader.replace(
+          '#include <common>',
+          '#include <common>\nvarying vec3 vSGWorldPos;',
+        );
+        shader.vertexShader = shader.vertexShader.replace(
+          '#include <project_vertex>',
+          `#include <project_vertex>
+           vSGWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;`,
+        );
+
+        // ── Fragment: add strip contribution before tone mapping ─
+        shader.fragmentShader = shader.fragmentShader.replace(
+          '#include <common>',
+          `#include <common>
+           varying vec3  vSGWorldPos;
+           uniform vec3  uSGColor;
+           uniform float uSGIntensity;
+           uniform float uSGY;
+           uniform float uSGZ;
+           uniform float uSGRadius;`,
+        );
+        shader.fragmentShader = shader.fragmentShader.replace(
+          '#include <tonemapping_fragment>',
+          `// Strip glow — distance in YZ plane to each strip line (infinite along X)
+           float _sgDistR = length(vSGWorldPos.yz - vec2(uSGY,  uSGZ));
+           float _sgDistL = length(vSGWorldPos.yz - vec2(uSGY, -uSGZ));
+           float _sgDist  = min(_sgDistR, _sgDistL);
+           float _sgFall  = max(0.0, 1.0 - _sgDist / uSGRadius);
+           _sgFall = _sgFall * _sgFall * _sgFall;   // cubic: tight near strip, fades fast
+           gl_FragColor.rgb += uSGColor * uSGIntensity * _sgFall;
+           #include <tonemapping_fragment>`,
+        );
+      };
+
+      mat.needsUpdate = true;
+    });
+  });
+}
+
+export function setStripGlowColor(hex) {
+  const c = new THREE.Color(hex);
+  _stripGlowUniforms.forEach(u => u.uSGColor.value.copy(c));
+}
+
+export function setStripGlowIntensity(v) {
+  _stripGlowUniforms.forEach(u => u.uSGIntensity.value = v);
+}
+
 /**
  * updateSunDirection(clockHours, elevationDeg)
  *
@@ -843,12 +1101,25 @@ export function switchView(view) {
     if (_hotspotGroup) _hotspotGroup.visible = true;
     scene.fog                  = null;
     scene.background           = new THREE.Color(0x000000);
-    scene.environmentIntensity = 0.15;
+    renderer.toneMappingExposure = 0.72; // lower headroom so bright materials compress rather than clip
+    if (_bloomPass) { _bloomPass.enabled = true; _bloomPass.threshold = 0.88; _bloomPass.strength = 0.45; _bloomPass.radius = 0.80; }
+    if (_gradePass) {
+      const u = _gradePass.uniforms;
+      u.uLift.value.set(0.02, 0.015, 0.010);
+      u.uGamma.value.set(0.97, 0.97,  1.00);
+      u.uGain.value.set(0.88, 0.86,  0.84); // roll off highlights — white seats stay detailed instead of blowing out
+      u.uContrast.value   = 1.12;
+      u.uSaturation.value = 1.08;
+    }
+    scene.environmentIntensity = 0.45;
     sunLight.intensity        = 0;
     fillLight.intensity       = 0;
     bounceLight.intensity     = 0;
     hemisphereLight.intensity = 0;
-    _cabinLights.forEach(l => l.intensity = 10);
+    _cabinLights.forEach(l => l.intensity = l.userData.interiorIntensity ?? 4.5);
+    _windowLights.forEach(l => l.intensity = 0);
+    _cookieSpots.forEach(s => s.intensity = 2.8);
+    setStripGlowIntensity(1.5);
     interiorLight.intensity   = 0;
     // Free-look controls until a spot is chosen
     controls.enablePan   = true;
@@ -863,12 +1134,25 @@ export function switchView(view) {
     renderer.domElement.style.cursor = '';
     scene.fog                  = new THREE.FogExp2(HORIZON_FOG_COLOR, 0.0030);
     scene.background           = null;
+    renderer.toneMappingExposure = 1.1;
+    if (_bloomPass) { _bloomPass.enabled = false; }
+    if (_gradePass) {
+      const u = _gradePass.uniforms;
+      u.uLift.value.set(0.0, 0.0, 0.0);
+      u.uGamma.value.set(1.0, 1.0, 1.0);
+      u.uGain.value.set(1.0, 1.0, 1.0);
+      u.uContrast.value   = 1.0;
+      u.uSaturation.value = 1.0;
+    }
     scene.environmentIntensity = 0.8;
     sunLight.intensity        = 2.0;
-    fillLight.intensity       = 0.75;
+    fillLight.intensity       = 1.0;
     bounceLight.intensity     = 0.45;
     hemisphereLight.intensity = 1.1;
     _cabinLights.forEach(l => l.intensity = 0);
+    _windowLights.forEach(l => l.intensity = 0);
+    _cookieSpots.forEach(s => s.intensity = 0);
+    setStripGlowIntensity(0.0);
     interiorLight.intensity   = 0;
     // Restore exterior orbit constraints
     controls.enablePan   = true;

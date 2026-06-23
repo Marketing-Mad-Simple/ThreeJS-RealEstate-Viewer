@@ -20,7 +20,8 @@ import * as THREE from 'three';
 import { loadAll }                               from './textureRegistry.js';
 import { initScene, loadModels, switchView,
          resetCamera, getModels, getInteriorLight,
-         getCabinLights, getCurrentView, updateSunDirection } from './scene.js';
+         getCabinLights, getCurrentView, updateSunDirection,
+         setStripGlowColor, injectStripGlowShaders } from './scene.js';
 import { applyExteriorConfig, applyInteriorConfig } from './materials.js';
 import { OPTIONS, DEFAULT_CONFIG, resolveOpt }   from './options.js';
 import { initUI, setViewSection, showToast }     from './ui.js';
@@ -34,22 +35,26 @@ function applyExterior() {
     getModels().exterior,
     resolveOpt('paint',  config.paint),
     resolveOpt('finish', config.finish),
+    resolveOpt('stripe', config.stripe),
   );
 }
 
 function applyInterior() {
+  const lightOpt = resolveOpt('lighting', config.lighting);
   applyInteriorConfig(
     getModels().interior,
     {
-      seatOpt:  resolveOpt('seat',     config.seat),
-      woodOpt:  resolveOpt('wood',     config.wood),
-      lightOpt: resolveOpt('lighting', config.lighting),
-      styleOpt: resolveOpt('style',    config.style),
+      seatOpt:  resolveOpt('seat',  config.seat),
+      woodOpt:  resolveOpt('wood',  config.wood),
+      lightOpt,
+      styleOpt: resolveOpt('style', config.style),
     },
     getCurrentView(),
     getInteriorLight(),
     getCabinLights(),
   );
+  // Keep shader glow planes colour in sync with the lighting option
+  setStripGlowColor(lightOpt.color);
 }
 
 function applyAllConfig() {
@@ -129,13 +134,16 @@ async function boot() {
     setProgress(0.40 + pct * 0.55, label);
   });
 
-  // 5. Apply initial material config (textures are now ready)
+  // 5. Inject strip glow shaders into interior model materials (once, before first render)
+  injectStripGlowShaders(getModels().interior);
+
+  // 6. Apply initial material config (textures are now ready)
   applyAllConfig();
 
-  // 6. Build UI
+  // 7. Build UI
   initUI(config, onConfigChange);
 
-  // 7. Done
+  // 8. Done
   setProgress(1.0, 'Ready');
   setTimeout(() => {
     overlay.classList.add('hidden');
@@ -169,6 +177,13 @@ window.cabinInfo = () => {
   getCabinLights().forEach((l, i) =>
     console.log(`Light ${i}: pos=(${l.position.x.toFixed(2)}, ${l.position.y.toFixed(2)}, ${l.position.z.toFixed(2)}) intensity=${l.intensity}`)
   );
+};
+window.listInteriorMeshes = () => {
+  const m = getModels().interior;
+  if (!m) { console.warn('Interior model not loaded'); return; }
+  const names = [];
+  m.traverse(n => { if (n.isMesh) names.push(n.name); });
+  console.log('Interior mesh names:\n' + names.join('\n'));
 };
 
 boot();

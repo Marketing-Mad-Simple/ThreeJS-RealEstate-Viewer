@@ -292,12 +292,14 @@ export const OPTIONS = {
 
   // Seat options: material key maps to texture set in textureRegistry
   seat: [
-    { id:'leather_ivory',    name:'Nappa Leather · Ivory',    desc:'Supple full-grain Nappa in ivory — the classic aviation choice.',  color:0xE8E0D0, material:'leather', roughness:0.45, metalness:0.02, thumb: leatherThumb(0xE8E0D0) },
-    { id:'leather_cognac',   name:'Nappa Leather · Cognac',   desc:'Rich cognac leather with warm amber and chocolate undertones.',     color:0x8B5E3C, material:'leather', roughness:0.45, metalness:0.02, thumb: leatherThumb(0x8B5E3C) },
-    { id:'leather_charcoal', name:'Nappa Leather · Charcoal', desc:'Deep charcoal leather for a contemporary private suite feel.',     color:0x3A3A3A, material:'leather', roughness:0.42, metalness:0.02, thumb: leatherThumb(0x3A3A3A) },
-    { id:'fabric_cream',     name:'Woven Cloth · Cream',      desc:'Fine Belgian linen weave — tactile, breathable, and elegant.',     color:0xF0E8D8, material:'fabric',  roughness:0.82, metalness:0.00, thumb: fabricThumb(0xF0E8D8) },
-    { id:'fabric_slate',     name:'Woven Cloth · Slate',      desc:'Slate-grey technical cloth with subtle herringbone texture.',      color:0x4A4F58, material:'fabric',  roughness:0.85, metalness:0.00, thumb: fabricThumb(0x4A4F58) },
-    { id:'fabric_navy',      name:'Woven Cloth · Navy',       desc:'Deep navy bespoke fabric — a bold, contemporary statement.',      color:0x1C2B4A, material:'fabric',  roughness:0.80, metalness:0.00, thumb: fabricThumb(0x1C2B4A) },
+    { id:'leather_ivory',    name:'Nappa Leather · Ivory',    desc:'Supple full-grain Nappa in ivory — the classic aviation choice.',  color:0xE8E0D0, material:'leather',   roughness:0.45, metalness:0.02, thumb: leatherThumb(0xE8E0D0) },
+    { id:'leather_cognac',   name:'Nappa Leather · Cognac',   desc:'Rich cognac leather with warm amber and chocolate undertones.',     color:0x8B5E3C, material:'leather',   roughness:0.45, metalness:0.02, thumb: leatherThumb(0x8B5E3C) },
+    { id:'leather_charcoal', name:'Nappa Leather · Charcoal', desc:'Deep charcoal leather for a contemporary private suite feel.',     color:0x3A3A3A, material:'leather',   roughness:0.42, metalness:0.02, thumb: leatherThumb(0x3A3A3A) },
+    { id:'smooth_leather',   name:'Smooth Leather',           desc:'Natural full-grain leather with a clean, unembossed surface.',    color:0xFFFFFF, material:'leather_1', roughness:0.40, metalness:0.02, thumb: leatherThumb(0xC49A6C) },
+    { id:'quilted_leather',  name:'Quilted Leather',          desc:'Precision-stitched quilted leather with rich tactile depth.',     color:0xFFFFFF, material:'leather_2', roughness:0.38, metalness:0.02, thumb: leatherThumb(0xA0714A) },
+    { id:'fabric_cream',     name:'Woven Cloth · Cream',      desc:'Fine Belgian linen weave — tactile, breathable, and elegant.',     color:0xF0E8D8, material:'fabric',    roughness:0.82, metalness:0.00, thumb: fabricThumb(0xF0E8D8) },
+    { id:'fabric_slate',     name:'Woven Cloth · Slate',      desc:'Slate-grey technical cloth with subtle herringbone texture.',      color:0x4A4F58, material:'fabric',    roughness:0.85, metalness:0.00, thumb: fabricThumb(0x4A4F58) },
+    { id:'fabric_navy',      name:'Woven Cloth · Navy',       desc:'Deep navy bespoke fabric — a bold, contemporary statement.',      color:0x1C2B4A, material:'fabric',    roughness:0.80, metalness:0.00, thumb: fabricThumb(0x1C2B4A) },
   ],
 
   wood: [
