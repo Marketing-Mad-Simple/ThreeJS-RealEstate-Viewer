@@ -92,7 +92,7 @@ function _sunDirFromClock(clockHours, elevationDeg) {
 let renderer, scene, camera, controls, composer;
 let flarePassRef, _gradePass;
 let sunWorldPos; // THREE.Vector3 — kept in sync with sky shader's uSunDir
-let interiorLight, sunLight, hemisphereLight, fillLight, bounceLight;
+let interiorLight, sunLight, hemisphereLight, fillLight, bounceLight, _windowHemi;
 const _cabinLights  = [];
 const _windowLights = []; // kept separate — always daylight-cool, not recoloured by lighting option
 const _cookieSpots      = []; // SpotLights with octagon cookie texture — project window patches onto floor
@@ -655,9 +655,18 @@ function _setupLighting() {
   // = very dark warm so floors stay dark without being pitch-black.
   // No physical position, so no hot-spot artefacts on the ceiling.
   const cabinHemi = new THREE.HemisphereLight(0xFFE8CC, 0x1A0E06, 0);
-  cabinHemi.userData.interiorIntensity = 0.85;
+  cabinHemi.userData.interiorIntensity = 1.0;
   scene.add(cabinHemi);
   _cabinLights.push(cabinHemi);
+
+  // ── Window bounce hemisphere ─────────────────────────────────────
+  // Simulates GI from daylight entering through the oval windows.
+  // Sky (top) = cool sky blue — tints upper fuselage/ceiling surfaces
+  // with the colour temperature of exterior light, mimicking first-bounce
+  // from the window apertures.  Ground (bottom) = very dark so floors
+  // don't receive a competing cool tint.  Enabled only in interior view.
+  _windowHemi = new THREE.HemisphereLight(0xB8D4F0, 0x110E0C, 0);
+  scene.add(_windowHemi);
 
   // ── SpotLights pointing straight down ────────────────────────────
   // Used only for shadow-casting.  The cone goes downward only, so the
@@ -672,7 +681,7 @@ function _setupLighting() {
       THREE.MathUtils.degToRad(72), 0.50, 1.8);
     spot.position.set(x, 3.05, 0);
     spot.target.position.set(x, 0, 0); // aim straight down
-    spot.userData.interiorIntensity = 1.8;
+    spot.userData.interiorIntensity = 1.3;
     scene.add(spot);
     scene.add(spot.target); // target must live in the scene
     if (shadow) {
@@ -1111,13 +1120,14 @@ export function switchView(view) {
       u.uContrast.value   = 1.12;
       u.uSaturation.value = 1.08;
     }
-    scene.environmentIntensity = 0.45;
+    scene.environmentIntensity = 0.52;
     sunLight.intensity        = 0;
     fillLight.intensity       = 0;
     bounceLight.intensity     = 0;
     hemisphereLight.intensity = 0;
     _cabinLights.forEach(l => l.intensity = l.userData.interiorIntensity ?? 4.5);
     _windowLights.forEach(l => l.intensity = 0);
+    _windowHemi.intensity = 0.5;                      // cool sky tint on upper surfaces
     _cookieSpots.forEach(s => s.intensity = 2.8);
     setStripGlowIntensity(1.5);
     interiorLight.intensity   = 0;
@@ -1151,6 +1161,7 @@ export function switchView(view) {
     hemisphereLight.intensity = 1.1;
     _cabinLights.forEach(l => l.intensity = 0);
     _windowLights.forEach(l => l.intensity = 0);
+    _windowHemi.intensity = 0;
     _cookieSpots.forEach(s => s.intensity = 0);
     setStripGlowIntensity(0.0);
     interiorLight.intensity   = 0;

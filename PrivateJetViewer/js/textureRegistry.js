@@ -87,14 +87,15 @@ export const TEXTURE_MANIFEST = {
       map:          './textures/seat/leather_1/Seat_Leather_Base_Color.jpg',
       roughnessMap: './textures/seat/leather_1/Seat_Leather_Roughness.jpg',
       normalMap:    './textures/seat/leather_1/Seat_Leather_Normal.jpg',
-      repeat: [4, 4],
+      repeat: [1, 1], // baked Substance Painter texture — tied to mesh UV layout, do not tile
     },
     leather_2: {
       map:          './textures/seat/leather_2/Seat_Leather_Base_Color.jpg',
       roughnessMap: './textures/seat/leather_2/Seat_Leather_Roughness.jpg',
       normalMap:    './textures/seat/leather_2/Seat_Leather_Normal_OpenGL.jpg',
-      aoMap:        './textures/seat/leather_2/Seat_Leather_Mixed_AO.jpg',
-      repeat: [4, 4],
+      // aoMap omitted: Mixed_AO is baked on UV0 but Three.js aoMap samples UV1 —
+      // applying it causes dark patches from mismatched UV channels.
+      repeat: [1, 1], // baked Substance Painter texture — tied to mesh UV layout, do not tile
     },
   },
 
@@ -158,10 +159,11 @@ function loadOne(path, colorSpace, repeat = [4, 4]) {
       path,
       tex => {
         tex.colorSpace  = colorSpace;
+        tex.flipY       = false; // glTF/GLTFLoader convention — Y=0 is at top, not bottom
         tex.wrapS       = THREE.RepeatWrapping;
         tex.wrapT       = THREE.RepeatWrapping;
         tex.repeat.set(repeat[0], repeat[1]);
-        tex.anisotropy  = 8;   // sharpens textures at grazing angles
+        tex.anisotropy  = 8;
         resolve(tex);
       },
       undefined,        // progress — not needed here

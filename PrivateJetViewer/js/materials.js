@@ -51,7 +51,8 @@ import { getTexSet } from './textureRegistry.js';
 ───────────────────────────────────────────────────────────────── */
 function mutateInPlace(node, patch) {
   const mats = Array.isArray(node.material) ? node.material : [node.material];
-  const hasUV2 = !!(node.geometry && node.geometry.attributes.uv2);
+  // Three.js r152+ renamed the second UV attribute from 'uv2' to 'uv1'
+  const hasUV2 = !!(node.geometry && (node.geometry.attributes.uv1 || node.geometry.attributes.uv2));
 
   mats.forEach(mat => {
     if (!mat) return;
@@ -171,18 +172,18 @@ export function applyInteriorConfig(model, { seatOpt, woodOpt, lightOpt, styleOp
 
   // ── Seat patch ──
   const { map: seatMap, roughnessMap: seatRoughMap, normalMap: seatNormalMap, aoMap: seatAoMap }
-    = getTexSet('seat', seatOpt.material); // 'leather' | 'fabric'
+    = getTexSet('seat', seatOpt.material);
 
   const seatColor = new THREE.Color(seatOpt.color).multiplyScalar(brightnessMult).getHex();
+
   const seatPatch = {
-    color:          seatColor,
-    roughness:      seatOpt.roughness,
-    metalness:      seatOpt.metalness ?? 0.02,
-    map:            seatMap,
-    roughnessMap:   seatRoughMap,
-    normalMap:      seatNormalMap,
-    aoMap:          seatAoMap,
-    normalScale:    [normalDepth, normalDepth],
+    color:           seatColor,
+    roughness:       seatOpt.roughness,
+    metalness:       seatOpt.metalness ?? 0.02,
+    map:             seatMap,
+    roughnessMap:    seatRoughMap,
+    normalMap:       seatNormalMap,
+    normalScale:     [normalDepth, normalDepth],
     envMapIntensity: 0.85,
   };
 
