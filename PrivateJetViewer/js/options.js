@@ -224,6 +224,87 @@ export function lightThumb(hex) {
   };
 }
 
+// Floor: wood-plank pattern with two tonal variants
+export function floorThumb(variant) {
+  return (ctx, w, h) => {
+    ctx.fillStyle = variant === 1 ? '#B08050' : '#4A3520';
+    ctx.fillRect(0, 0, w, h);
+
+    // Plank dividers
+    ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+    ctx.lineWidth = 1;
+    for (let y = 0; y <= h; y += Math.round(h / 3)) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+    }
+    ctx.beginPath(); ctx.moveTo(w * 0.5, 0);          ctx.lineTo(w * 0.5, h / 3);  ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(w * 0.25, h / 3);     ctx.lineTo(w * 0.25, h * 2 / 3); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(w * 0.75, h * 2 / 3); ctx.lineTo(w * 0.75, h);     ctx.stroke();
+
+    // Subtle grain
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = 0.7;
+    for (let y = 3; y < h; y += 5) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y + Math.sin(y * 0.5) * 1.5); ctx.stroke();
+    }
+
+    const g = ctx.createLinearGradient(0, 0, w, h);
+    g.addColorStop(0, 'rgba(255,255,255,0.12)');
+    g.addColorStop(1, 'rgba(0,0,0,0.10)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+  };
+}
+
+// Metal: brushed-metal look with two tonal variants
+export function metalThumb(variant) {
+  return (ctx, w, h) => {
+    ctx.fillStyle = variant === 1 ? '#9BA3AE' : '#6B7280';
+    ctx.fillRect(0, 0, w, h);
+
+    // Horizontal brush lines (deterministic — no Math.random for stable thumbs)
+    for (let y = 0; y < h; y += 2) {
+      const a = ((y * 37) % 7) * 0.005 + 0.01;
+      ctx.strokeStyle = `rgba(255,255,255,${a})`;
+      ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+    }
+
+    const g = ctx.createLinearGradient(0, 0, w, h);
+    g.addColorStop(0,    'rgba(255,255,255,0.30)');
+    g.addColorStop(0.35, 'rgba(255,255,255,0.05)');
+    g.addColorStop(1,    'rgba(0,0,0,0.22)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+
+    // Sharp specular streak
+    ctx.save();
+    ctx.globalAlpha = 0.18;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.ellipse(w * 0.25, h * 0.2, w * 0.55, h * 0.05, -0.3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  };
+}
+
+// Plastic: smooth surface with a soft highlight, two variants (light / dark)
+export function plasticThumb(variant) {
+  return (ctx, w, h) => {
+    ctx.fillStyle = variant === 1 ? '#D0CCC4' : '#2A2A30';
+    ctx.fillRect(0, 0, w, h);
+
+    const g = ctx.createLinearGradient(0, 0, w, h);
+    g.addColorStop(0,   'rgba(255,255,255,0.20)');
+    g.addColorStop(0.5, 'rgba(255,255,255,0.04)');
+    g.addColorStop(1,   'rgba(0,0,0,0.14)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+
+    // Soft specular dot
+    const r = ctx.createRadialGradient(w * 0.3, h * 0.25, 0, w * 0.3, h * 0.25, w * 0.38);
+    r.addColorStop(0, 'rgba(255,255,255,0.22)');
+    r.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = r; ctx.fillRect(0, 0, w, h);
+  };
+}
+
 // Interior style: decorative schematic
 export function styleThumb(style) {
   return (ctx, w, h) => {
@@ -292,21 +373,32 @@ export const OPTIONS = {
 
   // Seat options: material key maps to texture set in textureRegistry
   seat: [
-    { id:'leather_ivory',    name:'Nappa Leather · Ivory',    desc:'Supple full-grain Nappa in ivory — the classic aviation choice.',  color:0xE8E0D0, material:'leather',   roughness:0.45, metalness:0.02, thumb: leatherThumb(0xE8E0D0) },
-    { id:'leather_cognac',   name:'Nappa Leather · Cognac',   desc:'Rich cognac leather with warm amber and chocolate undertones.',     color:0x8B5E3C, material:'leather',   roughness:0.45, metalness:0.02, thumb: leatherThumb(0x8B5E3C) },
-    { id:'leather_charcoal', name:'Nappa Leather · Charcoal', desc:'Deep charcoal leather for a contemporary private suite feel.',     color:0x3A3A3A, material:'leather',   roughness:0.42, metalness:0.02, thumb: leatherThumb(0x3A3A3A) },
-    { id:'smooth_leather',   name:'Smooth Leather',           desc:'Natural full-grain leather with a clean, unembossed surface.',    color:0xFFFFFF, material:'leather_1', roughness:0.40, metalness:0.02, thumb: leatherThumb(0xC49A6C) },
-    { id:'quilted_leather',  name:'Quilted Leather',          desc:'Precision-stitched quilted leather with rich tactile depth.',     color:0xFFFFFF, material:'leather_2', roughness:0.38, metalness:0.02, thumb: leatherThumb(0xA0714A) },
-    { id:'fabric_cream',     name:'Woven Cloth · Cream',      desc:'Fine Belgian linen weave — tactile, breathable, and elegant.',     color:0xF0E8D8, material:'fabric',    roughness:0.82, metalness:0.00, thumb: fabricThumb(0xF0E8D8) },
-    { id:'fabric_slate',     name:'Woven Cloth · Slate',      desc:'Slate-grey technical cloth with subtle herringbone texture.',      color:0x4A4F58, material:'fabric',    roughness:0.85, metalness:0.00, thumb: fabricThumb(0x4A4F58) },
-    { id:'fabric_navy',      name:'Woven Cloth · Navy',       desc:'Deep navy bespoke fabric — a bold, contemporary statement.',      color:0x1C2B4A, material:'fabric',    roughness:0.80, metalness:0.00, thumb: fabricThumb(0x1C2B4A) },
+    { id:'leather_ivory',   name:'Nappa Leather · Ivory',  desc:'Supple full-grain Nappa in ivory — the classic aviation choice.',            color:0xE8E0D0, material:'leather',   roughness:0.45, metalness:0.02, thumb: leatherThumb(0xE8E0D0) },
+    { id:'leather_cognac',  name:'Nappa Leather · Cognac', desc:'Rich cognac leather with warm amber and chocolate undertones.',               color:0x8B5E3C, material:'leather',   roughness:0.45, metalness:0.02, thumb: leatherThumb(0x8B5E3C) },
+    { id:'smooth_leather',  name:'Smooth Leather',         desc:'Full-grain leather with a supple hand feel and subtle natural pore structure — precision-baked for photorealistic surface detail.',  color:0xFFFFFF, material:'leather_1', roughness:0.40, metalness:0.02, thumb: leatherThumb(0xC49A6C) },
+    { id:'quilted_leather', name:'Quilted Leather',        desc:'Diamond-stitched leather in the classic aviation configuration — every stitch and crease captured in the baked texture.',            color:0xFFFFFF, material:'leather_2', roughness:0.38, metalness:0.02, thumb: leatherThumb(0xA0714A) },
   ],
 
   wood: [
-    { id:'walnut', name:'American Walnut', desc:'Straight-grain walnut with warm chocolate tones and open pores.',   color:0x5C3D1E, roughness:0.38, metalness:0.05, thumb: woodThumb(0x5C3D1E, 'straight') },
-    { id:'maple',  name:'Maple Burl',      desc:'Rare burl maple with dramatic swirling figure and golden lustre.',  color:0xC8A882, roughness:0.32, metalness:0.05, thumb: woodThumb(0xC8A882, 'burl')     },
-    { id:'ebony',  name:'Macassar Ebony',  desc:'Dramatic black-brown with fine pale striping and glassy surface.', color:0x1A1208, roughness:0.28, metalness:0.05, thumb: woodThumb(0x1A1208, 'wavy')     },
-    { id:'carbon', name:'Carbon Fibre',    desc:'Aerospace-grade carbon weave — the ultimate technical luxury.',    color:0x222228, roughness:0.18, metalness:0.50, thumb: woodThumb(0x222228, 'straight')  },
+    { id:'walnut', name:'American Walnut',       desc:'Straight-grain walnut with warm chocolate tones and open pores.',                                                                  color:0x5C3D1E, roughness:0.38, metalness:0.05, thumb: woodThumb(0x5C3D1E, 'straight') },
+    { id:'maple',  name:'Maple Burl',            desc:'Rare burl maple with dramatic swirling figure and golden lustre.',                                                                 color:0xC8A882, roughness:0.32, metalness:0.05, thumb: woodThumb(0xC8A882, 'burl')     },
+    { id:'trim_1', name:'Natural Wood Veneer',   desc:'Warm-toned wood veneer with an open-grain finish — baked from the full interior UV set for precise grain alignment across every trim surface.',  color:0xFFFFFF, roughness:0.35, metalness:0.03, thumb: woodThumb(0x9B7040, 'straight')  },
+    { id:'trim_2', name:'Dark Wood Veneer',      desc:'Deep-toned veneer with a tight grain and lacquered surface — baked from the full interior UV set for dramatic, seamless coverage.', color:0xFFFFFF, roughness:0.25, metalness:0.03, thumb: woodThumb(0x3A2010, 'wavy')      },
+  ],
+
+  floor: [
+    { id:'floor_1', name:'Natural Hardwood', desc:'Warm natural hardwood with open grain and a satin sheen — baked from the cabin floor UV layout for seamless plank alignment.',     roughness:0.75, metalness:0.0, thumb: floorThumb(1) },
+    { id:'floor_2', name:'Dark Hardwood',    desc:'Rich dark-stained hardwood with deep contrast and a refined matte surface — baked from the cabin floor UV layout for full fidelity.', roughness:0.75, metalness:0.0, thumb: floorThumb(2) },
+  ],
+
+  metal: [
+    { id:'metal_1', name:'Brushed Silver',  desc:'Satin-brushed aluminium with cool neutral tones — baked with directional grain detail for a premium industrial finish.',          roughness:0.45, metalness:0.85, thumb: metalThumb(1) },
+    { id:'metal_2', name:'Gunmetal',        desc:'Burnished dark metal with rich depth and contrast — baked surface detail adds micro-scratch variation for a bold, refined look.', roughness:0.40, metalness:0.85, thumb: metalThumb(2) },
+  ],
+
+  plastic: [
+    { id:'plastic_1', name:'Warm Tan Trim',        desc:'Warm earthy-toned cabin plastic with a smooth matte surface — baked texture captures subtle panel lines and mould transitions with a natural sand tone.', roughness:0.55, metalness:0.0, thumb: solidThumb(0xB08860, {roughness:0.55, metalness:0.0}) },
+    { id:'plastic_2', name:'Graphite Cabin Trim',  desc:'Dark graphite cabin plastic with a high-performance aesthetic — baked surface detail adds micro-texture for a tactile, refined finish.',                   roughness:0.50, metalness:0.0, thumb: plasticThumb(2) },
   ],
 
   lighting: [
@@ -314,12 +406,6 @@ export const OPTIONS = {
     { id:'cool', name:'Daylight White', desc:'Crisp 5000 K brightness — energising and clear.',      color:0xD0E8FF, thumb: lightThumb(0xD0E8FF) },
     { id:'rose', name:'Rose Blush',     desc:'Soft rose-tinted mood lighting for evening travel.',   color:0xFFD0D8, thumb: lightThumb(0xFFD0D8) },
     { id:'blue', name:'Midnight Blue',  desc:'Cool blue ambience — serene and ultramodern.',         color:0xA0C8FF, thumb: lightThumb(0xA0C8FF) },
-  ],
-
-  style: [
-    { id:'classic', name:'Classic',  desc:'Warm tones, rich veneers — the heritage of grand aviation.', thumb: styleThumb('classic') },
-    { id:'modern',  name:'Modern',   desc:'Clean lines, contrasting materials and minimal ornament.',    thumb: styleThumb('modern')  },
-    { id:'sport',   name:'Sport',    desc:'Dark carbon palette, bold accents — performance-focused.',    thumb: styleThumb('sport')   },
   ],
 
 };
@@ -332,7 +418,9 @@ export const DEFAULT_CONFIG = {
   seat:    'leather_ivory',
   wood:    'walnut',
   lighting:'warm',
-  style:   'classic',
+  floor:   'floor_1',
+  metal:   'metal_1',
+  plastic: 'plastic_1',
 };
 
 /* Helper: resolve an option object from OPTIONS by group + id */

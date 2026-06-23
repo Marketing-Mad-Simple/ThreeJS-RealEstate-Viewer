@@ -155,16 +155,12 @@ export function applyExteriorConfig(model, paintOpt, finishOpt, stripeOpt) {
 
 /**
  * @param {THREE.Group}   model
- * @param {{ seatOpt, woodOpt, lightOpt, styleOpt }} opts
+ * @param {{ seatOpt, woodOpt, lightOpt, floorOpt, metalOpt, plasticOpt }} opts
  * @param {string}        currentView
  * @param {THREE.PointLight} interiorLight
  */
-export function applyInteriorConfig(model, { seatOpt, woodOpt, lightOpt, styleOpt }, currentView, interiorLight, cabinLights = []) {
+export function applyInteriorConfig(model, { seatOpt, woodOpt, lightOpt, floorOpt, metalOpt, plasticOpt }, currentView, interiorLight, cabinLights = []) {
   if (!model) return;
-
-  // Style-driven multipliers
-  const brightnessMult = styleOpt.id === 'sport' ? 0.80 : styleOpt.id === 'modern' ? 1.05 : 1.0;
-  const normalDepth    = styleOpt.id === 'sport' ? 1.4  : styleOpt.id === 'modern' ? 0.8  : 1.0;
 
   // Light color driven by lightOpt; intensity is owned by switchView in scene.js
   interiorLight.color.setHex(lightOpt.color);
@@ -174,16 +170,14 @@ export function applyInteriorConfig(model, { seatOpt, woodOpt, lightOpt, styleOp
   const { map: seatMap, roughnessMap: seatRoughMap, normalMap: seatNormalMap, aoMap: seatAoMap }
     = getTexSet('seat', seatOpt.material);
 
-  const seatColor = new THREE.Color(seatOpt.color).multiplyScalar(brightnessMult).getHex();
-
   const seatPatch = {
-    color:           seatColor,
+    color:           seatOpt.color,
     roughness:       seatOpt.roughness,
     metalness:       seatOpt.metalness ?? 0.02,
     map:             seatMap,
     roughnessMap:    seatRoughMap,
     normalMap:       seatNormalMap,
-    normalScale:     [normalDepth, normalDepth],
+    normalScale:     [1.0, 1.0],
     envMapIntensity: 0.85,
   };
 
@@ -198,27 +192,56 @@ export function applyInteriorConfig(model, { seatOpt, woodOpt, lightOpt, styleOp
     map:            trimMap,
     roughnessMap:   trimRoughMap,
     normalMap:      trimNormalMap,
-    normalScale:    [0.8, 0.8],
+    // Substance Painter exports DirectX-convention normals by default (G channel
+    // inverted vs OpenGL/Three.js). Negate Y to convert so curved surfaces like
+    // the ceiling arch shade correctly rather than appearing inverted.
+    normalScale:    [0.8, -0.8],
     envMapIntensity: 0.85,
   };
 
-  // ── Carpet patch ──
-  const carpetHex = styleOpt.id === 'sport' ? 0x1A1A1E
-    : styleOpt.id === 'modern' ? 0x2A2520 : 0x3A2E1A;
+  // ── Floor patch — uses artist texture when available, style-color as fallback ──
+  const { map: floorMap, roughnessMap: floorRoughMap, normalMap: floorNormalMap }
+    = floorOpt ? getTexSet('floor', floorOpt.id) : {};
+  const floorFallbackHex = 0x3A2E1A;
   const carpetPatch = {
-    color:     carpetHex,
-    roughness: 0.9,
-    metalness: 0.0,
-    map:       null,
-    roughnessMap: null,
-    normalMap: null,
+    color:        floorMap ? 0xFFFFFF : floorFallbackHex,
+    roughness:    floorOpt ? floorOpt.roughness : 0.9,
+    metalness:    0.0,
+    map:          floorMap   ?? null,
+    roughnessMap: floorRoughMap ?? null,
+    normalMap:    floorNormalMap ?? null,
+  };
+
+  // ── Metal patch ──
+  const { map: metalMap, roughnessMap: metalRoughMap }
+    = metalOpt ? getTexSet('metal', metalOpt.id) : {};
+  const metalPatch = {
+    color:        0xFFFFFF,
+    roughness:    metalOpt ? metalOpt.roughness : 0.45,
+    metalness:    metalOpt ? metalOpt.metalness : 0.85,
+    map:          metalMap   ?? null,
+    roughnessMap: metalRoughMap ?? null,
+    envMapIntensity: 1.0,
+  };
+
+  // ── Plastic patch ──
+  const { map: plasticMap, roughnessMap: plasticRoughMap, normalMap: plasticNormalMap }
+    = plasticOpt ? getTexSet('plastic', plasticOpt.id) : {};
+  const plasticPatch = {
+    color:        0xFFFFFF,
+    roughness:    plasticOpt ? plasticOpt.roughness : 0.55,
+    metalness:    0.0,
+    map:          plasticMap   ?? null,
+    roughnessMap: plasticRoughMap ?? null,
+    normalMap:    plasticNormalMap ?? null,
+    envMapIntensity: 0.70,
   };
 
   // ── Light strip patch ──
   const lightPatch = {
     color:             lightOpt.color,
     emissive:          lightOpt.color,
-    emissiveIntensity: 2.0,   // higher → more bloom signal → visible screen-space halo
+    emissiveIntensity: 2.0,
     roughness:         1.0,
     metalness:         0.0,
   };
@@ -230,11 +253,13 @@ export function applyInteriorConfig(model, { seatOpt, woodOpt, lightOpt, styleOp
 
     const isLightStrip = nm.startsWith('Light_Strip_') || nm.startsWith('Stripe_Lights');
     const isWindow     = nm.startsWith('Window_') || nm.startsWith('Glass_') || nm.startsWith('Porthole_') || nm.startsWith('Oval_');
-    if      (nm.startsWith('Seat_'))                              mutateInPlace(node, seatPatch);
-    else if (nm.startsWith('Trim_'))                              mutateInPlace(node, trimPatch);
-    else if (nm.startsWith('Carpet_') || nm.startsWith('Floor_')) mutateInPlace(node, carpetPatch);
-    else if (isLightStrip)                                        mutateInPlace(node, lightPatch);
-    else if (isWindow)                                            mutateInPlace(node, {
+    if      (nm.startsWith('Seat_'))                               mutateInPlace(node, seatPatch);
+    else if (nm.startsWith('Trim_'))                               mutateInPlace(node, trimPatch);
+    else if (nm.startsWith('Carpet_') || nm.startsWith('Floor_'))  mutateInPlace(node, carpetPatch);
+    else if (nm.startsWith('Metal_'))                              mutateInPlace(node, metalPatch);
+    else if (nm.startsWith('Plastic_'))                            mutateInPlace(node, plasticPatch);
+    else if (isLightStrip)                                         mutateInPlace(node, lightPatch);
+    else if (isWindow)                                             mutateInPlace(node, {
       color: 0xD0E8FF, emissive: 0xD0E8FF, emissiveIntensity: 1.10,
       roughness: 0.05, metalness: 0.0,
     });

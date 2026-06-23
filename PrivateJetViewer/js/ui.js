@@ -117,8 +117,10 @@ export function initUI(config, onConfigChange) {
     { listId: 'list-finish',   group: 'finish',   selId: 'sel-finish'   },
     { listId: 'list-seat',     group: 'seat',     selId: 'sel-seat'     },
     { listId: 'list-wood',     group: 'wood',     selId: 'sel-wood'     },
+    { listId: 'list-floor',    group: 'floor',    selId: 'sel-floor'    },
+    { listId: 'list-metal',    group: 'metal',    selId: 'sel-metal'    },
+    { listId: 'list-plastic',  group: 'plastic',  selId: 'sel-plastic'  },
     { listId: 'list-lighting', group: 'lighting', selId: 'sel-lighting' },
-    { listId: 'list-style',    group: 'style',    selId: 'sel-style'    },
   ];
 
   lists.forEach(({ listId, group, selId }) => {

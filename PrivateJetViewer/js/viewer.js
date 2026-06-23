@@ -44,10 +44,12 @@ function applyInterior() {
   applyInteriorConfig(
     getModels().interior,
     {
-      seatOpt:  resolveOpt('seat',  config.seat),
-      woodOpt:  resolveOpt('wood',  config.wood),
+      seatOpt:    resolveOpt('seat',    config.seat),
+      woodOpt:    resolveOpt('wood',    config.wood),
       lightOpt,
-      styleOpt: resolveOpt('style', config.style),
+      floorOpt:   resolveOpt('floor',   config.floor),
+      metalOpt:   resolveOpt('metal',   config.metal),
+      plasticOpt: resolveOpt('plastic', config.plastic),
     },
     getCurrentView(),
     getInteriorLight(),
@@ -75,7 +77,9 @@ function onConfigChange(group, id) {
     case 'seat':
     case 'wood':
     case 'lighting':
-    case 'style':
+    case 'floor':
+    case 'metal':
+    case 'plastic':
       applyInterior();
       break;
 
@@ -122,7 +126,7 @@ async function boot() {
 
   // 3. Textures (0% → 40%)
   setProgress(0, 'Loading textures…');
-  const TEXTURE_JOB_COUNT = 11;   // rough known total from manifest
+  const TEXTURE_JOB_COUNT = 29;   // rough known total from manifest
   let texLoaded = 0;
   await loadAll((loaded, total) => {
     texLoaded = loaded;

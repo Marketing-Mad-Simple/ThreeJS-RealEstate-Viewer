@@ -41,99 +41,91 @@ import * as THREE from 'three';
        }
      }
 
-   FILE NAMING CONVENTION your artist should follow:
-     textures/
-       seat/
-         leather/
-           baseColor.jpg      ← diffuse colour (shoot for neutral mid-grey/cream
-                                 so tinting with material.color works cleanly)
-           roughness.jpg      ← grayscale: white=rough, black=smooth
-           normal.jpg         ← tangent-space normal (DirectX or OpenGL — note which)
-           ao.jpg             ← ambient occlusion (optional but recommended)
-         fabric/
-           baseColor.jpg
-           roughness.jpg
-           normal.jpg
-           ao.jpg
-       trim/
-         walnut/ …same files…
-         maple/  …
-         ebony/  …
-         carbon/ …
-       exterior/
-         paint/
-           roughness.jpg      ← shared roughness map for all paint options
-           normal.jpg         ← subtle panel-line normal
+   FILE LAYOUT (artist-delivered sets under textures/):
+     Seat/1/   Seat_Fabric_Base_color.jpg · Normal.jpg · Normal_OpenGL.jpg · Roughness.jpg
+     Seat/2/   (same files — second fabric variant)
+     Trim/1/   Wood__Base_color.jpg · Normal.jpg · Roughness.jpg
+     Trim/2/   (same files — second wood variant)
+     Floor/1/  Floor_Base_color.jpg · Normal.jpg · Roughness.jpg
+     Floor/2/  (same files — second floor variant)
+     Metal/1/  Body_Metal_Base_color.jpg · Roughness.jpg
+     Metal/2/  (same files — second metal variant)
+     Plastic/1/ Body_Plastic_Base_color.jpg · Normal.jpg · Roughness.jpg
+     Plastic/2/ (same files — second plastic variant)
 ─────────────────────────────────────────────────────────────────── */
 
 export const TEXTURE_MANIFEST = {
 
   seat: {
-    leather: {
-      map:          './textures/seat/leather/baseColor.jpg',
-      roughnessMap: './textures/seat/leather/roughness.jpg',
-      normalMap:    './textures/seat/leather/normal.jpg',
-      aoMap:        './textures/seat/leather/ao.jpg',
-      repeat: [4, 4],
-    },
-    fabric: {
-      map:          './textures/seat/fabric/baseColor.jpg',
-      roughnessMap: './textures/seat/fabric/roughness.jpg',
-      normalMap:    './textures/seat/fabric/normal.jpg',
-      aoMap:        './textures/seat/fabric/ao.jpg',
-      repeat: [5, 5],
-    },
     leather_1: {
-      map:          './textures/seat/leather_1/Seat_Leather_Base_Color.jpg',
-      roughnessMap: './textures/seat/leather_1/Seat_Leather_Roughness.jpg',
-      normalMap:    './textures/seat/leather_1/Seat_Leather_Normal.jpg',
-      repeat: [1, 1], // baked Substance Painter texture — tied to mesh UV layout, do not tile
+      map:          './textures/Seat/1/Seat_Fabric_Base_color.jpg',
+      roughnessMap: './textures/Seat/1/Seat_Fabric_Roughness.jpg',
+      normalMap:    './textures/Seat/1/Seat_Fabric_Normal.jpg',
+      repeat: [1, 1],
     },
     leather_2: {
-      map:          './textures/seat/leather_2/Seat_Leather_Base_Color.jpg',
-      roughnessMap: './textures/seat/leather_2/Seat_Leather_Roughness.jpg',
-      normalMap:    './textures/seat/leather_2/Seat_Leather_Normal_OpenGL.jpg',
-      // aoMap omitted: Mixed_AO is baked on UV0 but Three.js aoMap samples UV1 —
-      // applying it causes dark patches from mismatched UV channels.
-      repeat: [1, 1], // baked Substance Painter texture — tied to mesh UV layout, do not tile
+      map:          './textures/Seat/2/Seat_Fabric_Base_color.jpg',
+      roughnessMap: './textures/Seat/2/Seat_Fabric_Roughness.jpg',
+      normalMap:    './textures/Seat/2/Seat_Fabric_Normal.jpg',
+      repeat: [1, 1],
     },
   },
 
   trim: {
-    walnut: {
-      map:          './textures/trim/walnut/baseColor.jpg',
-      roughnessMap: './textures/trim/walnut/roughness.jpg',
-      normalMap:    './textures/trim/walnut/normal.jpg',
-      repeat: [2, 2],
+    trim_1: {
+      map:          './textures/Trim/1/Wood__Base_color.jpg',
+      roughnessMap: './textures/Trim/1/Wood__Roughness.jpg',
+      normalMap:    './textures/Trim/1/Wood__Normal.jpg',
+      repeat: [1, 1],
     },
-    maple: {
-      map:          './textures/trim/maple/baseColor.jpg',
-      roughnessMap: './textures/trim/maple/roughness.jpg',
-      normalMap:    './textures/trim/maple/normal.jpg',
-      repeat: [2, 2],
-    },
-    ebony: {
-      map:          './textures/trim/ebony/baseColor.jpg',
-      roughnessMap: './textures/trim/ebony/roughness.jpg',
-      normalMap:    './textures/trim/ebony/normal.jpg',
-      repeat: [2, 2],
-    },
-    carbon: {
-      map:          './textures/trim/carbon/baseColor.jpg',
-      roughnessMap: './textures/trim/carbon/roughness.jpg',
-      normalMap:    './textures/trim/carbon/normal.jpg',
-      repeat: [3, 3],
+    trim_2: {
+      map:          './textures/Trim/2/Wood__Base_color.jpg',
+      roughnessMap: './textures/Trim/2/Wood__Roughness.jpg',
+      normalMap:    './textures/Trim/2/Wood__Normal.jpg',
+      repeat: [1, 1],
     },
   },
 
-  exterior: {
-    paint: {
-      // No baseColor here — colour is 100% programmatic via material.color.
-      // The roughness map adds micro-scratches / panel seam variation on top
-      // of the programmatic roughness scalar.
-      roughnessMap: './textures/exterior/paint/roughness.jpg',
-      normalMap:    './textures/exterior/paint/normal.jpg',
-      repeat: [8, 8],
+  floor: {
+    floor_1: {
+      map:          './textures/Floor/1/Floor_Base_color.jpg',
+      roughnessMap: './textures/Floor/1/Floor_Roughness.jpg',
+      normalMap:    './textures/Floor/1/Floor_Normal.jpg',
+      repeat: [1, 1],
+    },
+    floor_2: {
+      map:          './textures/Floor/2/Floor_Base_color.jpg',
+      roughnessMap: './textures/Floor/2/Floor_Roughness.jpg',
+      normalMap:    './textures/Floor/2/Floor_Normal.jpg',
+      repeat: [1, 1],
+    },
+  },
+
+  metal: {
+    metal_1: {
+      map:          './textures/Metal/1/Body_Metal_Base_color.jpg',
+      roughnessMap: './textures/Metal/1/Body_Metal_Roughness.jpg',
+      repeat: [1, 1],
+    },
+    metal_2: {
+      map:          './textures/Metal/2/Body_Metal_Base_color.jpg',
+      roughnessMap: './textures/Metal/2/Body_Metal_Roughness.jpg',
+      repeat: [1, 1],
+    },
+  },
+
+  plastic: {
+    plastic_1: {
+      map:          './textures/Plastic/1/Body_Plastic_Base_color.jpg',
+      roughnessMap: './textures/Plastic/1/Body_Plastic_Roughness.jpg',
+      normalMap:    './textures/Plastic/1/Body_Plastic_Normal.jpg',
+      repeat: [1, 1],
+    },
+    plastic_2: {
+      map:          './textures/Plastic/2/Body_Plastic_Base_color.jpg',
+      roughnessMap: './textures/Plastic/2/Body_Plastic_Roughness.jpg',
+      normalMap:    './textures/Plastic/2/Body_Plastic_Normal.jpg',
+      repeat: [1, 1],
     },
   },
 
@@ -158,16 +150,28 @@ function loadOne(path, colorSpace, repeat = [4, 4]) {
     tl.load(
       path,
       tex => {
-        tex.colorSpace  = colorSpace;
-        tex.flipY       = false; // glTF/GLTFLoader convention — Y=0 is at top, not bottom
-        tex.wrapS       = THREE.RepeatWrapping;
-        tex.wrapT       = THREE.RepeatWrapping;
-        tex.repeat.set(repeat[0], repeat[1]);
-        tex.anisotropy  = 8;
+        tex.colorSpace = colorSpace;
+        tex.flipY      = false; // match GLTFLoader convention — Y=0 at top
+        tex.anisotropy = 8;
+
+        const isBaked = repeat[0] === 1 && repeat[1] === 1;
+        if (isBaked) {
+          // Baked Substance Painter textures: UV islands fill [0,1] exactly.
+          // RepeatWrapping lets bilinear filtering bleed past the 1.0 edge and
+          // wrap to the opposite side (a different UV island) → dark seam patches.
+          // ClampToEdgeWrapping pins the filter at the last texel instead.
+          tex.wrapS = THREE.ClampToEdgeWrapping;
+          tex.wrapT = THREE.ClampToEdgeWrapping;
+        } else {
+          tex.wrapS = THREE.RepeatWrapping;
+          tex.wrapT = THREE.RepeatWrapping;
+          tex.repeat.set(repeat[0], repeat[1]);
+        }
+
         resolve(tex);
       },
-      undefined,        // progress — not needed here
-      () => resolve(null),   // error → graceful null fallback
+      undefined,
+      () => resolve(null),
     );
   });
 }
