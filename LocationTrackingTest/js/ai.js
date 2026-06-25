@@ -287,8 +287,24 @@
     'Xenova/TinyLlama-1.1B-Chat-v1.0',
   ];
 
+  // iOS/Android kill the tab when the model exceeds their per-tab memory limit.
+  // Fuse.js handles all navigation queries without the LLM, so skip it on mobile.
+  function isMobileDevice() {
+    if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) return true;
+    // iPad with iOS 13+ reports MacIntel but has touch points
+    if (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) return true;
+    return false;
+  }
+
   async function loadModel() {
     if (modelState !== 'idle') return;
+
+    if (isMobileDevice()) {
+      modelState = 'error';
+      setBadge('error', 'Search');
+      return;
+    }
+
     modelState = 'loading';
     setBadge('loading', 'Loading…');
 
