@@ -621,16 +621,21 @@ body.planner-collapsed #routePlanner{ transform:translateY(-110%); opacity:0; po
   position: fixed;
   bottom: 0; left: 0; right: 0;
   z-index: 150;
-  background: rgba(14, 14, 20, 0.98);
-  backdrop-filter: blur(16px);
-  border-top: 1px solid rgba(255, 107, 43, 0.25);
-  border-radius: 18px 18px 0 0;
+  /* Semi-transparent so 3D scene is visible above the panel */
+  background: rgba(10, 10, 16, 0.82);
+  backdrop-filter: blur(24px) saturate(1.3);
+  -webkit-backdrop-filter: blur(24px) saturate(1.3);
+  border-top: 1.5px solid rgba(255, 107, 43, 0.3);
+  border-radius: 20px 20px 0 0;
   display: flex;
   flex-direction: column;
-  max-height: 75vh;
+  /* Fixed height — never grows, 3D view stays visible above */
+  height: 42vh;
   transform: translateY(100%);
   transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
   pointer-events: none;
+  /* Respect iPhone home bar */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 #aiPanel.open {
   transform: translateY(0);
@@ -641,7 +646,7 @@ body.planner-collapsed #routePlanner{ transform:translateY(-110%); opacity:0; po
 #aiPanelHandle {
   display: flex;
   justify-content: center;
-  padding: 12px 0 4px;
+  padding: 8px 0 2px;
   cursor: pointer;
   flex-shrink: 0;
 }
@@ -656,7 +661,7 @@ body.planner-collapsed #routePlanner{ transform:translateY(-110%); opacity:0; po
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 2px 16px 10px;
+  padding: 2px 14px 8px;
   flex-shrink: 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
 }
@@ -703,15 +708,18 @@ body.planner-collapsed #routePlanner{ transform:translateY(-110%); opacity:0; po
 }
 #aiPanelTitle > button:active { background: rgba(255,255,255,0.18); }
 
-/* Messages area */
+/* Messages area — flex: 1 + min-height: 0 is the key combo:
+   flex:1 fills remaining space, min-height:0 lets it shrink so it
+   scrolls instead of pushing the panel taller */
 #aiMessages {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  padding: 12px 14px 6px;
+  -webkit-overflow-scrolling: touch;
+  padding: 10px 14px 4px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  min-height: 80px;
+  gap: 8px;
 }
 #aiMessages::-webkit-scrollbar { width: 3px; }
 #aiMessages::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
@@ -719,10 +727,10 @@ body.planner-collapsed #routePlanner{ transform:translateY(-110%); opacity:0; po
 /* Message bubbles */
 .ai-msg {
   max-width: 86%;
-  padding: 9px 13px;
+  padding: 7px 12px;
   border-radius: 14px;
-  font-size: 14px;
-  line-height: 1.55;
+  font-size: 13px;
+  line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -751,8 +759,8 @@ body.planner-collapsed #routePlanner{ transform:translateY(-110%); opacity:0; po
 /* Quick-action chips */
 #aiChips {
   display: flex;
-  gap: 8px;
-  padding: 8px 14px;
+  gap: 6px;
+  padding: 6px 14px;
   overflow-x: auto;
   flex-shrink: 0;
 }
@@ -761,9 +769,9 @@ body.planner-collapsed #routePlanner{ transform:translateY(-110%); opacity:0; po
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: #bbb;
-  font-size: 12px;
-  padding: 5px 13px;
-  border-radius: 16px;
+  font-size: 11px;
+  padding: 4px 11px;
+  border-radius: 14px;
   white-space: nowrap;
   cursor: pointer;
   flex-shrink: 0;
@@ -775,12 +783,12 @@ body.planner-collapsed #routePlanner{ transform:translateY(-110%); opacity:0; po
   color: #fff;
 }
 
-/* Input row */
+/* Input row — bottom padding is 10px because panel handles safe area */
 #aiInputArea {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 14px 28px;
+  padding: 6px 14px 10px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   flex-shrink: 0;
 }
@@ -823,12 +831,4 @@ body.planner-collapsed #routePlanner{ transform:translateY(-110%); opacity:0; po
 }
 #aiBtn:active { background: rgba(255, 107, 43, 0.25); }
 
-/* Dim overlay when AI panel is open */
-#aiPanel.open::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  bottom: 100%;
-  background: rgba(0, 0, 0, 0.45);
-  pointer-events: none;
-}
+/* No dim overlay — 3D scene stays fully visible above the panel */
