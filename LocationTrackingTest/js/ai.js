@@ -35,18 +35,19 @@
   }
 
   function searchStalls(q, n) {
-    const raw = (q || '').trim();
+    // Strip punctuation and normalise whitespace so "B17?" and "B17" both match
+    const raw = (q || '').replace(/[?!.,;:'"]/g, '').replace(/\s+/g, ' ').trim();
     if (!raw) return [];
     const all = validStalls();
     const upper = raw.toUpperCase();
 
-    // 1. Exact ID match (e.g. "B20")
-    const exact = all.filter(s => s.id.toUpperCase() === upper);
+    // 1. Exact ID match — trim stall IDs too in case data has trailing spaces
+    const exact = all.filter(s => (s.id || '').trim().toUpperCase() === upper);
     if (exact.length) return exact.map(s => ({ item: s, score: 0 }));
 
     // 2. Prefix ID match (e.g. "B2" → B20, B21 …)
     if (upper.length >= 2) {
-      const prefix = all.filter(s => s.id.toUpperCase().startsWith(upper));
+      const prefix = all.filter(s => (s.id || '').trim().toUpperCase().startsWith(upper));
       if (prefix.length) return prefix.slice(0, n || 5).map(s => ({ item: s, score: 0.05 }));
     }
 
@@ -244,7 +245,14 @@
     }
 
     const query = extractQuery(text);
-    const matches = searchStalls(query, 5);
+    let matches = searchStalls(query, 5);
+
+    // If intent is navigation or distance but extractQuery found nothing,
+    // scan the original text for a stall ID pattern (e.g. "B17") as a fallback
+    if (!matches.length && (RE_NAV.test(text) || RE_DIST.test(text))) {
+      const idInText = text.match(/\b([A-Za-z]\d{1,3})\b/);
+      if (idInText) matches = searchStalls(idInText[1], 5);
+    }
 
     const ruled = ruleReply(text, matches);
 
@@ -301,7 +309,8 @@
 
     if (isMobileDevice()) {
       modelState = 'error';
-      setBadge('error', 'Search');
+      setBadge('ready', 'Search Mode');
+      addMsg('assistant', 'Smart stall search is ready! Ask me:\n• "How far is stall B17?"\n• "Are there any mechanical stalls?"\n• "Navigate me to Honda"\n• "What\'s nearby?"');
       return;
     }
 
