@@ -257,9 +257,12 @@ window.startNavigation = async function() {
   updateNavActiveDist();
 
   // Hide sensor start button if visible (sensors already started)
-  document.getElementById('startBtn').style.display = 'none';
-  document.getElementById('gpsBtn').style.display   = '';
-  document.getElementById('resetBtn').style.display = '';
+  const _sb = document.getElementById('startBtn');
+  if (_sb) _sb.style.display = 'none';
+  const _gb = document.getElementById('gpsBtn');
+  if (_gb) _gb.style.display = '';
+  const _rb = document.getElementById('resetBtn');
+  if (_rb) _rb.style.display = '';
 
 };
 
@@ -379,3 +382,11 @@ window.addEventListener('load', () => {
     }
   }, 600);
 });
+
+// ── AI assistant helper — sets from=current pos, to=stall, starts navigation ──
+window.aiNavigateTo = function (stall) {
+  setFrom({ id: 'MY_LOCATION', company: 'My current position',
+    x: window.aX || 0, y: window.aY || 0.006, z: window.aZ || 0 });
+  setTo(stall);
+  window.startNavigation();
+};

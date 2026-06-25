@@ -143,9 +143,37 @@
 <div id="hud">
   <div class="hud-row">
     <button class="btn btn-danger"  id="resetBtn" onclick="resetTracking()">Reset</button>
+    <button class="btn btn-off"     id="aiBtn"    onclick="toggleAIPanel()">💬</button>
     <button class="btn btn-off"     id="devBtn"   onclick="toggleDevPanel()">⚙</button>
   </div>
   <div id="speedBar"><div id="speedFill"></div></div>
+</div>
+
+<!-- ── AI Chat Panel — slides up from bottom ─────────────────── -->
+<div id="aiPanel">
+  <div id="aiPanelHandle" onclick="toggleAIPanel()">
+    <div id="aiPanelPill"></div>
+  </div>
+  <div id="aiPanelTitle">
+    <div class="ai-title-left">
+      <span class="ai-title-text">AI Assistant</span>
+      <span id="aiModelBadge">Local AI</span>
+    </div>
+    <button onclick="toggleAIPanel()">✕</button>
+  </div>
+  <div id="aiMessages">
+    <div class="ai-msg assistant">Hi! I'm your convention navigator. Say "take me to [stall name]" or ask me to find anything!</div>
+  </div>
+  <div id="aiChips">
+    <button class="ai-chip" onclick="aiChip('What\'s nearby me?')">Nearby stalls</button>
+    <button class="ai-chip" onclick="aiChip('Help')">Help</button>
+    <button class="ai-chip" onclick="aiChip('List all stalls')">All stalls</button>
+  </div>
+  <div id="aiInputArea">
+    <input id="aiInput" type="text" placeholder="Ask me anything…"
+      autocomplete="off" autocorrect="off" spellcheck="false"/>
+    <button id="aiSendBtn" onclick="aiSend()">&#10148;</button>
+  </div>
 </div>
 
 <!-- ── Dev panel — slides up from bottom ─────────────────────── -->
@@ -209,6 +237,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/renderers/CSS2DRenderer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@7/dist/fuse.umd.min.js"></script>
 
 <!-- ── App scripts (order matters) ───────────────────────────── -->
 <script src="js/stalls.js"></script>
@@ -219,10 +248,12 @@
 <script src="js/sensors.js"></script>
 <script src="js/pathfinder.js"></script>
 <script src="js/bootstrap.js"></script>
+<script src="js/ai.js"></script>
 
 <!-- ── Utility functions (UI only) ──────────────────────────────── -->
 <script>
 function toggleDevPanel(){
+  document.getElementById('aiPanel').classList.remove('open');
   document.getElementById('devPanel').classList.toggle('open');
 }
 // Called from permission prompt button — works as a user gesture on iOS

@@ -612,3 +612,223 @@ body.planner-collapsed #routePlanner{ transform:translateY(-110%); opacity:0; po
   background: rgba(0,0,0,0.4);
   pointer-events: none;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   AI CHAT PANEL  — slides up from bottom
+   ══════════════════════════════════════════════════════════════ */
+
+#aiPanel {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 150;
+  background: rgba(14, 14, 20, 0.98);
+  backdrop-filter: blur(16px);
+  border-top: 1px solid rgba(255, 107, 43, 0.25);
+  border-radius: 18px 18px 0 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 75vh;
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  pointer-events: none;
+}
+#aiPanel.open {
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+/* Drag handle */
+#aiPanelHandle {
+  display: flex;
+  justify-content: center;
+  padding: 12px 0 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+#aiPanelPill {
+  width: 36px; height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 107, 43, 0.4);
+}
+
+/* Title row */
+#aiPanelTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 16px 10px;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+.ai-title-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ai-title-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+}
+#aiModelBadge {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #777;
+  transition: background 0.3s, color 0.3s;
+}
+#aiModelBadge.loading {
+  background: rgba(255, 160, 0, 0.18);
+  color: #ffa040;
+}
+#aiModelBadge.ready {
+  background: rgba(29, 158, 117, 0.18);
+  color: #5eefc0;
+}
+#aiModelBadge.error {
+  background: rgba(226, 75, 74, 0.18);
+  color: #ff9090;
+}
+#aiPanelTitle > button {
+  background: rgba(255,255,255,0.08);
+  border: none;
+  color: #aaa;
+  font-size: 16px;
+  cursor: pointer;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+}
+#aiPanelTitle > button:active { background: rgba(255,255,255,0.18); }
+
+/* Messages area */
+#aiMessages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 14px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 80px;
+}
+#aiMessages::-webkit-scrollbar { width: 3px; }
+#aiMessages::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+
+/* Message bubbles */
+.ai-msg {
+  max-width: 86%;
+  padding: 9px 13px;
+  border-radius: 14px;
+  font-size: 14px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.ai-msg.user {
+  background: #FF6B2B;
+  color: #fff;
+  align-self: flex-end;
+  border-bottom-right-radius: 4px;
+}
+.ai-msg.assistant {
+  background: rgba(255, 255, 255, 0.07);
+  color: #ddd;
+  align-self: flex-start;
+  border-bottom-left-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+.ai-msg.thinking {
+  background: rgba(255, 255, 255, 0.04);
+  color: #555;
+  align-self: flex-start;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  font-style: italic;
+  letter-spacing: 2px;
+}
+
+/* Quick-action chips */
+#aiChips {
+  display: flex;
+  gap: 8px;
+  padding: 8px 14px;
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+#aiChips::-webkit-scrollbar { display: none; }
+.ai-chip {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #bbb;
+  font-size: 12px;
+  padding: 5px 13px;
+  border-radius: 16px;
+  white-space: nowrap;
+  cursor: pointer;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.ai-chip:active {
+  background: rgba(255, 107, 43, 0.2);
+  border-color: #FF6B2B;
+  color: #fff;
+}
+
+/* Input row */
+#aiInputArea {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px 28px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+#aiInput {
+  flex: 1;
+  height: 42px;
+  padding: 0 14px;
+  border-radius: 21px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-size: 14px;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+#aiInput::placeholder { color: #444; }
+#aiInput:focus { border-color: rgba(255, 107, 43, 0.5); background: rgba(255, 107, 43, 0.05); }
+#aiInput:disabled { opacity: 0.5; }
+#aiSendBtn {
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  border: none;
+  background: #FF6B2B;
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+#aiSendBtn:active { opacity: 0.8; }
+
+/* AI button in HUD */
+#aiBtn {
+  background: rgba(255, 107, 43, 0.12);
+  border: 1px solid rgba(255, 107, 43, 0.25);
+  color: #FF6B2B;
+  font-size: 16px;
+  padding: 10px 14px;
+}
+#aiBtn:active { background: rgba(255, 107, 43, 0.25); }
+
+/* Dim overlay when AI panel is open */
+#aiPanel.open::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  bottom: 100%;
+  background: rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
