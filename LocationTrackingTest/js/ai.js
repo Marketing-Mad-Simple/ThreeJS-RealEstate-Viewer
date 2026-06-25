@@ -15,6 +15,7 @@
   const RE_YES    = /^(yes|yeah|sure|ok|yep|please|navigate|take me|go|start|do it)\b/i;
   const RE_DIST   = /\b(how far|distance|far is|far from|how long|how many metres?|how many meters?)\b/i;
   const RE_EXIST  = /\b(is there|do you have|any|exist|find|are there|show me|looking for|which)\b/i;
+  const RE_ABOUT  = /\b(what (is|are|does)|tell me about|describe|about|info(rmation)?|details?|more about|who (is|are))\b/i;
 
   // ── Stall helpers ────────────────────────────────────────────────────────────
   function validStalls() {
@@ -25,10 +26,14 @@
 
   function initFuse() {
     if (fuse || typeof Fuse === 'undefined') return;
-    // Equal-ish weight on id so stall IDs (B20, SOTI) are searchable
     fuse = new Fuse(validStalls(), {
-      keys: [{ name: 'company', weight: 0.6 }, { name: 'id', weight: 0.4 }],
-      threshold: 0.45,
+      keys: [
+        { name: 'company',  weight: 0.5  },
+        { name: 'keywords', weight: 0.35 }, // array field — Fuse searches each element
+        { name: 'category', weight: 0.1  },
+        { name: 'id',       weight: 0.05 }, // ID handled separately via exact/prefix
+      ],
+      threshold: 0.4,
       includeScore: true,
       minMatchCharLength: 2,
     });
@@ -96,25 +101,37 @@
     }
   }
 
-  // ── Category search ──────────────────────────────────────────────────────────
-  // Returns up to n stalls whose company name contains the given keyword
-  function categorySearch(keyword, n) {
-    const k = keyword.toLowerCase();
-    return validStalls()
-      .filter(s => (s.company || '').toLowerCase().includes(k))
-      .slice(0, n || 6);
+  // ── Category / keyword search ────────────────────────────────────────────────
+  // Searches company name, category, and keywords array for the given term
+  function categorySearch(term, n) {
+    const k = term.toLowerCase();
+    return validStalls().filter(s => {
+      if ((s.company  || '').toLowerCase().includes(k)) return true;
+      if ((s.category || '').toLowerCase().includes(k)) return true;
+      return (s.keywords || []).some(kw => kw.toLowerCase().includes(k));
+    }).slice(0, n || 6);
   }
 
-  // Extract a category keyword from the query (words not in stop list)
+  // Format a stall as a one-line result including category hint
+  function stallLine(s) {
+    return s.category
+      ? `• ${s.id}: ${s.company} [${s.category}]`
+      : `• ${s.id}: ${s.company}`;
+  }
+
+  // Extract keyword terms from the query (words not in stop list), returns array
   const STOP_WORDS = new Set([
     'stall','stalls','booth','booths','stand','stands','company','companies',
     'any','there','here','the','an','a','is','are','do','you','have','find',
     'show','me','i','want','to','know','about','related','for','what','which',
     'in','at','convention','center','hall','expo',
+    // extra noise verbs / prepositions often left after extractQuery
+    'with','looking','deals','deal','need','some','like','does','searching',
+    'offer','sell','has','get','got','see','this','that','from','who',
   ]);
   function extractCategory(text) {
     const words = text.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/);
-    return words.filter(w => w.length > 2 && !STOP_WORDS.has(w)).join(' ').trim();
+    return words.filter(w => w.length > 2 && !STOP_WORDS.has(w));
   }
 
   // ── Rule-based responses (instant, no LLM needed) ───────────────────────────
@@ -148,6 +165,18 @@
       };
     }
 
+    // "About" query for a known stall — return brief with category + keywords
+    if (RE_ABOUT.test(lo) && matches.length) {
+      const s = matches[0].item;
+      const lines = [`${s.company} — stall ${s.id}`];
+      if (s.category) lines.push(`Category: ${s.category}`);
+      if (s.keywords && s.keywords.length) {
+        lines.push(`Specialties: ${s.keywords.slice(0, 5).join(', ')}`);
+      }
+      lines.push('Want me to navigate you there?');
+      return { msg: lines.join('\n'), pending: s };
+    }
+
     // Navigation with a match
     if (matches.length) {
       const isNav = RE_NAV.test(text);
@@ -161,13 +190,13 @@
 
       if (matches.length === 1 || isGoodMatch) {
         return {
-          msg: `Found: ${s.company} at stall ${s.id}.\nShould I navigate you there?`,
+          msg: `Found: ${s.company} at stall ${s.id}${s.category ? ' [' + s.category + ']' : ''}.\nShould I navigate you there?`,
           pending: s,
         };
       }
 
-      // Multiple matches — ask user to clarify
-      const list = matches.slice(0, 4).map(m => `• ${m.item.id}: ${m.item.company}`).join('\n');
+      // Multiple matches — include category to help user distinguish
+      const list = matches.slice(0, 4).map(m => stallLine(m.item)).join('\n');
       return {
         msg: isNav
           ? `Found a few options:\n${list}\n\nWhich one should I take you to?`
@@ -175,16 +204,21 @@
       };
     }
 
-    // Category / existence query with no direct stall match — search company text
-    if (RE_EXIST.test(lo) || /\b(stalls?|booth|company|companies)\b/i.test(lo)) {
-      const cat = extractCategory(lo);
-      if (cat) {
-        const catResults = categorySearch(cat);
-        if (catResults.length) {
-          const list = catResults.map(s => `• ${s.id}: ${s.company}`).join('\n');
-          return { msg: `Found ${catResults.length} stall${catResults.length > 1 ? 's' : ''} matching "${cat}":\n${list}` };
-        }
-        return { msg: `I couldn't find any stalls matching "${cat}". Try a different keyword or browse all stalls.` };
+    // Category / keyword search — no direct name match, search across all fields
+    const catTerms = extractCategory(lo);
+    if (catTerms.length) {
+      // Search each extracted term independently and union results
+      const seen = new Set();
+      const catResults = [];
+      for (const term of catTerms) {
+        categorySearch(term, 6).forEach(s => {
+          if (!seen.has(s.id)) { seen.add(s.id); catResults.push(s); }
+        });
+      }
+      if (catResults.length) {
+        const label = catTerms.join(', ');
+        const list = catResults.slice(0, 6).map(s => stallLine(s)).join('\n');
+        return { msg: `Found ${catResults.length} stall${catResults.length > 1 ? 's' : ''} matching "${label}":\n${list}` };
       }
     }
 
@@ -247,6 +281,15 @@
     const query = extractQuery(text);
     let matches = searchStalls(query, 5);
 
+    // If Fuse found nothing on the full query, try each extracted keyword term
+    // so "find me forklifts" hits the keyword index on "forklifts" alone
+    if (!matches.length) {
+      for (const term of extractCategory(text)) {
+        const r = searchStalls(term, 5);
+        if (r.length) { matches = r; break; }
+      }
+    }
+
     // If intent is navigation or distance but extractQuery found nothing,
     // scan the original text for a stall ID pattern (e.g. "B17") as a fallback
     if (!matches.length && (RE_NAV.test(text) || RE_DIST.test(text))) {
@@ -265,7 +308,8 @@
       RE_HELP.test(text)   ||    // help request
       RE_NAV.test(text)    ||    // any navigation intent
       RE_DIST.test(text)   ||    // distance query
-      RE_EXIST.test(text);       // existence/search query
+      RE_EXIST.test(text)  ||    // existence/search query
+      RE_ABOUT.test(text);       // stall brief / info query
 
     if (ruleIsDefinitive) {
       if (ruled.nav) doNav(ruled.nav);
