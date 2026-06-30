@@ -224,25 +224,14 @@ window.startNavigation = async function() {
   // 4. Compute path
   if (window.computePath) window.computePath(routeTo);
 
-  // 5. Animate camera back to start point, then auto-start walking
-  const startX = window.aX, startZ = window.aZ;
-  const closePos    = new THREE.Vector3(startX + window.camOffset.x,
-                                         startZ + window.camOffset.y,   // intentional: Y=height
-                                         startZ + window.camOffset.z);
-  // Build proper close-up position above start
-  window.animateCamera(
-    { x: startX, y: 2.2, z: startZ + 0.6 },
-    { x: startX, y: 0.02, z: startZ },
-    1.0, () => {
-    // After zoom-in completes, resume follow mode
-    if(window.stopCamAnim) window.stopCamAnim();
-  });
+  // 5. Switch to first-person view
+  if (window.enterFirstPerson) window.enterFirstPerson();
 
   // Clear preview markers, exit preview mode, set navigating flag
   window._previewFrom = null;
   window._previewTo   = null;
   window._navigating  = true;
-  if (window.setCamPreview) window.setCamPreview(false); // allow zoom-in anim to run
+  if (window.setCamPreview) window.setCamPreview(false);
 
   window.isMoving = true;
   window._sensorsStarted = true;
@@ -274,14 +263,21 @@ window.stopNavigation = function() {
   window.destStall = null;
   if (window.highlightStall) window.highlightStall(null);
 
-  // If both route points are still set, restore the preview
-  if (routeFrom && routeTo) {
-    showRoutePreview(routeFrom, routeTo);
+  const afterExit = () => {
+    if (routeFrom && routeTo) {
+      showRoutePreview(routeFrom, routeTo);
+    } else {
+      window._previewFrom = null;
+      window._previewTo   = null;
+      if (window.clearPath) window.clearPath();
+      if (window.stopCamAnim) window.stopCamAnim();
+    }
+  };
+
+  if (window.exitFirstPerson) {
+    window.exitFirstPerson(afterExit);
   } else {
-    window._previewFrom = null;
-    window._previewTo   = null;
-    if (window.clearPath) window.clearPath();
-    if (window.stopCamAnim) window.stopCamAnim();
+    afterExit();
   }
 };
 
@@ -321,9 +317,17 @@ function showArrival(stall) {
   window.isMoving = false; // pause on arrival
   document.body.classList.remove('navigating');
 
-  document.getElementById('arrivalStall').textContent =
-    `${stall.id}${stall.company ? '\n' + stall.company : ''}`;
-  document.getElementById('arrivalOverlay').classList.add('show');
+  const displayOverlay = () => {
+    document.getElementById('arrivalStall').textContent =
+      `${stall.id}${stall.company ? '\n' + stall.company : ''}`;
+    document.getElementById('arrivalOverlay').classList.add('show');
+  };
+
+  if (window.exitFirstPerson) {
+    window.exitFirstPerson(displayOverlay);
+  } else {
+    displayOverlay();
+  }
 }
 
 window.dismissArrival = function() {

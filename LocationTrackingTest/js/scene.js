@@ -28,6 +28,8 @@ const overlayScene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(60, 1, 0.005, 100);
 let camFollowing = true;
 const camOffset  = new THREE.Vector3(0, 2.2, 0.6);
+let _firstPersonMode = false;
+const FP_EYE_HEIGHT  = 0.15; // world units above avatar floor
 
 // ── Lighting — bright uniform, no hotspot ────────────────────────────────
 scene.add(new THREE.AmbientLight(0xffffff, 2.2));   // very bright ambient = flat even light
@@ -224,6 +226,17 @@ function updateCamera(){
     }
     return;
   }
+  // First-person mode: camera at eye level, oriented by device heading
+  if (_firstPersonMode) {
+    const hr   = window.currentHeadingRad || 0;
+    const eyeY = aY + FP_EYE_HEIGHT;
+    const lookX = aX + Math.sin(hr);
+    const lookZ = aZ - Math.cos(hr);
+    camera.position.set(aX, eyeY, aZ);
+    camera.lookAt(lookX, eyeY, lookZ);
+    camTarget.set(lookX, eyeY, lookZ); // keep in sync for exit-animation fromTarget
+    return;
+  }
   // Preview mode: camera stays where it is, no follow
   if (camPreviewMode) return;
   camTarget.set(aX, aY, aZ);
@@ -232,18 +245,19 @@ function updateCamera(){
   camera.lookAt(camTarget);
 }
 
-// Scroll zoom
+// Scroll zoom (disabled in first-person)
 canvas.addEventListener('wheel',e=>{
   e.preventDefault();
+  if(_firstPersonMode) return;
   const f=e.deltaY<0?0.88:1.14;
   camOffset.y=Math.max(0.5,Math.min(8,camOffset.y*f));
   camOffset.z=Math.max(0.14,Math.min(2.2,camOffset.z*f));
 },{passive:false});
 
-// Pinch zoom
+// Pinch zoom (disabled in first-person)
 let pinchDist0=0,pinchY0=0,pinchZ0=0,pinchActive=false;
 canvas.addEventListener('touchstart',e=>{
-  if(e.touches.length===2){
+  if(e.touches.length===2&&!_firstPersonMode){
     e.preventDefault();
     pinchActive=true;
     pinchDist0=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
@@ -251,7 +265,7 @@ canvas.addEventListener('touchstart',e=>{
   }
 },{passive:false});
 canvas.addEventListener('touchmove',e=>{
-  if(pinchActive&&e.touches.length===2){
+  if(pinchActive&&e.touches.length===2&&!_firstPersonMode){
     e.preventDefault();
     const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
     const s=pinchDist0/d;
@@ -375,6 +389,28 @@ window.toMarker             = toMarker;
 window.stopCamAnim      = function(){ camAnim = null; camPreviewMode = false; };
 window.setCamPreview   = function(on){ camPreviewMode = on; };
 window.overlayScene         = overlayScene;  // pathfinder.js adds pathGroup here
+
+window.enterFirstPerson = function() {
+  camAnim = null;
+  camPreviewMode = false;
+  _firstPersonMode = true;
+  window._firstPersonMode = true;
+  avatarRoot.visible = false; // hide avatar — we're the camera now
+};
+
+window.exitFirstPerson = function(onDone) {
+  if (!_firstPersonMode) { if (onDone) onDone(); return; }
+  _firstPersonMode = false;
+  window._firstPersonMode = false;
+  avatarRoot.visible = true;
+  // Animate back to top-down view centered on current avatar position
+  animateCamera(
+    { x: aX + camOffset.x, y: camOffset.y, z: aZ + camOffset.z },
+    { x: aX, y: 0.02, z: aZ },
+    0.8,
+    () => { window.stopCamAnim(); if (onDone) onDone(); }
+  );
+};
 
 // Position state
 window.tX = 0; window.tY = 0; window.tZ = 0;
