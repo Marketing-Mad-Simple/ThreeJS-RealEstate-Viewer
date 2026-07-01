@@ -88,10 +88,11 @@ const arrowGnd = new THREE.Mesh(agGeo, arrowGndMat);
 arrowGnd.rotation.x=-Math.PI/2; arrowGnd.position.y=-BODY_H/2+0.006; avatarRoot.add(arrowGnd);
 
 // Destination marker — pulsing green pin shown when navigating
+// In scene (not overlayScene) so it depth-tests against stall walls
 const destMarkerMat = new THREE.MeshBasicMaterial({color:0x00E676,transparent:true,opacity:0.0,toneMapped:false});
-const destMarker = new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.005,0.18,8), destMarkerMat);
-destMarker.position.y = 0.09;
-overlayScene.add(destMarker);
+const destMarker = new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.004,0.5,8), destMarkerMat);
+destMarker.position.y = 0.25;
+scene.add(destMarker);
 
 // FROM/TO markers as CSS2DObjects — render in DOM overlay, always above labels
 function makePin(color, label) {
@@ -325,9 +326,9 @@ function animate(){
   if(window.updateNavActiveDist) window.updateNavActiveDist();
   // Destination marker (during active navigation)
   if(window.destStall && window._navigating){
-    destMarker.position.set(window.destStall.x, window.destStall.y+0.05, window.destStall.z);
+    destMarker.position.set(window.destStall.x, window.destStall.y+0.25, window.destStall.z);
     destMarkerMat.opacity=0.7+0.3*Math.sin(pulse*2);
-    destMarker.scale.y=1+0.2*Math.sin(pulse*2.5);
+    destMarker.scale.y=1+0.15*Math.sin(pulse*2.5);
   } else {
     destMarkerMat.opacity=0;
   }

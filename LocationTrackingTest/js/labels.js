@@ -15,6 +15,34 @@ const frustum   = new THREE.Frustum();
 const clipMatrix = new THREE.Matrix4();
 const worldPos  = new THREE.Vector3();
 
+// ── First-person occlusion raycasting ────────────────────────────────────
+const _fpRaycaster = new THREE.Raycaster();
+const _fpRayDir    = new THREE.Vector3();
+let   _fpOccluders = null; // built lazily from scene meshes
+
+function _buildOccluders() {
+  _fpOccluders = [];
+  if (!window.scene) return;
+  window.scene.traverse(o => {
+    // Exclude the nav path ribbons and dest marker — only building geometry occludes
+    if (o.isMesh && o !== window.destMarker && !o.userData.isNavPath) _fpOccluders.push(o);
+  });
+}
+
+function _isOccluded(pos) {
+  if (!_fpOccluders) _buildOccluders();
+  const cam = window.camera.position;
+  _fpRayDir.subVectors(pos, cam);
+  const dist = _fpRayDir.length();
+  if (dist < 0.25) return false; // too close — treat as visible
+  _fpRayDir.divideScalar(dist);
+  _fpRaycaster.set(cam, _fpRayDir);
+  _fpRaycaster.far = dist - 0.05;
+  const hits = _fpRaycaster.intersectObjects(_fpOccluders, false);
+  _fpRaycaster.far = Infinity;
+  return hits.length > 0;
+}
+
 function initLabels() {
   if (!window.STALL_DATA) return;
 
@@ -110,13 +138,24 @@ function updateLabels(avatarX, avatarZ) {
     // Compute target opacity
     let targetOpacity = 0;
 
+    // In first-person, use a tighter distance range and occlude behind walls
+    const fpMode = !!window._firstPersonMode;
+    const effShow = fpMode ? Math.min(showDist, 1.2) : showDist;
+    const effHide = fpMode ? Math.min(hideDist, 1.8) : hideDist;
+
     if (inFrustum && (visibleCount < MAX_VISIBLE || isHighlighted)) {
       if (dist <= LABEL_NEAR_DIST) {
         targetOpacity = 1;
-      } else if (dist <= showDist) {
+      } else if (dist <= effShow) {
         targetOpacity = 1;
-      } else if (dist <= hideDist) {
-        targetOpacity = 1 - (dist - showDist) / (hideDist - showDist);
+      } else if (dist <= effHide) {
+        targetOpacity = 1 - (dist - effShow) / (effHide - effShow);
+      }
+
+      // Raycast occlusion — only in first-person and only when label would otherwise show
+      if (fpMode && targetOpacity > 0.01) {
+        worldPos.set(lo.stall.x, lo.stall.y + 0.10, lo.stall.z);
+        if (_isOccluded(worldPos)) targetOpacity = 0;
       }
 
       if (targetOpacity > 0.01) visibleCount++;

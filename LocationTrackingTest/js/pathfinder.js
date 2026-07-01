@@ -251,6 +251,7 @@ function buildPathLine(waypoints) {
   });
 
   pathMesh = new THREE.Mesh(geo, mat);
+  pathMesh.userData.isNavPath = true;
   pathGroup.add(pathMesh);
 
   // White border line slightly wider for contrast (like Google Maps outline)
@@ -279,7 +280,32 @@ function buildPathLine(waypoints) {
   bGeo.setIndex(indices.slice()); // reuse same index pattern
   bGeo.computeVertexNormals();
   const borderMesh = new THREE.Mesh(bGeo, borderMat);
+  borderMesh.userData.isNavPath = true;
   pathGroup.add(borderMesh);
+
+  // First-person vertical strip — a translucent band floating at eye level
+  // Edge-on from top view (invisible), face-on in first-person (clearly visible)
+  const FP_Y_BOT = 0.04, FP_Y_TOP = 0.14;
+  const fpVerts = [];
+  for (let i = 0; i < waypoints.length; i++) {
+    const px = waypoints[i].x, pz = waypoints[i].z;
+    fpVerts.push(px, FP_Y_BOT, pz);
+    fpVerts.push(px, FP_Y_TOP, pz);
+  }
+  const fpGeo = new THREE.BufferGeometry();
+  fpGeo.setAttribute('position', new THREE.Float32BufferAttribute(fpVerts, 3));
+  fpGeo.setIndex(indices.slice());
+  fpGeo.computeVertexNormals();
+  const fpMesh = new THREE.Mesh(fpGeo, new THREE.MeshBasicMaterial({
+    color: 0x00C8FF,
+    side: THREE.DoubleSide,
+    transparent: true,
+    opacity: 0.55,
+    depthWrite: false,
+    toneMapped: false,
+  }));
+  fpMesh.userData.isNavPath = true;
+  pathGroup.add(fpMesh);
 }
 
 function updatePathDots(avatarX, avatarZ) {
