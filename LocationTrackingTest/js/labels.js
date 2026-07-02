@@ -34,10 +34,13 @@ function _isOccluded(pos) {
   const cam = window.camera.position;
   _fpRayDir.subVectors(pos, cam);
   const dist = _fpRayDir.length();
-  if (dist < 0.25) return false; // too close — treat as visible
+  // Always show labels that are very close — avoids false occlusion from the
+  // stall's own front face being between the camera and the label centre
+  if (dist < 0.8) return false;
   _fpRayDir.divideScalar(dist);
   _fpRaycaster.set(cam, _fpRayDir);
-  _fpRaycaster.far = dist - 0.05;
+  // Stop 20% short of the label so we don't hit the stall's own geometry
+  _fpRaycaster.far = dist * 0.8;
   const hits = _fpRaycaster.intersectObjects(_fpOccluders, false);
   _fpRaycaster.far = Infinity;
   return hits.length > 0;
@@ -138,10 +141,10 @@ function updateLabels(avatarX, avatarZ) {
     // Compute target opacity
     let targetOpacity = 0;
 
-    // In first-person, use a tighter distance range and occlude behind walls
+    // In first-person, apply occlusion raycasting but keep the same distance range
     const fpMode = !!window._firstPersonMode;
-    const effShow = fpMode ? Math.min(showDist, 1.2) : showDist;
-    const effHide = fpMode ? Math.min(hideDist, 1.8) : hideDist;
+    const effShow = showDist;
+    const effHide = hideDist;
 
     if (inFrustum && (visibleCount < MAX_VISIBLE || isHighlighted)) {
       if (dist <= LABEL_NEAR_DIST) {

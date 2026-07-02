@@ -29,7 +29,7 @@ const camera = new THREE.PerspectiveCamera(60, 1, 0.005, 100);
 let camFollowing = true;
 const camOffset  = new THREE.Vector3(0, 2.2, 0.6);
 let _firstPersonMode = false;
-const FP_EYE_HEIGHT  = 0.15; // world units above avatar floor
+const FP_EYE_HEIGHT  = 0.11; // world units above avatar floor (≈25% lower than 0.15)
 
 // ── Lighting — bright uniform, no hotspot ────────────────────────────────
 scene.add(new THREE.AmbientLight(0xffffff, 2.2));   // very bright ambient = flat even light
