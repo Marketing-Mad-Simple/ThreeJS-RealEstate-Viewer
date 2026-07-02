@@ -2,10 +2,10 @@
 'use strict';
 
 // ── Tuning ────────────────────────────────────────────────────────────────
-const LABEL_SHOW_DIST   = 2.2;   // world units — start fading out beyond this
-const LABEL_HIDE_DIST   = 3.2;   // world units — fully invisible beyond this
-const LABEL_NEAR_DIST   = 0.4;   // world units — full opacity within this
-const MAX_VISIBLE       = 40;    // hard cap for DOM performance on mobile
+const LABEL_SHOW_DIST   = 2.2;   // world units — FP fade start (top-view: unused)
+const LABEL_HIDE_DIST   = 3.2;   // world units — FP fade end   (top-view: unused)
+const LABEL_NEAR_DIST   = 0.4;   // world units — FP full opacity zone
+const MAX_VISIBLE       = 80;    // hard cap for DOM performance on mobile
 const FRUSTUM_MARGIN    = 0.05;  // clip-space margin (0=edge, negative=some outside)
 
 let labelObjects = [];           // { stall, div, obj, opacity }
@@ -83,10 +83,8 @@ function updateLabels(avatarX, avatarZ) {
   clipMatrix.multiplyMatrices(window.camera.projectionMatrix, window.camera.matrixWorldInverse);
   frustum.setFromProjectionMatrix(clipMatrix);
 
-  // During route preview, use a much wider label distance
-  const inPreview = !!(window._previewFrom || window._previewTo);
-  const showDist  = inPreview ? 99 : LABEL_SHOW_DIST;
-  const hideDist  = inPreview ? 99 : LABEL_HIDE_DIST;
+  const showDist = LABEL_SHOW_DIST;
+  const hideDist = LABEL_HIDE_DIST;
 
   // Score each label: distance + in-frustum
   const scored = labelObjects.map(lo => {
@@ -140,27 +138,26 @@ function updateLabels(avatarX, avatarZ) {
 
     // Compute target opacity
     let targetOpacity = 0;
-
-    // In first-person, apply occlusion raycasting but keep the same distance range
     const fpMode = !!window._firstPersonMode;
-    const effShow = showDist;
-    const effHide = hideDist;
 
     if (inFrustum && (visibleCount < MAX_VISIBLE || isHighlighted)) {
-      if (dist <= LABEL_NEAR_DIST) {
+      if (!fpMode) {
+        // Top-view: every frustum-visible label gets full opacity
         targetOpacity = 1;
-      } else if (dist <= effShow) {
-        targetOpacity = 1;
-      } else if (dist <= effHide) {
-        targetOpacity = 1 - (dist - effShow) / (effHide - effShow);
+      } else {
+        // First-person: distance fade + geometry occlusion
+        if (dist <= LABEL_NEAR_DIST) {
+          targetOpacity = 1;
+        } else if (dist <= showDist) {
+          targetOpacity = 1;
+        } else if (dist <= hideDist) {
+          targetOpacity = 1 - (dist - showDist) / (hideDist - showDist);
+        }
+        if (targetOpacity > 0.01) {
+          worldPos.set(lo.stall.x, lo.stall.y + 0.10, lo.stall.z);
+          if (_isOccluded(worldPos)) targetOpacity = 0;
+        }
       }
-
-      // Raycast occlusion — only in first-person and only when label would otherwise show
-      if (fpMode && targetOpacity > 0.01) {
-        worldPos.set(lo.stall.x, lo.stall.y + 0.10, lo.stall.z);
-        if (_isOccluded(worldPos)) targetOpacity = 0;
-      }
-
       if (targetOpacity > 0.01) visibleCount++;
     }
 

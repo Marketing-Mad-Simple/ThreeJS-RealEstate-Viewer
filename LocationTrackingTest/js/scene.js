@@ -240,41 +240,100 @@ function updateCamera(){
   }
   // Preview mode: camera stays where it is, no follow
   if (camPreviewMode) return;
-  camTarget.set(aX, aY, aZ);
-  camera.position.lerp(
-    new THREE.Vector3(aX+camOffset.x, aY+camOffset.y, aZ+camOffset.z), 0.12);
+  // Free top-down camera: pan target drifts toward avatar unless user has panned manually
+  if (!_freeCamMoved) {
+    _panX += (aX - _panX) * 0.08;
+    _panZ += (aZ - _panZ) * 0.08;
+  }
+  camTarget.set(_panX, 0, _panZ);
+  camera.position.set(_panX + camOffset.x, camOffset.y, _panZ + camOffset.z);
   camera.lookAt(camTarget);
 }
 
-// Scroll zoom (disabled in first-person)
-canvas.addEventListener('wheel',e=>{
-  e.preventDefault();
-  if(_firstPersonMode) return;
-  const f=e.deltaY<0?0.88:1.14;
-  camOffset.y=Math.max(0.5,Math.min(8,camOffset.y*f));
-  camOffset.z=Math.max(0.14,Math.min(2.2,camOffset.z*f));
-},{passive:false});
+// ── Free camera pan + zoom ────────────────────────────────────────────────
+// _panX/_panZ: world-space camera look-at target on the floor plane
+// _freeCamMoved: when false the look-at slowly follows the avatar
+let _panX = 0, _panZ = 0, _freeCamMoved = false;
 
-// Pinch zoom (disabled in first-person)
-let pinchDist0=0,pinchY0=0,pinchZ0=0,pinchActive=false;
-canvas.addEventListener('touchstart',e=>{
-  if(e.touches.length===2&&!_firstPersonMode){
+const _panRaycaster = new THREE.Raycaster();
+const _panPlane     = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0); // y=0 floor
+
+function _screenToFloor(clientX, clientY) {
+  const ndc = new THREE.Vector2(
+    (clientX / window.innerWidth)  * 2 - 1,
+    -(clientY / window.innerHeight) * 2 + 1
+  );
+  _panRaycaster.setFromCamera(ndc, camera);
+  const hit = new THREE.Vector3();
+  return _panRaycaster.ray.intersectPlane(_panPlane, hit) ? hit : null;
+}
+
+// Mouse pan (desktop)
+let _mousePanning = false, _mPanLX = 0, _mPanLY = 0;
+canvas.addEventListener('mousedown', e => {
+  if (_firstPersonMode || camPreviewMode) return;
+  _mousePanning = true; _mPanLX = e.clientX; _mPanLY = e.clientY;
+});
+canvas.addEventListener('mousemove', e => {
+  if (!_mousePanning) return;
+  const c = _screenToFloor(e.clientX, e.clientY);
+  const l = _screenToFloor(_mPanLX, _mPanLY);
+  if (c && l) { _panX -= c.x - l.x; _panZ -= c.z - l.z; _freeCamMoved = true; }
+  _mPanLX = e.clientX; _mPanLY = e.clientY;
+});
+window.addEventListener('mouseup', () => { _mousePanning = false; });
+
+// Scroll zoom (desktop)
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  if (_firstPersonMode) return;
+  const f = e.deltaY < 0 ? 0.88 : 1.14;
+  camOffset.y = Math.max(0.5, Math.min(8,   camOffset.y * f));
+  camOffset.z = Math.max(0.14,Math.min(2.2, camOffset.z * f));
+}, {passive: false});
+
+// Touch: single-finger pan + two-finger pinch zoom
+let pinchDist0 = 0, pinchY0 = 0, pinchZ0 = 0, pinchActive = false;
+let _tPanning = false, _tPanLX = 0, _tPanLY = 0;
+
+canvas.addEventListener('touchstart', e => {
+  if (_firstPersonMode) return;
+  if (e.touches.length === 2) {
     e.preventDefault();
-    pinchActive=true;
-    pinchDist0=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
-    pinchY0=camOffset.y; pinchZ0=camOffset.z;
-  }
-},{passive:false});
-canvas.addEventListener('touchmove',e=>{
-  if(pinchActive&&e.touches.length===2&&!_firstPersonMode){
+    _tPanning   = false;
+    pinchActive = true;
+    pinchDist0  = Math.hypot(e.touches[0].clientX - e.touches[1].clientX,
+                             e.touches[0].clientY - e.touches[1].clientY);
+    pinchY0 = camOffset.y; pinchZ0 = camOffset.z;
+  } else if (e.touches.length === 1 && !camPreviewMode) {
     e.preventDefault();
-    const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
-    const s=pinchDist0/d;
-    camOffset.y=Math.max(0.5,Math.min(8,pinchY0*s));
-    camOffset.z=Math.max(0.14,Math.min(2.2,pinchZ0*s));
+    _tPanning = true; pinchActive = false;
+    _tPanLX = e.touches[0].clientX; _tPanLY = e.touches[0].clientY;
   }
-},{passive:false});
-canvas.addEventListener('touchend',()=>{if(event.touches.length<2)pinchActive=false;},{passive:true});
+}, {passive: false});
+
+canvas.addEventListener('touchmove', e => {
+  if (_firstPersonMode) return;
+  if (pinchActive && e.touches.length === 2) {
+    e.preventDefault();
+    const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX,
+                         e.touches[0].clientY - e.touches[1].clientY);
+    const s = pinchDist0 / d;
+    camOffset.y = Math.max(0.5, Math.min(8,   pinchY0 * s));
+    camOffset.z = Math.max(0.14,Math.min(2.2, pinchZ0 * s));
+  } else if (_tPanning && e.touches.length === 1 && !camPreviewMode) {
+    e.preventDefault();
+    const c = _screenToFloor(e.touches[0].clientX, e.touches[0].clientY);
+    const l = _screenToFloor(_tPanLX, _tPanLY);
+    if (c && l) { _panX -= c.x - l.x; _panZ -= c.z - l.z; _freeCamMoved = true; }
+    _tPanLX = e.touches[0].clientX; _tPanLY = e.touches[0].clientY;
+  }
+}, {passive: false});
+
+canvas.addEventListener('touchend', e => {
+  if (e.touches.length < 2) pinchActive = false;
+  if (e.touches.length === 0) _tPanning = false;
+}, {passive: true});
 
 // ── Resize ────────────────────────────────────────────────────────────────
 function onResize(){
@@ -322,6 +381,8 @@ function animate(){
   if(window.updateLabels) window.updateLabels(aX,aZ);
   // Update path dots
   if(window.updatePathDots) window.updatePathDots(aX,aZ);
+  // Advance Tron pulse shader
+  if(window.updatePathTron) window.updatePathTron(1/60);
   // Update nav distance
   if(window.updateNavActiveDist) window.updateNavActiveDist();
   // Destination marker (during active navigation)
@@ -387,7 +448,7 @@ window.animate              = animate;       // bootstrap.js calls window.animat
 window.animateCamera        = animateCamera;
 window.fromMarker           = fromMarker;
 window.toMarker             = toMarker;
-window.stopCamAnim      = function(){ camAnim = null; camPreviewMode = false; };
+window.stopCamAnim = function() { camAnim = null; camPreviewMode = false; _freeCamMoved = false; };
 window.setCamPreview   = function(on){ camPreviewMode = on; };
 window.overlayScene         = overlayScene;  // pathfinder.js adds pathGroup here
 
@@ -396,7 +457,8 @@ window.enterFirstPerson = function() {
   camPreviewMode = false;
   _firstPersonMode = true;
   window._firstPersonMode = true;
-  avatarRoot.visible = false; // hide avatar — we're the camera now
+  avatarRoot.visible = false;
+  _freeCamMoved = false; // so exit-FP re-centers on avatar
 };
 
 window.exitFirstPerson = function(onDone) {
@@ -404,7 +466,7 @@ window.exitFirstPerson = function(onDone) {
   _firstPersonMode = false;
   window._firstPersonMode = false;
   avatarRoot.visible = true;
-  // Animate back to top-down view centered on current avatar position
+  _panX = aX; _panZ = aZ; // re-center free cam on avatar
   animateCamera(
     { x: aX + camOffset.x, y: camOffset.y, z: aZ + camOffset.z },
     { x: aX, y: 0.02, z: aZ },

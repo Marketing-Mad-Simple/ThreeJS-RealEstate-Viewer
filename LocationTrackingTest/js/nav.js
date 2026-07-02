@@ -226,6 +226,8 @@ window.startNavigation = async function() {
 
   // 5. Switch to first-person view
   if (window.enterFirstPerson) window.enterFirstPerson();
+  const _tvBtn = document.getElementById('navViewToggle');
+  if (_tvBtn) _tvBtn.textContent = '🗺 Top View';
 
   // Clear preview markers, exit preview mode, set navigating flag
   window._previewFrom = null;
@@ -386,6 +388,20 @@ window.addEventListener('load', () => {
     }
   }, 600);
 });
+
+// ── View toggle (first-person ↔ top-down) during active navigation ───────────
+window.toggleNavView = function() {
+  const btn = document.getElementById('navViewToggle');
+  if (window._firstPersonMode) {
+    // Switch to top-down follow view
+    if (window.exitFirstPerson) window.exitFirstPerson(null);
+    if (btn) btn.textContent = '👁 First Person';
+  } else {
+    // Switch to first-person
+    if (window.enterFirstPerson) window.enterFirstPerson();
+    if (btn) btn.textContent = '🗺 Top View';
+  }
+};
 
 // ── AI assistant helper — sets from=current pos, to=stall, starts navigation ──
 window.aiNavigateTo = function (stall) {

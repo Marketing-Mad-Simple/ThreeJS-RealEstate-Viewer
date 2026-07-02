@@ -164,6 +164,7 @@ let pathMesh      = null;    // single merged mesh for the path line
 let pathGroup     = new THREE.Group();
 let pathWaypoints = [];
 let pathProgress  = 0;
+let fpMat         = null;    // ShaderMaterial for the Tron FP strip
 
 // pathGroup goes in main scene so it respects stall depth (hidden behind walls)
 // polygonOffset prevents z-fighting with floor
@@ -283,27 +284,81 @@ function buildPathLine(waypoints) {
   borderMesh.userData.isNavPath = true;
   pathGroup.add(borderMesh);
 
-  // First-person vertical strip — a translucent band floating at eye level
-  // Edge-on from top view (invisible), face-on in first-person (clearly visible)
-  const FP_Y_BOT = 0.04, FP_Y_TOP = 0.14;
-  const fpVerts = [];
+  // First-person Tron strip — vertical ribbon with animated pulse
+  const FP_Y_BOT = 0.04, FP_Y_TOP = 0.07;
+  const fpVerts = [], fpUvs = [];
+
+  // Compute per-waypoint U (0→1 along path length)
+  let fpTotal = 0;
+  const fpSegs = [];
+  for (let i = 1; i < waypoints.length; i++) {
+    const dx = waypoints[i].x - waypoints[i-1].x;
+    const dz = waypoints[i].z - waypoints[i-1].z;
+    const l = Math.sqrt(dx*dx + dz*dz);
+    fpSegs.push(l); fpTotal += l;
+  }
+  let fpCum = 0;
   for (let i = 0; i < waypoints.length; i++) {
     const px = waypoints[i].x, pz = waypoints[i].z;
-    fpVerts.push(px, FP_Y_BOT, pz);
-    fpVerts.push(px, FP_Y_TOP, pz);
+    const u = fpCum / (fpTotal || 1);
+    fpVerts.push(px, FP_Y_BOT, pz); fpUvs.push(u, 0);
+    fpVerts.push(px, FP_Y_TOP, pz); fpUvs.push(u, 1);
+    if (i < waypoints.length - 1) fpCum += fpSegs[i];
   }
+
   const fpGeo = new THREE.BufferGeometry();
   fpGeo.setAttribute('position', new THREE.Float32BufferAttribute(fpVerts, 3));
+  fpGeo.setAttribute('uv',       new THREE.Float32BufferAttribute(fpUvs,   2));
   fpGeo.setIndex(indices.slice());
   fpGeo.computeVertexNormals();
-  const fpMesh = new THREE.Mesh(fpGeo, new THREE.MeshBasicMaterial({
-    color: 0x00C8FF,
+
+  fpMat = new THREE.ShaderMaterial({
+    uniforms: { time: { value: 0.0 } },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float time;
+      varying vec2 vUv;
+      void main() {
+        // vUv.x = 0 (start) → 1 (destination) along path
+        // vUv.y = 0 (bottom) → 1 (top) of strip
+        vec3 tronCyan = vec3(0.0, 0.82, 1.0);
+
+        // Comet pulse: sharp leading edge, exponential trailing glow
+        float pPos  = mod(time * 0.55, 1.3) - 0.15;
+        float trail = vUv.x - pPos;
+        float pulse = trail < 0.0 ? exp(trail * 18.0) : 0.0;
+
+        // Top and bottom rails — the always-visible Tron lines
+        float edgeB = smoothstep(0.14, 0.0, vUv.y);
+        float edgeT = smoothstep(0.86, 1.0, vUv.y);
+        float edge  = max(edgeB, edgeT);
+
+        // Soft inner fill, barely visible at rest
+        float fill = pow(1.0 - abs(vUv.y - 0.5) * 2.0, 2.5) * 0.05;
+
+        // Base alpha: faint rails
+        float alpha = edge * 0.18 + fill;
+        // Pulse: brightens rails + creates inner glow cone
+        alpha += pulse * (edge * 1.0 + fill * 6.0);
+        alpha  = clamp(alpha, 0.0, 1.0);
+
+        // Color shifts toward white-teal at pulse peak
+        vec3 color = tronCyan + pulse * vec3(0.4, 0.6, 0.4);
+        gl_FragColor = vec4(color, alpha);
+      }
+    `,
     side: THREE.DoubleSide,
     transparent: true,
-    opacity: 0.55,
     depthWrite: false,
-    toneMapped: false,
-  }));
+  });
+
+  const fpMesh = new THREE.Mesh(fpGeo, fpMat);
   fpMesh.userData.isNavPath = true;
   pathGroup.add(fpMesh);
 }
@@ -318,6 +373,7 @@ function updatePathDots(avatarX, avatarZ) {
 function clearPath() {
   pathGroup.clear();
   pathMesh = null;
+  fpMat = null;
   pathWaypoints = [];
   pathProgress = 0;
 }
@@ -338,3 +394,4 @@ window.computePath = function(destStall) {
 
 window.clearPath = clearPath;
 window.updatePathDots = updatePathDots;
+window.updatePathTron = function(dt) { if (fpMat) fpMat.uniforms.time.value += dt; };
