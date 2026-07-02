@@ -376,9 +376,8 @@ function renderNavList() {
 }
 
 // ── Wire setDestination for backward compat (used by search) ──────────────
-window.setDestination = function(stall) {
-  setTo(stall);
-};
+window.setDestination = function(stall) { setTo(stall); };
+window.setRouteFrom  = function(stall) { setFrom(stall); };
 
 // ── Auto-populate "From = My Location" on load ────────────────────────────
 window.addEventListener('load', () => {

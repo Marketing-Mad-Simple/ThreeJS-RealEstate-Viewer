@@ -839,3 +839,96 @@ body.planner-collapsed #routePlanner{ transform:translateY(-110%); opacity:0; po
 #aiBtn:active { background: rgba(255, 107, 43, 0.25); }
 
 /* No dim overlay — 3D scene stays fully visible above the panel */
+
+/* ── Stall tap popup ──────────────────────────────────────────── */
+#stallPopup {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 180;
+  background: rgba(16, 16, 22, 0.97);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1.5px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px 20px 0 0;
+  padding: 18px 18px calc(24px + env(safe-area-inset-bottom, 0px));
+  transform: translateY(100%);
+  transition: transform 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+  pointer-events: none;
+}
+#stallPopup.open {
+  transform: translateY(0);
+  pointer-events: auto;
+}
+#stallPopupHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+#stallPopupInfo { flex: 1; min-width: 0; }
+#stallPopupId {
+  font-size: 20px;
+  font-weight: 700;
+  color: #FF6B2B;
+  line-height: 1.2;
+}
+#stallPopupName {
+  font-size: 14px;
+  color: #bbb;
+  margin-top: 4px;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#stallPopupClose {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: #aaa;
+  font-size: 16px;
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-left: 12px;
+  -webkit-tap-highlight-color: transparent;
+}
+#stallPopupClose:active { background: rgba(255, 255, 255, 0.2); }
+#stallPopupBtns {
+  display: flex;
+  gap: 10px;
+}
+#stallPopupBtns button {
+  flex: 1;
+  height: 50px;
+  border-radius: 12px;
+  border: none;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  -webkit-tap-highlight-color: transparent;
+}
+#stallPopupFrom {
+  background: rgba(74, 158, 221, 0.15);
+  border: 1.5px solid rgba(74, 158, 221, 0.45) !important;
+  color: #7ec8f5;
+}
+#stallPopupFrom:active { background: rgba(74, 158, 221, 0.3) !important; }
+#stallPopupTo {
+  background: #FF6B2B;
+  color: #fff;
+}
+#stallPopupTo:active { opacity: 0.85; }
+.sp-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  flex-shrink: 0;
+}
+.sp-from { background: #4A9EDD; }
+.sp-to   { background: #FF6B2B; }

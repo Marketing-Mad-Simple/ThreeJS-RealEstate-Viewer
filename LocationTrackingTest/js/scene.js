@@ -31,16 +31,17 @@ const camOffset  = new THREE.Vector3(0, 2.2, 0.6);
 let _firstPersonMode = false;
 const FP_EYE_HEIGHT  = 0.11; // world units above avatar floor (≈25% lower than 0.15)
 
-// ── Lighting — bright uniform, no hotspot ────────────────────────────────
-scene.add(new THREE.AmbientLight(0xffffff, 2.2));   // very bright ambient = flat even light
-// Two opposing directionals cancel shadows while adding slight depth to stall walls
-const sun = new THREE.DirectionalLight(0xffffff, 0.5);
-sun.position.set(1, 2, 1);
-sun.castShadow = false; // no shadows — keeps it bright and clean
+// ── Lighting — matches Blender sun (elevation 20°, rotation 202°, strength 0.3) ──
+// Sky ambient: world strength 0.3 → low ambient so baked lightmap contrast shows through
+scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+// Single directional sun — Blender → Three.js coord conversion (Y-up):
+//   Three.js X = cos(20°)·sin(202°) ≈ -0.352
+//   Three.js Y = sin(20°)           ≈  0.342
+//   Three.js Z = -cos(20°)·cos(202°)≈  0.871
+const sun = new THREE.DirectionalLight(0xffffff, 1.0);
+sun.position.set(-0.352, 0.342, 0.871);
+sun.castShadow = false;
 scene.add(sun);
-const sun2 = new THREE.DirectionalLight(0xffffff, 0.3);
-sun2.position.set(-1, 2, -1);
-scene.add(sun2);
 
 // ── Avatar ────────────────────────────────────────────────────────────────
 const BODY_R = 0.028, BODY_H = 0.065, AVATAR_HOVER = 0.04;
@@ -383,6 +384,8 @@ function animate(){
   if(window.updatePathDots) window.updatePathDots(aX,aZ);
   // Advance Tron pulse shader
   if(window.updatePathTron) window.updatePathTron(1/60);
+  // Pulse selected stall glow
+  if(window.updateStallGlow) window.updateStallGlow(1/60);
   // Update nav distance
   if(window.updateNavActiveDist) window.updateNavActiveDist();
   // Destination marker (during active navigation)

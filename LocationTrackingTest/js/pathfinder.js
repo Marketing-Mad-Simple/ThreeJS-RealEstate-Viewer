@@ -335,17 +335,17 @@ function buildPathLine(waypoints) {
         float pulse = trail < 0.0 ? exp(trail * 18.0) : 0.0;
 
         // Top and bottom rails — the always-visible Tron lines
-        float edgeB = smoothstep(0.14, 0.0, vUv.y);
-        float edgeT = smoothstep(0.86, 1.0, vUv.y);
+        float edgeB = smoothstep(0.35, 0.0, vUv.y);
+        float edgeT = smoothstep(0.65, 1.0, vUv.y);
         float edge  = max(edgeB, edgeT);
 
-        // Soft inner fill, barely visible at rest
-        float fill = pow(1.0 - abs(vUv.y - 0.5) * 2.0, 2.5) * 0.05;
+        // Soft inner fill
+        float fill = pow(1.0 - abs(vUv.y - 0.5) * 2.0, 2.0) * 0.15;
 
-        // Base alpha: faint rails
-        float alpha = edge * 0.18 + fill;
+        // Base alpha: visible rails
+        float alpha = edge * 0.5 + fill;
         // Pulse: brightens rails + creates inner glow cone
-        alpha += pulse * (edge * 1.0 + fill * 6.0);
+        alpha += pulse * (edge * 1.25 + fill * 5.0);
         alpha  = clamp(alpha, 0.0, 1.0);
 
         // Color shifts toward white-teal at pulse peak

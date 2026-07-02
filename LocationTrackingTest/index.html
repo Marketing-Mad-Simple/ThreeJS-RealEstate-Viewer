@@ -140,6 +140,25 @@
 
 <div id="errBox"></div>
 
+<!-- ── Stall tap popup ─────────────────────────────────────────── -->
+<div id="stallPopup">
+  <div id="stallPopupHeader">
+    <div id="stallPopupInfo">
+      <div id="stallPopupId"></div>
+      <div id="stallPopupName"></div>
+    </div>
+    <button id="stallPopupClose" onclick="closeStallPopup()">✕</button>
+  </div>
+  <div id="stallPopupBtns">
+    <button id="stallPopupFrom" onclick="stallPopupSetFrom()">
+      <span class="sp-dot sp-from"></span>Set as Start
+    </button>
+    <button id="stallPopupTo" onclick="stallPopupSetTo()">
+      <span class="sp-dot sp-to"></span>Set as Destination
+    </button>
+  </div>
+</div>
+
 <!-- ── Bottom HUD ─────────────────────────────────────────────── -->
 <div id="hud">
   <div class="hud-row">
@@ -249,6 +268,7 @@
 <script src="js/sensors.js"></script>
 <script src="js/pathfinder.js"></script>
 <script src="js/bootstrap.js"></script>
+<script src="js/stallclick.js"></script>
 <script src="js/ai.js"></script>
 
 <!-- ── Utility functions (UI only) ──────────────────────────────── -->
