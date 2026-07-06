@@ -45,35 +45,6 @@ new THREE.GLTFLoader().load(
         if (m) { m.flatShading = false; m.needsUpdate = true; }
       });
 
-      // Remap the floor's baked lightmap texture to cover the mesh exactly once.
-      // Only applies to the Floor mesh — all other meshes are left untouched.
-      if (obj.name === 'Floor') {
-        const uvAttr = obj.geometry.attributes.uv;
-        const mats2  = Array.isArray(obj.material) ? obj.material : [obj.material];
-        if (uvAttr) {
-          const arr = uvAttr.array;
-          let minU = arr[0], maxU = arr[0], minV = arr[1], maxV = arr[1];
-          for (let i = 2; i < arr.length; i += 2) {
-            const u = arr[i], v = arr[i + 1];
-            if (u < minU) minU = u; else if (u > maxU) maxU = u;
-            if (v < minV) minV = v; else if (v > maxV) maxV = v;
-          }
-          const rU = maxU - minU || 1;
-          const rV = maxV - minV || 1;
-          mats2.forEach(m => {
-            if (!m || !m.map) return;
-            m.map.wrapS   = m.map.wrapT = THREE.ClampToEdgeWrapping;
-            // 90° CCW rotation swaps U↔V axes — repeat/offset derived from
-            // opposite ranges so aspect ratio stays correct after rotation.
-            m.map.rotation = Math.PI / 2;
-            m.map.center.set(0.5, 0.5);
-            m.map.repeat.set(1 / rV, 1 / rU);
-            m.map.offset.set((0.5 - minV) / rV - 0.5, (maxU - 0.5) / rU - 0.5);
-            m.map.needsUpdate = true;
-            m.needsUpdate = true;
-          });
-        }
-      }
     });
 
     window.scene.add(gltf.scene);
