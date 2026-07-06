@@ -1,0 +1,194 @@
+[
+  {
+    "id": 1,
+    "tags": ["range", "distance", "fly", "far", "nonstop", "nautical"],
+    "questions": ["What is the range of the G700", "How far can the jet fly", "What is the maximum range", "nonstop distance", "how many nautical miles"],
+    "answer": "The Gulfstream G700 has a maximum range of 7,500 nautical miles (13,890 km) at Mach 0.85. This enables non-stop travel between city pairs such as New York to Tokyo, London to Singapore, or Dubai to Los Angeles — without a fuel stop."
+  },
+  {
+    "id": 2,
+    "tags": ["speed", "fast", "mach", "cruise", "knots"],
+    "questions": ["How fast is the G700", "What is the top speed", "maximum cruising speed", "mach number", "how fast does it fly"],
+    "answer": "The G700 cruises at Mach 0.90 (long-range cruise) and reaches a maximum operating speed of Mach 0.925. In practical terms, this is approximately 621 mph (1,000 km/h) — making it one of the fastest ultra-long-range business jets available."
+  },
+  {
+    "id": 3,
+    "tags": ["passengers", "seats", "capacity", "how many people", "cabin"],
+    "questions": ["How many passengers can it carry", "how many seats", "passenger capacity", "how many people fit", "seating capacity"],
+    "answer": "The G700 can accommodate up to 19 passengers in a typical configuration. The standard cabin layout features between 13 and 17 seats across four living areas, offering exceptional space and privacy for long-haul travel."
+  },
+  {
+    "id": 4,
+    "tags": ["interior", "cabin", "inside", "living areas", "amenities"],
+    "questions": ["What does the interior look like", "describe the cabin", "interior amenities", "what is inside the jet", "cabin features"],
+    "answer": "The G700 cabin spans 56 feet and is divided into up to five distinct living areas — typically a forward lounge, dining area, meeting zone, aft lounge, and a private stateroom. Standard features include full-flat beds, Bose noise-canceling headsets, a galley kitchen, satellite WiFi, 4K entertainment displays, and air pressure maintained at a comfortable 3,600-foot cabin altitude."
+  },
+  {
+    "id": 5,
+    "tags": ["exterior paint", "color", "livery", "paint options", "exterior finish"],
+    "questions": ["What exterior paint colors are available", "what paint options can I choose", "exterior color options", "livery choices", "body color"],
+    "answer": "In the Aether configurator, you can select from premium exterior paint finishes including Pearl White, Midnight Black, Platinum Silver, and Champagne Gold. Each finish is applied over an aerospace-grade primer and protected by a high-gloss or satin clear coat for exceptional durability and UV resistance."
+  },
+  {
+    "id": 6,
+    "tags": ["seat", "upholstery", "leather", "fabric", "seating material"],
+    "questions": ["What seat upholstery options are available", "what leather colors can I choose", "seat material options", "upholstery choices", "cabin seat fabric"],
+    "answer": "The configurator offers several seat upholstery collections: Full Leather in Ivory, Cognac, Slate, and Obsidian; as well as Alcantara Suede in Dune and Charcoal. Each material is sourced from European tanneries and tailored to aerospace safety standards."
+  },
+  {
+    "id": 7,
+    "tags": ["wood trim", "veneer", "panel", "walnut", "mahogany", "trim"],
+    "questions": ["What wood trim options are available", "what veneer can I choose", "wood panel options", "interior trim material", "cabin wood finish"],
+    "answer": "Aether offers five exquisite wood trim veneers: American Walnut with a satin finish, Dark Mahogany with a high-gloss lacquer, Pale Ash with a natural matte, Ebony with a piano gloss, and Carbon Weave — a contemporary alternative to traditional veneer. All panels are hand-fitted and bookmatched."
+  },
+  {
+    "id": 8,
+    "tags": ["lighting", "ambient", "led", "mood", "cabin light", "color light"],
+    "questions": ["What ambient lighting options are available", "what cabin light colors can I choose", "mood lighting options", "led light colors", "interior lighting"],
+    "answer": "The G700 features a full-cabin LED lighting system with tunable color and intensity. Through the Aether configurator, you can select from Warm White (a soft 2700K glow), Cool White (crisp 5000K daylight), Amber (a warm golden tone), Blue Sky (a calming blue-white), Twilight Rose, and Emerald — each tunable in brightness to create the ideal atmosphere."
+  },
+  {
+    "id": 9,
+    "tags": ["floor", "carpet", "flooring", "cabin floor"],
+    "questions": ["What floor material options are available", "what carpet can I choose", "floor covering options", "cabin flooring"],
+    "answer": "The cabin floor can be configured with two premium finishes: Natural — a warm blonde toned wood-plank style composite — and Dark, a deep espresso finish. Both are engineered for aerospace applications, offering soft underfoot feel with structural rigidity and ease of maintenance."
+  },
+  {
+    "id": 10,
+    "tags": ["metal finish", "hardware", "fixtures", "accent", "metallic"],
+    "questions": ["What metal finish options are available", "hardware finish choices", "cabin metal accents", "fixture finishes", "metallic trim options"],
+    "answer": "Three curated metal finishes are available for cabin hardware, fixtures, and accent trim: Metal A — a polished brushed nickel; Metal B — a satin gold / champagne tone; and Metal C — a dark oil-rubbed bronze. These apply to galley fixtures, seat armrest trim, window surrounds, and door hardware."
+  },
+  {
+    "id": 11,
+    "tags": ["surface finish", "gloss", "matte", "satin", "exterior finish"],
+    "questions": ["What surface finish options are available", "gloss vs matte exterior", "satin finish option", "exterior surface treatment", "paint sheen"],
+    "answer": "The exterior paint can be finished in Gloss (mirror-bright, the classic choice for maximum visual impact), Satin (an elegant semi-matte with a soft sheen), or Matte (a contemporary ultra-flat finish that absorbs light for a stealthy, bespoke look). Gloss is the most durable for maintenance in long-range operations."
+  },
+  {
+    "id": 12,
+    "tags": ["stripe", "accent", "livery", "line", "decoration", "exterior accent"],
+    "questions": ["Can I add an accent stripe", "what stripe options are available", "exterior decoration line", "livery accent", "fuselage stripe"],
+    "answer": "Yes — the Aether configurator offers three accent stripe options: no stripe (clean minimalist look), a Classic Gold pinstripe along the fuselage waterline, and a Dual Silver split-stripe for a sportier profile. Stripes are painted before the clear coat application for a seamless integrated finish."
+  },
+  {
+    "id": 13,
+    "tags": ["price", "cost", "how much", "value", "pricing", "quote"],
+    "questions": ["How much does the G700 cost", "what is the price", "pricing information", "how much does it cost", "request a quote", "cost of the jet"],
+    "answer": "A new Gulfstream G700 has a base list price of approximately $78 million USD. Final pricing varies significantly based on your customisation choices, delivery timeline, and any additional options such as connectivity packages, enhanced galley, or bespoke interior elements. Click 'Request a Quote' to connect with an Aether aviation specialist for a tailored proposal."
+  },
+  {
+    "id": 14,
+    "tags": ["delivery", "wait time", "lead time", "how long", "order"],
+    "questions": ["How long is the delivery wait time", "when can I take delivery", "order lead time", "how long to get the jet", "delivery timeline"],
+    "answer": "Current Gulfstream G700 delivery lead times are approximately 2 to 3 years from the date of contract signing, due to high demand. Aether can assist with expedited options including pre-owned G700 acquisitions with delivery in as little as 60 days, or interim fractional charter arrangements while you await delivery."
+  },
+  {
+    "id": 15,
+    "tags": ["configurator", "how to use", "configure", "customise", "personalize", "select"],
+    "questions": ["How do I use the configurator", "how do I customise my jet", "how to select options", "how does the configurator work", "how to change materials"],
+    "answer": "The Aether configurator is intuitive to use. On the right-side panel, select 'Exterior' or 'Interior' using the toggle at the top, then browse each material category — paint, trim, upholstery, lighting and more. Click any option card to apply it instantly in 3D. On mobile, swipe up the bottom sheet to expand the panel. Drag the 3D view to orbit, scroll to zoom."
+  },
+  {
+    "id": 16,
+    "tags": ["3d view", "rotate", "orbit", "zoom", "pan", "camera", "view"],
+    "questions": ["How do I rotate the view", "how do I zoom in", "how to pan the camera", "how to orbit around the jet", "3d navigation controls"],
+    "answer": "To navigate the 3D view: drag with your left mouse button (or one finger on touch) to orbit around the aircraft. Scroll your mouse wheel (or pinch with two fingers) to zoom in and out. Right-click and drag (or two-finger drag on touch) to pan the view. Press the reset button in the top-right to return to the default camera angle."
+  },
+  {
+    "id": 17,
+    "tags": ["exterior", "interior", "switch", "toggle", "view mode"],
+    "questions": ["How do I switch between exterior and interior", "how to view the inside", "how to toggle views", "switch to interior view", "exterior interior toggle"],
+    "answer": "Use the 'Exterior / Interior' pill toggle at the top centre of the screen to switch between the two views. In Exterior mode you can configure paint, stripe, and surface finish. In Interior mode you can personalise the seat upholstery, wood trim, floor, metal accents, cabin plastic, and ambient lighting."
+  },
+  {
+    "id": 18,
+    "tags": ["aether", "company", "who", "about", "brand", "aviation"],
+    "questions": ["Who is Aether", "what is Aether Private Aviation", "tell me about the company", "about Aether", "what does Aether do"],
+    "answer": "Aether Private Aviation is a luxury aircraft sales and personalisation studio specialising in ultra-long-range business jets. We offer bespoke configuration services, acquisition consulting, and a white-glove ownership experience — from factory order through to handover and ongoing support. Our philosophy is to match the exceptional performance of the aircraft with an equally exceptional ownership experience."
+  },
+  {
+    "id": 19,
+    "tags": ["gulfstream", "g700", "aircraft", "model", "maker", "manufacturer"],
+    "questions": ["Who makes the G700", "what company manufactures the G700", "Gulfstream manufacturer", "who built the G700", "G700 manufacturer"],
+    "answer": "The Gulfstream G700 is manufactured by Gulfstream Aerospace, a subsidiary of General Dynamics headquartered in Savannah, Georgia, USA. It entered service in 2022 and represents the pinnacle of Gulfstream's engineering — the largest, longest-range, and most advanced aircraft in their fleet."
+  },
+  {
+    "id": 20,
+    "tags": ["cabin altitude", "pressurisation", "altitude", "comfort", "air quality", "oxygen"],
+    "questions": ["What is the cabin altitude", "how is the air quality on board", "cabin pressurisation", "does the cabin feel comfortable at cruise altitude", "oxygen levels in cabin"],
+    "answer": "The G700 maintains a cabin altitude of just 3,600 feet when cruising at 51,000 feet — industry-leading pressurisation that significantly reduces fatigue and jet lag. The air is 100% fresh (not recirculated), humidity-controlled, and Gulfstream's Ultraflex windows admit ample natural light while blocking UV radiation."
+  },
+  {
+    "id": 21,
+    "tags": ["wifi", "connectivity", "internet", "communication", "broadband", "satellite"],
+    "questions": ["Does the G700 have WiFi", "what connectivity is available", "internet on board", "can I work on the jet", "satellite broadband"],
+    "answer": "Yes — the G700 supports Ka-band and Ku-band satellite internet providing broadband speeds comparable to a good home connection. The system supports HD video conferencing, live streaming, and seamless voice calls. A comprehensive avionics suite also includes SATCOM voice and text communication independent of passenger WiFi."
+  },
+  {
+    "id": 22,
+    "tags": ["fuel", "efficiency", "consumption", "economy", "burn rate"],
+    "questions": ["How fuel efficient is the G700", "what is the fuel burn rate", "fuel consumption", "operating costs fuel", "how much fuel does it use"],
+    "answer": "The G700 is powered by two Rolls-Royce Pearl 700 engines, each producing 18,250 lbs of thrust with best-in-class fuel efficiency for its range category. Typical fuel burn at long-range cruise is approximately 280 gallons per hour per engine. With a fuel capacity of 8,800 gallons, the aircraft achieves its 7,500 nm range capability."
+  },
+  {
+    "id": 23,
+    "tags": ["crew", "pilots", "flight crew", "how many pilots", "attendant"],
+    "questions": ["How many crew members are required", "how many pilots does the G700 need", "flight crew requirements", "how many flight attendants", "crew size"],
+    "answer": "The G700 requires two pilots for all operations. The Symmetry Flight Deck features side-stick controllers and the most advanced avionics in business aviation. For long-range international flights, operators typically carry an augmented crew of three or four pilots. One or two cabin attendants are usually included to manage the galley and passenger comfort."
+  },
+  {
+    "id": 24,
+    "tags": ["runway", "takeoff", "landing", "airport", "field length"],
+    "questions": ["What runway length does the G700 need", "what airports can the G700 use", "takeoff distance required", "field length requirement", "landing distance"],
+    "answer": "The G700 requires approximately 6,000 feet (1,829 m) of runway for a standard maximum takeoff weight departure — giving it access to most major international airports. At lighter loads it can operate from shorter runways around 5,200 feet, opening up access to secondary airports closer to your final destination."
+  },
+  {
+    "id": 25,
+    "tags": ["operating cost", "maintenance", "annual cost", "total cost", "hourly cost"],
+    "questions": ["What are the operating costs", "how much does it cost to operate per year", "hourly operating cost", "maintenance costs", "annual operating budget"],
+    "answer": "Total annual operating costs for a G700 used approximately 400 hours per year are typically in the range of $4.5 to $6 million USD. This includes fuel, crew salaries, maintenance, hangar, insurance, and management fees. Variable costs (primarily fuel) run roughly $6,000 to $8,000 per flight hour depending on fuel prices and route conditions."
+  },
+  {
+    "id": 26,
+    "tags": ["stateroom", "bedroom", "bed", "sleep", "rest", "private room"],
+    "questions": ["Does the G700 have a bedroom", "can I sleep on board", "is there a stateroom", "private sleeping area", "full flat bed"],
+    "answer": "Yes — the aft section of the G700 can be configured as a private stateroom with a full-flat double bed. The partition between the stateroom and main cabin provides true privacy. The bed converts from a club seating arrangement, and the area includes dedicated wardrobe storage, nightstands, and mood lighting controls."
+  },
+  {
+    "id": 27,
+    "tags": ["galley", "kitchen", "food", "catering", "chef", "cooking"],
+    "questions": ["What kitchen facilities are on board", "is there a galley", "food preparation options", "catering on the G700", "can a chef cook on board"],
+    "answer": "The G700 features a fully equipped forward galley with a full-size oven, convection microwave, espresso machine, refrigerator, wine chiller, and ample storage for catering supplies. A dedicated galley attendant station allows a professional chef to prepare multi-course meals at altitude — with an equipment spec that rivals a fine-restaurant kitchen."
+  },
+  {
+    "id": 28,
+    "tags": ["safety", "certified", "regulation", "FAA", "certification", "safe"],
+    "questions": ["Is the G700 safe", "what safety certifications does it have", "FAA certification", "is it certified", "safety standards"],
+    "answer": "The Gulfstream G700 is fully certified by the FAA, EASA, and multiple international aviation authorities. It exceeds all current safety requirements and features redundant systems throughout — dual hydraulics, triple avionics buses, automatic envelope protection, and synthetic vision. Business aviation consistently records the highest safety standards in commercial aviation."
+  },
+  {
+    "id": 29,
+    "tags": ["windows", "window size", "natural light", "Oval windows", "view"],
+    "questions": ["How big are the windows", "what are the windows like", "window size on G700", "natural light in cabin", "oval windows"],
+    "answer": "The G700 features 20 panoramic oval windows — the largest in its class at 28 x 20 inches — flooding the cabin with exceptional natural light. Electrochromatic dimming shades eliminate traditional pull-down blinds, allowing electronic control of light intensity with a simple touch. The windows also incorporate Gulfstream's UV-blocking technology."
+  },
+  {
+    "id": 30,
+    "tags": ["plastic", "cabin panel", "sidewall", "trim panel"],
+    "questions": ["What cabin plastic options are there", "sidewall panel finish", "cabin trim panel color", "interior plastic finish"],
+    "answer": "The cabin plastic panels — covering sidewalls, overhead bins, and partition dividers — are available in Light (a warm off-white that maximises the sense of space), and Dark (a deep charcoal tone for a more dramatic, intimate atmosphere). Both finishes are UV-stable and can be matched to your chosen wood and upholstery palette."
+  },
+  {
+    "id": 31,
+    "tags": ["fullscreen", "expand", "maximize", "view", "screen"],
+    "questions": ["How do I go fullscreen", "can I expand the view", "fullscreen mode", "maximize the 3d view"],
+    "answer": "Click the fullscreen button in the top-right header (the expand arrows icon) to enter fullscreen mode. Press Escape or click the button again to exit. Fullscreen mode is ideal for immersive exploration of the aircraft and detailed examination of material textures."
+  },
+  {
+    "id": 32,
+    "tags": ["reset", "camera reset", "default view", "start over", "original position"],
+    "questions": ["How do I reset the camera", "how to return to default view", "reset the 3d view", "go back to original camera position"],
+    "answer": "Click the reset camera button (circular arrow icon) in the top-right header to instantly return the camera to its default angle and zoom level. This is useful if you've orbited or zoomed into a specific area and want to return to the standard overview perspective."
+  }
+]
