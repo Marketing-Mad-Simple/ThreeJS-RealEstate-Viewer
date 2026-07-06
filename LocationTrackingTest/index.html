@@ -179,7 +179,10 @@
       <span class="ai-title-text">AI Assistant</span>
       <span id="aiModelBadge">Local AI</span>
     </div>
-    <button onclick="toggleAIPanel()">✕</button>
+    <div class="ai-title-right">
+      <button id="aiTtsBtn" class="tts-on" onclick="toggleTTS()" title="Toggle voice">🔊</button>
+      <button onclick="toggleAIPanel()">✕</button>
+    </div>
   </div>
   <div id="aiMessages">
     <div class="ai-msg assistant">Hi! I'm your convention navigator. Say "take me to [stall name]" or ask me to find anything!</div>

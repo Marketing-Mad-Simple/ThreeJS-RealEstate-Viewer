@@ -8,6 +8,49 @@
   let chatHistory = [];    // [{role, content}] kept for LLM multi-turn context
   let pendingStall = null; // Last suggested stall, resolved on next "yes" reply
 
+  // ── TTS (Web Speech API) ─────────────────────────────────────────────────────
+  let ttsEnabled = true;
+  let cachedVoices = [];
+
+  if (window.speechSynthesis) {
+    const loadVoices = () => { cachedVoices = speechSynthesis.getVoices(); };
+    speechSynthesis.addEventListener('voiceschanged', loadVoices);
+    loadVoices();
+  }
+
+  function ttsSpeak(text) {
+    if (!ttsEnabled || !window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const clean = text
+      .replace(/•\s*/g, '')      // bullet points
+      .replace(/\[.*?\]/g, '')   // [Category] tags
+      .replace(/\n+/g, '. ')     // newlines → sentence break
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+    if (!clean) return;
+    const utt = new SpeechSynthesisUtterance(clean);
+    utt.lang = 'en-US';
+    utt.rate = 1.05;
+    const voice =
+      cachedVoices.find(v => /en[-_](US|GB)/i.test(v.lang) && v.localService && /female|zira|samantha|karen|moira|fiona|victoria|tessa/i.test(v.name))
+      || cachedVoices.find(v => /en/i.test(v.lang) && /female|zira|samantha|karen|moira|fiona|victoria|tessa/i.test(v.name))
+      || cachedVoices.find(v => /samantha|zira|karen/i.test(v.name))
+      || cachedVoices.find(v => /en[-_](US|GB)/i.test(v.lang) && v.localService)
+      || cachedVoices.find(v => /en/i.test(v.lang));
+    if (voice) utt.voice = voice;
+    window.speechSynthesis.speak(utt);
+  }
+
+  window.toggleTTS = function() {
+    ttsEnabled = !ttsEnabled;
+    const btn = document.getElementById('aiTtsBtn');
+    if (btn) {
+      btn.textContent = ttsEnabled ? '🔊' : '🔇';
+      btn.classList.toggle('tts-on', ttsEnabled);
+    }
+    if (!ttsEnabled && window.speechSynthesis) window.speechSynthesis.cancel();
+  };
+
   // ── Intent patterns ──────────────────────────────────────────────────────────
   const RE_NAV    = /\b(take me|navigate|go to|directions?|route|bring me|walk me|get me)\b/i;
   const RE_NEARBY = /\b(near(by)?|close|around me|closest)\b/i;
@@ -415,6 +458,7 @@
     div.textContent = text;
     wrap.appendChild(div);
     wrap.scrollTop = wrap.scrollHeight;
+    if (role === 'assistant') ttsSpeak(text);
     return div;
   }
 
@@ -423,6 +467,7 @@
     document.getElementById('devPanel').classList.remove('open');
     const panel = document.getElementById('aiPanel');
     const open = panel.classList.toggle('open');
+    if (!open && window.speechSynthesis) window.speechSynthesis.cancel();
     if (open && modelState === 'idle') loadModel();
   };
 
