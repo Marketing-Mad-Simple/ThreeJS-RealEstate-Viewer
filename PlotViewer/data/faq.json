@@ -1,0 +1,161 @@
+{
+  "project": {
+    "name": "MMS Experience",
+    "type": "Premium Residential Plotted Development",
+    "location": "Prime city location with excellent connectivity",
+    "developer": "MMS Experience Developers",
+    "totalPlots": 57
+  },
+  "faqs": [
+    {
+      "category": "General",
+      "question": "What is MMS Experience?",
+      "answer": "MMS Experience is a premium plotted residential development offering 57 individual plots across three sizes — Small, Medium, and Large. Designed for those who value the freedom to build their dream home, the layout features wide internal roads, green buffers, and all essential infrastructure."
+    },
+    {
+      "category": "General",
+      "question": "Who is the developer of this project?",
+      "answer": "The project is developed by MMS Experience Developers, known for delivering premium planned communities with attention to detail, timely possession, and high construction standards."
+    },
+    {
+      "category": "General",
+      "question": "How many plots are there in total?",
+      "answer": "There are 57 plots in total across this layout. You can view real-time availability — available (green), reserved (amber), and sold (blue) — directly in the interactive 3D site viewer."
+    },
+    {
+      "category": "General",
+      "question": "What makes this project different from other plotted developments?",
+      "answer": "MMS Experience stands out with a fully planned infrastructure — tarred internal roads, underground drainage and water supply, dedicated utility corridors, compound wall, security cabin, and a central landscaped zone. All plots are clear-title and RERA registered."
+    },
+    {
+      "category": "Plot Types",
+      "question": "What plot sizes are available?",
+      "answer": "Three plot sizes are available: Small (96 sqm · 8×12 m), Medium (150 sqm · 10×15 m), and Large (216 sqm · 12×18 m). Each size is ideal for different home designs — from compact villas to spacious bungalows."
+    },
+    {
+      "category": "Plot Types",
+      "question": "Tell me about the Small plots.",
+      "answer": "Small plots are 96 sqm (8×12 m) — ideal for a compact 2 or 3 BHK villa or duplex. Prices range from ₹36L to ₹42L depending on facing and location within the layout. Many Small plots are currently available."
+    },
+    {
+      "category": "Plot Types",
+      "question": "Tell me about the Medium plots.",
+      "answer": "Medium plots are 150 sqm (10×15 m) — well-suited for a spacious 3 or 4 BHK independent house with a garden. Prices range from ₹55L to ₹65L. Several Medium plots are available across North, East, and South facings."
+    },
+    {
+      "category": "Plot Types",
+      "question": "Tell me about the Large plots.",
+      "answer": "Large plots are 216 sqm (12×18 m) — perfect for a large bungalow or duplex villa with ample outdoor space. Prices range from ₹82L to ₹92L. A few Large plots are still available — tap any green Large plot in the viewer for details."
+    },
+    {
+      "category": "Plot Types",
+      "question": "Which facing directions are available?",
+      "answer": "Plots are available in all four cardinal directions — North, East, South, and West. North and East facing plots are particularly popular for vastu compliance and natural morning light. Use the interactive 3D viewer to tap any plot and see its exact facing."
+    },
+    {
+      "category": "Pricing",
+      "question": "What are the prices of the plots?",
+      "answer": "Plot prices depend on size and facing: Small plots (96 sqm) — ₹36L to ₹42L. Medium plots (150 sqm) — ₹55L to ₹65L. Large plots (216 sqm) — ₹82L to ₹92L. Tap any plot in the 3D viewer for its exact price."
+    },
+    {
+      "category": "Pricing",
+      "question": "What is the price per square metre?",
+      "answer": "The effective price per sqm ranges from approximately ₹3,700 to ₹4,300 depending on the plot size and location within the layout. Corner plots and east/north-facing plots may carry a slight premium. Contact our sales team for a detailed cost sheet."
+    },
+    {
+      "category": "Pricing",
+      "question": "Are there any extra charges over the listed price?",
+      "answer": "The listed price covers the plot area. Additional government charges — stamp duty, registration fees, and any applicable GST — are payable separately at the time of registration. A one-time infrastructure corpus fund and annual society maintenance charge may also apply. Our sales team will provide a transparent full cost breakdown."
+    },
+    {
+      "category": "Pricing",
+      "question": "What payment plans are available?",
+      "answer": "We offer flexible payment options including a construction-linked plan and a down-payment plan with special discounts. Home loan assistance is available through tie-ups with leading banks and NBFCs. Contact our sales team for a personalised payment structure."
+    },
+    {
+      "category": "Availability",
+      "question": "Which plots are currently available?",
+      "answer": "A large number of plots are currently available across all three sizes and all facing directions. Tap any green plot in the 3D viewer to see its details and enquire. Amber plots are reserved and blue plots have been sold."
+    },
+    {
+      "category": "Availability",
+      "question": "How many plots are available right now?",
+      "answer": "The 3D site viewer shows live availability — green plots are available, amber are reserved, and blue are sold. Tap the 'Available' filter button to highlight only the open plots, or ask me 'how many plots are available' for a live count."
+    },
+    {
+      "category": "Availability",
+      "question": "Are there any north-facing plots available?",
+      "answer": "Yes, several North-facing plots are available across Small and Large sizes. Tap the 'Available' filter in the viewer and look at the north edge of the layout — those green plots are north-facing. Tap any one for details."
+    },
+    {
+      "category": "Availability",
+      "question": "Are there any east-facing plots available?",
+      "answer": "Yes, East-facing Medium and Large plots are available. East-facing plots catch excellent morning sunlight and are vastu-preferred. Tap any available (green) plot on the east side of the layout for details."
+    },
+    {
+      "category": "Infrastructure",
+      "question": "What infrastructure is provided in the layout?",
+      "answer": "The layout includes: fully tarred internal roads with footpaths, underground water supply and drainage, underground electricity and telecom ducts, street lighting, compound wall with main gate and security cabin, landscaped central green zone, and rainwater harvesting pits."
+    },
+    {
+      "category": "Infrastructure",
+      "question": "Are the roads inside the layout tarred and wide enough?",
+      "answer": "Yes, all internal roads are fully tarred. Main arterial roads are 12 metres wide and internal access roads are 9 metres wide — wide enough for two-way traffic and easy access for construction vehicles."
+    },
+    {
+      "category": "Infrastructure",
+      "question": "Is water supply and drainage included?",
+      "answer": "Yes, underground water supply and sewage drainage lines are part of the layout infrastructure. Every plot has a dedicated water supply connection point and drainage stub ready at the plot boundary."
+    },
+    {
+      "category": "Infrastructure",
+      "question": "What security features are in place?",
+      "answer": "The layout has a perimeter compound wall, a guarded main entrance with a security cabin, CCTV cameras at the entrance and key junctions, and round-the-clock security. A residents' society manages long-term security and maintenance."
+    },
+    {
+      "category": "Booking",
+      "question": "How do I book a plot?",
+      "answer": "Tap 'Enquire Now' on any available plot in the 3D viewer to express interest. Our sales team will contact you within 24 hours to walk you through the booking process, documentation, and payment plans."
+    },
+    {
+      "category": "Booking",
+      "question": "What documents are required to book a plot?",
+      "answer": "Typical documents required: PAN card, Aadhaar card (or passport), recent passport photographs, and address proof. Home loan applicants will also need income documents and bank statements. Our executive will provide a complete personalised checklist."
+    },
+    {
+      "category": "Booking",
+      "question": "What is the booking amount or token deposit?",
+      "answer": "The booking token is typically 5–10% of the plot value, with flexibility based on the chosen payment plan. Contact our sales team for the exact amount and any current limited-time booking offers."
+    },
+    {
+      "category": "Booking",
+      "question": "Can I visit the site before booking?",
+      "answer": "Absolutely — site visits are warmly welcomed. Use the enquiry form to request a visit and our team will schedule a convenient slot. You can also explore the entire layout right now in this interactive 3D viewer."
+    },
+    {
+      "category": "Legal",
+      "question": "Is the project RERA registered?",
+      "answer": "Yes, MMS Experience is registered under the applicable RERA authority. Please contact our sales team for the RERA registration number and to review all government-approved plan documents."
+    },
+    {
+      "category": "Legal",
+      "question": "Is the land title clear and free of disputes?",
+      "answer": "Yes, the land has a clear and marketable title. All legal due diligence has been completed and relevant approvals are in place. Our sales team can share the complete legal documents package on request."
+    },
+    {
+      "category": "Legal",
+      "question": "When will I get possession of the plot?",
+      "answer": "Since these are ready-to-register plots with full infrastructure already in place, possession is given upon completion of registration formalities. Contact our sales team for the exact registration and possession timeline."
+    },
+    {
+      "category": "Contact",
+      "question": "How do I contact the sales team?",
+      "answer": "Tap 'Enquire Now' on any available plot in the viewer, or fill in the enquiry form. Our sales team responds within 24 hours on business days. You can also call or visit our sales office — details are shared on enquiry."
+    },
+    {
+      "category": "Contact",
+      "question": "Can I get a brochure or layout plan?",
+      "answer": "Yes! Submit an enquiry and our team will send you a digital brochure with the full layout plan, infrastructure details, pricing sheet, and payment terms — usually within a few hours."
+    }
+  ]
+}

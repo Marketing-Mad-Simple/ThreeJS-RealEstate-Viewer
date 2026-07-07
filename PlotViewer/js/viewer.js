@@ -326,7 +326,8 @@ window.addEventListener('touchend', (e) => {
     const id = el.id || '';
     if (id === 'filter-panel' || id === 'controls-panel' ||
         id === 'plot-popup'   || id === 'stats-bar'      ||
-        id === 'legend'       || id === 'compass') return;
+        id === 'legend'       || id === 'compass'        ||
+        id === 'chat-fab'     || id === 'chat-panel') return;
     el = el.parentElement;
   }
 

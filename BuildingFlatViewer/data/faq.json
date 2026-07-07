@@ -1,0 +1,150 @@
+{
+  "project": {
+    "name": "MMS Residences",
+    "type": "Premium Residential Apartments",
+    "location": "Prime city location with excellent connectivity",
+    "developer": "MMS Experience Developers"
+  },
+  "faqs": [
+    {
+      "category": "General",
+      "question": "What is MMS Residences?",
+      "answer": "MMS Residences is a premium residential development offering luxury 2 BHK, 3 BHK, and 4 BHK apartments. The project is designed for discerning buyers who value space, comfort, and premium finishes in a well-connected location."
+    },
+    {
+      "category": "General",
+      "question": "Who is the developer of this project?",
+      "answer": "The project is developed by MMS Experience Developers, known for delivering high-quality residential spaces with meticulous attention to detail and premium construction standards."
+    },
+    {
+      "category": "General",
+      "question": "How many units are there in this building?",
+      "answer": "The current phase features 4 apartment units on the 3rd floor. You can view real-time availability — available, reserved, and sold — directly in the interactive 3D floor plan on this page."
+    },
+    {
+      "category": "Availability",
+      "question": "Which flats are currently available for purchase?",
+      "answer": "Two flats are currently available: Flat 1 (3 BHK, 1,240 sqft, North-East facing, ₹1.2 Cr) and Flat 4 (2 BHK, 1,100 sqft, East facing, ₹96L). Both include dedicated covered parking. Tap any unit in the 3D viewer for full details."
+    },
+    {
+      "category": "Availability",
+      "question": "What is the availability status of all flats?",
+      "answer": "Flat 1 — Available (3 BHK, ₹1.2 Cr). Flat 2 — Reserved (2 BHK, ₹88L). Flat 3 — Sold (4 BHK, ₹1.6 Cr). Flat 4 — Available (2 BHK, ₹96L). The colour-coded 3D model on this page shows live status at a glance."
+    },
+    {
+      "category": "Availability",
+      "question": "Is any 4 BHK flat available?",
+      "answer": "The 4 BHK unit (Flat 3, 1,560 sqft, ₹1.6 Cr) has been sold. Please enquire to be notified if a similar unit becomes available in a future phase."
+    },
+    {
+      "category": "Availability",
+      "question": "Are there any 2 BHK flats available?",
+      "answer": "Yes! Flat 4 is a 2 BHK (1,100 sqft, East facing, 1 balcony, ₹96L) and is currently available. Flat 2 (2 BHK, 980 sqft, ₹88L) is reserved. Tap Flat 4 in the viewer to explore and enquire."
+    },
+    {
+      "category": "Pricing",
+      "question": "What are the prices of the flats?",
+      "answer": "Flat 1: ₹1.2 Cr (3 BHK, 1,240 sqft) — Available. Flat 2: ₹88L (2 BHK, 980 sqft) — Reserved. Flat 3: ₹1.6 Cr (4 BHK, 1,560 sqft) — Sold. Flat 4: ₹96L (2 BHK, 1,100 sqft) — Available."
+    },
+    {
+      "category": "Pricing",
+      "question": "What is the price per square foot?",
+      "answer": "The price per sqft ranges from approximately ₹8,700 to ₹9,700 depending on the unit type, facing, and size. Contact our sales team for a detailed cost sheet and current offers."
+    },
+    {
+      "category": "Pricing",
+      "question": "Are there any extra charges on top of the listed price?",
+      "answer": "The listed price covers the apartment and dedicated parking. Additional government charges such as stamp duty, registration fees, and GST (as applicable) are payable separately. A society maintenance deposit may also be required. Our sales team will provide a complete cost breakdown."
+    },
+    {
+      "category": "Pricing",
+      "question": "What payment plans are available?",
+      "answer": "We offer flexible payment options including construction-linked plans and down-payment plans with attractive discounts. Home loan assistance is available through tie-ups with leading banks. Contact our sales team for a personalised payment structure tailored to your needs."
+    },
+    {
+      "category": "Flat Types",
+      "question": "What types of apartments are offered?",
+      "answer": "Three configurations are available: 2 BHK (980–1,100 sqft), 3 BHK (1,240 sqft), and 4 BHK (1,560 sqft). All apartments include private balconies and dedicated parking, with premium finishes throughout."
+    },
+    {
+      "category": "Flat Types",
+      "question": "Tell me about the 3 BHK apartment.",
+      "answer": "Flat 1 is our 3 BHK — 1,240 sqft, North-East facing (excellent vastu and natural morning light), 2 balconies, 1 covered parking. Priced at ₹1.2 Cr. Currently available. Tap it in the 3D viewer to explore and enquire."
+    },
+    {
+      "category": "Flat Types",
+      "question": "What are the details of the available 2 BHK flat?",
+      "answer": "Flat 4 is the available 2 BHK — 1,100 sqft, East facing, great morning light, 1 balcony, 1 covered parking, priced at ₹96L. Flat 2 (980 sqft, ₹88L, South facing) is reserved but you can enquire for updates."
+    },
+    {
+      "category": "Flat Types",
+      "question": "What facing directions do the apartments have?",
+      "answer": "Flat 1 faces North-East (vastu-preferred, bright morning light). Flat 2 faces South. Flat 3 faces West (beautiful sunset views). Flat 4 faces East (excellent morning light). Both available units offer great natural light."
+    },
+    {
+      "category": "Amenities",
+      "question": "What amenities are included in MMS Residences?",
+      "answer": "MMS Residences includes covered and open parking, 24/7 security with CCTV surveillance, power backup for common areas, high-speed elevators, landscaped common areas, and premium lobby interiors. Contact our sales team for the complete amenities list."
+    },
+    {
+      "category": "Amenities",
+      "question": "Is parking included with the flat?",
+      "answer": "Yes, every apartment includes dedicated parking. Flat 1 and Flat 4 (both available) come with 1 covered parking space each. Flat 3 included 2 covered spaces. Flat 2 has 1 open parking space."
+    },
+    {
+      "category": "Amenities",
+      "question": "How many balconies does each flat have?",
+      "answer": "Flat 1 has 2 balconies, Flat 2 has 1 balcony, Flat 3 had 3 balconies (the most spacious), and Flat 4 has 1 balcony. All balconies are generously sized to allow outdoor seating."
+    },
+    {
+      "category": "Amenities",
+      "question": "What is the construction and finish quality like?",
+      "answer": "MMS Residences uses premium construction — RCC structure, high-quality vitrified flooring, branded sanitaryware, modular kitchen provisions, and high-grade aluminium windows. Finishes are designed to meet luxury residential standards throughout."
+    },
+    {
+      "category": "Location",
+      "question": "Where is MMS Residences located?",
+      "answer": "MMS Residences is in a prime city location with excellent road and transit connectivity. For the exact address and to schedule a site visit, please contact our sales team — they'll be delighted to arrange it at your convenience."
+    },
+    {
+      "category": "Booking",
+      "question": "How do I book a flat?",
+      "answer": "Tap the 'Enquire Now' button on any available unit in the 3D viewer to get started, or fill in the enquiry form. Our sales team will contact you within 24 hours to walk you through the booking process step by step."
+    },
+    {
+      "category": "Booking",
+      "question": "What documents are needed to book?",
+      "answer": "You will typically need: PAN card, Aadhaar card, recent passport-size photographs, and proof of address. Home loan applicants will also need income and bank documents. Our sales executive will provide a complete personalised checklist."
+    },
+    {
+      "category": "Booking",
+      "question": "What is the booking amount or token deposit?",
+      "answer": "The booking amount is typically 5–10% of the total sale value, with flexibility depending on the payment plan chosen. Please contact our sales team for the exact figure and any current limited-time offers."
+    },
+    {
+      "category": "Booking",
+      "question": "Can I visit the site before booking?",
+      "answer": "Absolutely — we encourage site visits! Use the enquiry form to request a visit and our team will schedule a convenient time for you. A 360° virtual tour is also being added to this platform soon."
+    },
+    {
+      "category": "Legal",
+      "question": "Is the project RERA registered?",
+      "answer": "MMS Residences is developed in compliance with applicable real estate regulations including RERA. Please contact our sales team for the RERA registration number and to review the project approval documents."
+    },
+    {
+      "category": "Legal",
+      "question": "When will I get possession of the flat?",
+      "answer": "Possession timelines vary by unit. Please contact our sales team for the accurate possession schedule for the specific flat you are interested in — they'll share the construction milestone timeline as well."
+    },
+    {
+      "category": "Contact",
+      "question": "How do I contact the sales team?",
+      "answer": "Simply tap 'Enquire Now' on any available flat in the viewer, or fill in the enquiry form. Our team responds within 24 hours on business days. You can also call or visit our sales office — details available on enquiry."
+    },
+    {
+      "category": "Contact",
+      "question": "Can I get a brochure or floor plan?",
+      "answer": "Yes! Submit an enquiry and our sales team will send you a detailed digital brochure including floor plans, specifications, payment plans, and project highlights — usually within a few hours."
+    }
+  ]
+}
